@@ -160,6 +160,39 @@
         }
         .balance-panel .balance-label { font-size: 12px; color: var(--text-muted); text-transform: uppercase; letter-spacing: .06em; margin-bottom: 6px; }
         .balance-panel .balance-amount { font-size: 38px; font-weight: 900; color: #a5b4fc; }
+
+        /* Card Status Badge */
+        .card-status-badge {
+            position: absolute; top: 20px; right: 20px;
+            padding: 4px 12px; border-radius: 20px;
+            font-size: 10px; font-weight: 800; text-transform: uppercase;
+            letter-spacing: .05em; z-index: 10;
+        }
+        .card-status-badge.active { background: rgba(52,211,153,.2); color: #34d399; border: 1px solid rgba(52,211,153,.3); }
+        .card-status-badge.deactivated { background: rgba(248,113,113,.2); color: #f87171; border: 1px solid rgba(248,113,113,.3); }
+        .card-status-badge.expired { background: rgba(245,158,11,.2); color: #f59e0b; border: 1px solid rgba(245,158,11,.3); }
+
+        /* Danger Zone */
+        .danger-zone {
+            margin-top: 30px; padding: 20px;
+            border: 1px dashed rgba(248,113,113,.3);
+            border-radius: 12px; background: rgba(248,113,113,.03);
+        }
+        .danger-zone h3 { color: #f87171; font-size: 16px; margin-bottom: 10px; }
+        .danger-zone p { font-size: 13px; color: var(--text-muted); margin-bottom: 15px; }
+
+        /* Modal Overlay */
+        .modal-overlay {
+            position: fixed; inset: 0; background: rgba(0,0,0,.8);
+            display: none; align-items: center; justify-content: center;
+            z-index: 1000; backdrop-filter: blur(4px);
+        }
+        .modal-overlay.active { display: flex; }
+        .modal-content {
+            background: #1e293b; width: 100%; max-width: 400px;
+            padding: 30px; border-radius: 16px; border: 1px solid var(--card-border);
+            box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5);
+        }
     </style>
 </head>
 <body>
@@ -205,7 +238,7 @@
             <div class="panel">
                 <div class="flex-between" style="margin-bottom: 20px;">
                     <h2>📊 Historique des Transactions</h2>
-                    <span style="color: var(--success); font-size: 22px; font-weight: 800;">${{ "%.2f" | format(account.balance | float) }}</span>
+                    <span style="color: var(--success); font-size: 22px; font-weight: 800;">{{ "%.2f" | format(account.balance | float) }} DT</span>
                 </div>
 
                 <div class="table-container">
@@ -224,9 +257,9 @@
                                 <td><span class="badge {{ tx.type }}">{{ tx.type }}</span></td>
                                 <td>
                                     {% if tx.type == "deposit" or (tx.type == "transfer" and tx.to_account == account.account_number) %}
-                                        <span class="text-success">+${{ "%.2f" | format(tx.amount | float) }}</span>
+                                        <span class="text-success">+{{ "%.2f" | format(tx.amount | float) }} DT</span>
                                     {% else %}
-                                        <span class="text-danger">-${{ "%.2f" | format(tx.amount | float) }}</span>
+                                        <span class="text-danger">-{{ "%.2f" | format(tx.amount | float) }} DT</span>
                                     {% endif %}
                                 </td>
                                 <td>
@@ -271,7 +304,7 @@
                 <form method="POST" action="/deposit">
                     <input type="hidden" name="account_number" value="{{ account.account_number }}">
                     <div class="input-group">
-                        <label>Montant ($)</label>
+                        <label>Montant (DT)</label>
                         <input type="number" step="0.01" name="amount" required placeholder="Ex: 500">
                     </div>
                     <div class="input-group">
@@ -294,7 +327,7 @@
                 <form method="POST" action="/withdraw">
                     <input type="hidden" name="account_number" value="{{ account.account_number }}">
                     <div class="input-group">
-                        <label>Montant ($)</label>
+                        <label>Montant (DT)</label>
                         <input type="number" step="0.01" name="amount" required placeholder="Ex: 200">
                     </div>
                     <div class="input-group">
@@ -327,7 +360,7 @@
                         <p style="font-size: 11px; margin-top: 5px;"><a href="/beneficiaries" style="color: var(--primary);">+ Ajouter un bénéficiaire</a></p>
                     </div>
                     <div class="input-group">
-                        <label>Montant ($)</label>
+                        <label>Montant (DT)</label>
                         <input type="number" step="0.01" name="amount" required placeholder="Ex: 150">
                     </div>
                     <div class="input-group">
@@ -362,7 +395,7 @@
                         </select>
                     </div>
                     <div class="input-group">
-                        <label>Montant ($)</label>
+                        <label>Montant (DT)</label>
                         <input type="number" step="0.01" name="amount" required placeholder="Ex: 85.50">
                     </div>
                     <div class="input-group">
@@ -386,7 +419,7 @@
             <!-- Solde rapide -->
             <div class="balance-panel">
                 <div class="balance-label">Solde disponible</div>
-                <div class="balance-amount">${{ "%.2f" | format(account.balance | float) }}</div>
+                <div class="balance-amount">{{ "%.2f" | format(account.balance | float) }} DT</div>
             </div>
 
             <!-- ──── CARTE VISA ──── -->
@@ -397,6 +430,13 @@
 
                     <div class="card-logo">
                         <span class="bank-name">API Bank</span>
+                        {% if is_expired %}
+                        <div class="card-status-badge expired">Expirée</div>
+                        {% else %}
+                        <div class="card-status-badge {{ account.card_status or 'active' }}">
+                            {{ 'Active' if (account.card_status or 'active') == 'active' else 'Désactivée' }}
+                        </div>
+                        {% endif %}
                         <span class="visa-word">VISA</span>
                     </div>
 
@@ -451,6 +491,30 @@
                 </button>
             </div>
 
+            <!-- ──── GESTION ACTIONS ──── -->
+            <div class="panel" style="margin-bottom: 24px; border-color: rgba(99,102,241,.3);">
+                <h3 style="font-size: 15px; margin-bottom: 15px; display: flex; align-items: center; gap: 8px;">
+                    🛠️ Gestion de la Carte
+                </h3>
+                <button class="btn {{ 'btn-secondary' if (account.card_status or 'active') == 'active' else '' }}" 
+                        onclick="openModal('modal-toggle-card')" 
+                        style="width: 100%; margin-bottom: 10px; {{ 'background:#f87171;' if (account.card_status or 'active') == 'active' else 'background:#34d399;' }}">
+                    {{ 'Désactiver la carte' if (account.card_status or 'active') == 'active' else 'Réactiver la carte' }}
+                </button>
+
+                <button class="btn" onclick="handleRenewClick()" style="width: 100%; background: #6366f1; margin-bottom: 10px;">
+                    🔄 Renouveler la carte (10 DT)
+                </button>
+                
+                <div class="danger-zone">
+                    <h3>⚠️ Zone de danger</h3>
+                    <p>La suppression de ce compte bancaire est irréversible. Toutes les transactions seront effacées.</p>
+                    <button class="btn" style="background:transparent; border:1px solid #f87171; color:#f87171;" onclick="openModal('modal-delete-account')">
+                        Supprimer ce compte
+                    </button>
+                </div>
+            </div>
+
             <!-- ──── JOURNAL D'ACTIVITÉ CARTE ──── -->
             <div class="panel" style="padding: 20px;">
                 <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:14px;">
@@ -474,11 +538,20 @@
                             {% elif act.action_type == 'PIN_VERIFICATION' %}🔐
                             {% else %}📋{% endif %}
                         </div>
+                        {% set trans = {
+                            'DEPOSIT': 'DÉPÔT', 'WITHDRAW': 'RETRAIT', 'PAYMENT': 'PAIEMENT',
+                            'TRANSFER_OUT': 'TRANSFERT SORTANT', 'TRANSFER_IN': 'TRANSFERT ENTRANT',
+                            'ACCOUNT_CREATION': 'CRÉATION DE COMPTE', 'ACCOUNT_LOCKED': 'COMPTE VERROUILLÉ',
+                            'PIN_VERIFICATION': 'VÉRIFICATION PIN', 'CARD_STATUS_CHANGE': 'STATUT CARTE',
+                            'ACCOUNT_DELETION': 'SUPPRESSION COMPTE', 'CARD_RENEWAL': 'RENOUVELLEMENT CARTE',
+                            'LOGIN': 'CONNEXION', 'SIGNUP': 'INSCRIPTION', 'PROFILE_UPDATE': 'MISE À JOUR PROFIL',
+                            'PROFILE_DELETION': 'SUPPRESSION PROFIL'
+                        } %}
                         <div style="flex:1; min-width:0;">
-                            <div class="act-type">{{ act.action_type.replace('_', ' ') }}</div>
+                            <div class="act-type">{{ trans[act.action_type] if act.action_type in trans else act.action_type.replace('_', ' ') }}</div>
                             <div class="act-detail">
                                 {% if act.details %}
-                                  {% if act.details.amount is defined %}${{ "%.2f" | format(act.details.amount | float) }}{% endif %}
+                                  {% if act.details.amount is defined %}{{ "%.2f" | format(act.details.amount | float) }} DT{% endif %}
                                   {% if act.details.merchant is defined %} · {{ act.details.merchant }}{% endif %}
                                   {% if act.details.to_account is defined %} → ****{{ act.details.to_account[-4:] }}{% endif %}
                                   {% if act.details.from_account is defined %} ← ****{{ act.details.from_account[-4:] }}{% endif %}
@@ -486,7 +559,9 @@
                             </div>
                         </div>
                         <div style="display:flex; flex-direction:column; align-items:flex-end; gap:4px;">
-                            <span class="act-badge {{ 'failure' if is_fail else 'success' }}">{{ act.status }}</span>
+                            <span class="act-badge {{ 'failure' if is_fail else 'success' }}">
+                                {{ 'ÉCHEC' if is_fail else 'SUCCÈS' }}
+                            </span>
                             <span class="act-time">{{ act.timestamp[:10] if act.timestamp else '' }}</span>
                         </div>
                     </div>
@@ -564,23 +639,141 @@
         }
     }
 
-    // ─── OTP Buttons ───
-    document.querySelectorAll('.request-otp-btn').forEach(btn => {
-        btn.addEventListener('click', async (e) => {
-            e.preventDefault();
-            btn.disabled = true;
-            btn.innerText = "Envoi...";
-            try {
-                const res = await fetch("/request_auth_otp", { method: "POST" });
-                const data = await res.json();
-                alert(res.ok ? (data.message || "Code envoyé !") : (data.detail || "Erreur lors de l'envoi"));
-            } catch(err) {
-                alert("Erreur réseau");
-            }
-            btn.innerText = "Demander OTP";
-            btn.disabled = false;
+    function handleRenewClick() {
+        const isExpired = {{ 'true' if is_expired else 'false' }};
+        if (!isExpired) {
+            alert("Votre carte est encore valide ! Le renouvellement n'est pas nécessaire pour le moment.");
+            return;
+        }
+        openModal('modal-renew-card');
+    }
+
+    function openModal(id) { document.getElementById(id).classList.add('active'); }
+    function closeModal(id) { document.getElementById(id).classList.remove('active'); }
+    
+    // Close on click outside
+    window.onclick = function(event) {
+        if (event.target.classList.contains('modal-overlay')) {
+            event.target.classList.remove('active');
+        }
+    }
+</script>
+
+<!-- MODALS -->
+<div id="modal-toggle-card" class="modal-overlay">
+    <div class="modal-content">
+        <h2 style="margin-bottom:10px;">{{ 'Désactiver' if (account.card_status or 'active') == 'active' else 'Réactiver' }} la carte</h2>
+        <p style="color:var(--text-muted); font-size:14px; margin-bottom:20px;">
+            Veuillez confirmer cette action avec votre code PIN et un code OTP.
+        </p>
+        <form method="POST" action="/toggle_card_status">
+            <input type="hidden" name="account_number" value="{{ account.account_number }}">
+            <div class="input-group">
+                <label>Code PIN</label>
+                <input type="password" name="pin" required maxlength="4" pattern="\d{4}" placeholder="••••">
+            </div>
+            <div class="input-group">
+                <label>Code OTP</label>
+                <div style="display: flex; gap: 10px;">
+                    <input type="text" name="otp_code" required maxlength="6" pattern="\d{6}" placeholder="123456" style="flex:1;">
+                    <button type="button" class="btn btn-secondary request-otp-btn" style="width:auto; padding:0 15px;">OTP</button>
+                </div>
+            </div>
+            <div style="display:flex; gap:10px; margin-top:20px;">
+                <button type="button" class="btn btn-secondary" onclick="closeModal('modal-toggle-card')" style="flex:1;">Annuler</button>
+                <button type="submit" class="btn" style="flex:1; {{ 'background:#f87171;' if (account.card_status or 'active') == 'active' else 'background:#34d399;' }}">Confirmer</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div id="modal-delete-account" class="modal-overlay">
+    <div class="modal-content">
+        <h2 style="margin-bottom:10px; color:#f87171;">Supprimer le compte</h2>
+        <p style="color:var(--text-muted); font-size:14px; margin-bottom:20px;">
+            Cette action supprimera définitivement le compte <strong>****{{ account.account_number[-4:] }}</strong>.
+        </p>
+        <form method="POST" action="/delete_account">
+            <input type="hidden" name="account_number" value="{{ account.account_number }}">
+            <div class="input-group">
+                <label>Code PIN</label>
+                <input type="password" name="pin" required maxlength="4" pattern="\d{4}" placeholder="••••">
+            </div>
+            <div class="input-group">
+                <label>Code OTP</label>
+                <div style="display: flex; gap: 10px;">
+                    <input type="text" name="otp_code" required maxlength="6" pattern="\d{6}" placeholder="123456" style="flex:1;">
+                    <button type="button" class="btn btn-secondary request-otp-btn" style="width:auto; padding:0 15px;">OTP</button>
+                </div>
+            </div>
+            <div style="display:flex; gap:10px; margin-top:20px;">
+                <button type="button" class="btn btn-secondary" onclick="closeModal('modal-delete-account')" style="flex:1;">Annuler</button>
+                <button type="submit" class="btn" style="flex:1; background:#f87171;">Supprimer définitivement</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div id="modal-renew-card" class="modal-overlay">
+    <div class="modal-content">
+        <h2 style="margin-bottom:10px;">Renouveler la carte</h2>
+        <p style="color:var(--text-muted); font-size:14px; margin-bottom:10px;">
+            Un nouveau numéro de carte, CVV et date d'expiration seront générés.
+        </p>
+        <p style="color:#f59e0b; font-size:14px; margin-bottom:20px; font-weight:bold;">
+            ⚠️ Des frais de 10 DT seront prélevés de votre solde.
+        </p>
+        <form method="POST" action="/renew_card">
+            <input type="hidden" name="account_number" value="{{ account.account_number }}">
+            <div class="input-group">
+                <label>Code PIN</label>
+                <input type="password" name="pin" required maxlength="4" pattern="\d{4}" placeholder="••••">
+            </div>
+            <div class="input-group">
+                <label>Code OTP</label>
+                <div style="display: flex; gap: 10px;">
+                    <input type="text" name="otp_code" required maxlength="6" pattern="\d{6}" placeholder="123456" style="flex:1;">
+                    <button type="button" class="btn btn-secondary request-otp-btn" style="width:auto; padding:0 15px;">OTP</button>
+                </div>
+            </div>
+            <div style="display:flex; gap:10px; margin-top:20px;">
+                <button type="button" class="btn btn-secondary" onclick="closeModal('modal-renew-card')" style="flex:1;">Annuler</button>
+                <button type="submit" class="btn" style="flex:1; background:#6366f1;">Confirmer (10 DT)</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    // ─── OTP Buttons Event Binding ───
+    function bindOTPButtons() {
+        document.querySelectorAll('.request-otp-btn').forEach(btn => {
+            // Avoid duplicate listeners if this is called multiple times
+            if (btn.getAttribute('data-bound')) return;
+            btn.setAttribute('data-bound', 'true');
+
+            btn.addEventListener('click', async (e) => {
+                e.preventDefault();
+                btn.disabled = true;
+                const originalText = btn.innerText;
+                btn.innerText = "...";
+                try {
+                    const res = await fetch("/request_auth_otp", { method: "POST" });
+                    const data = await res.json();
+                    alert(res.ok ? (data.message || "Code envoyé !") : (data.detail || "Erreur lors de l'envoi"));
+                } catch(err) {
+                    alert("Erreur réseau");
+                }
+                btn.innerText = originalText;
+                btn.disabled = false;
+            });
         });
-    });
+    }
+
+    // Initialize
+    document.addEventListener('DOMContentLoaded', bindOTPButtons);
+    // Also call it immediately just in case
+    bindOTPButtons();
 </script>
 
 </body>

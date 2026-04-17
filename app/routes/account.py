@@ -51,6 +51,21 @@ class Payment(BaseModel):
     pin: str = Field(..., pattern=r"^\d{4}$")
     otp_code: str
 
+class CardStatusToggle(BaseModel):
+    account_number: str = Field(..., pattern=r"^\d{10}$")
+    pin: str = Field(..., pattern=r"^\d{4}$")
+    otp_code: str
+
+class AccountDelete(BaseModel):
+    account_number: str = Field(..., pattern=r"^\d{10}$")
+    pin: str = Field(..., pattern=r"^\d{4}$")
+    otp_code: str
+
+class CardRenew(BaseModel):
+    account_number: str = Field(..., pattern=r"^\d{10}$")
+    pin: str = Field(..., pattern=r"^\d{4}$")
+    otp_code: str
+
 # ==============================
 # 🔐 PIN VERIFICATION HELPER
 # ==============================
@@ -74,7 +89,7 @@ def verify_pin(account_number: str, owner_id: str, pin: str):
         update_data = {"failed_pin_attempts": failed_attempts}
         if failed_attempts >= 3:
             update_data["locked_until"] = datetime.utcnow() + timedelta(minutes=15)
-            log_activity(owner_id, account_number, "ACCOUNT_LOCKED", "FAILURE", {"reason": "Too many failed PIN attempts"})
+            log_activity(owner_id, account_number, "ACCOUNT_LOCKED", "FAILURE", {"reason": "Trop de tentatives échouées (PIN)"})
         accounts_collection.update_one({"_id": acc["_id"]}, {"$set": update_data})
         log_activity(owner_id, account_number, "PIN_VERIFICATION", "FAILURE", {"failed_attempts": failed_attempts})
         raise HTTPException(status_code=403, detail="Code confidentiel (PIN) incorrect")
@@ -83,6 +98,22 @@ def verify_pin(account_number: str, owner_id: str, pin: str):
         accounts_collection.update_one({"_id": acc["_id"]}, {"$unset": {"locked_until": ""}, "$set": {"failed_pin_attempts": 0}})
 
     return acc
+
+def is_card_expired(expiry_str: str) -> bool:
+    """Vérifie si une carte est expirée (format MM/YY)."""
+    try:
+        exp_month, exp_year = map(int, expiry_str.split('/'))
+        exp_year += 2000
+        # La carte est valide jusqu'au dernier jour du mois inclus.
+        # On définit l'expiration comme le 1er jour du mois suivant.
+        if exp_month == 12:
+            expiry_date = datetime(exp_year + 1, 1, 1)
+        else:
+            expiry_date = datetime(exp_year, exp_month + 1, 1)
+        
+        return datetime.utcnow() >= expiry_date
+    except:
+        return True # Par sécurité, si format invalide, on considère expirée
 
 # ==============================
 # 📧 EMAIL NOTIFICATION
@@ -192,7 +223,8 @@ def create_account(request: Request, background_tasks: BackgroundTasks, account:
         "pin_hash":      pin_hash,
         "card_number":   card_number,
         "card_expiry":   card_expiry,
-        "card_cvv":      card_cvv
+        "card_cvv":      card_cvv,
+        "card_status":   "active"
     }
     accounts_collection.insert_one(data)
 
@@ -204,7 +236,7 @@ def create_account(request: Request, background_tasks: BackgroundTasks, account:
     if owner_email:
         background_tasks.add_task(send_account_email, owner_email, account_number, plain_pin, card_number, card_cvv)
         
-    log_activity(str(user["id"]), account_number, "ACCOUNT_CREATION", "SUCCESS", {"message": "Account and Visa Card created"})
+    log_activity(str(user["id"]), account_number, "ACCOUNT_CREATION", "SUCCESS", {"message": "Compte et Carte Visa créés"})
 
     return {
         "message": "Account created — votre PIN a été envoyé par email",
@@ -293,6 +325,14 @@ def withdraw(request: Request, data: Withdraw, user=Depends(verify_token)):
     # ✅ Vérification du PIN
     acc = verify_pin(data.account_number, str(user["id"]), data.pin)
     
+    # ✅ Vérification de l'état de la carte (pour retrait)
+    if acc.get("card_status") == "deactivated":
+        raise HTTPException(status_code=403, detail="Cette carte est désactivée. Veuillez la réactiver pour effectuer un retrait.")
+
+    # ✅ Vérification de l'expiration
+    if is_card_expired(acc.get("card_expiry", "01/01")):
+        raise HTTPException(status_code=403, detail="Cette carte est expirée. Veuillez procéder à son renouvellement.")
+
     # ✅ Vérification OTP
     verify_auth_otp(user["sub"], data.otp_code)
 
@@ -335,6 +375,14 @@ def payment(request: Request, data: Payment, user=Depends(verify_token)):
     # ✅ Vérification du PIN
     acc = verify_pin(data.account_number, str(user["id"]), data.pin)
     
+    # ✅ Vérification de l'état de la carte (pour paiement)
+    if acc.get("card_status") == "deactivated":
+        raise HTTPException(status_code=403, detail="Cette carte est désactivée. Veuillez la réactiver pour effectuer un paiement.")
+
+    # ✅ Vérification de l'expiration
+    if is_card_expired(acc.get("card_expiry", "01/01")):
+        raise HTTPException(status_code=403, detail="Cette carte est expirée. Veuillez procéder à son renouvellement.")
+
     # ✅ Vérification OTP
     verify_auth_otp(user["sub"], data.otp_code)
 
@@ -447,4 +495,117 @@ def get_transactions(account_number: str, user=Depends(verify_token)):
     return {
         "account_number": account_number,
         "transactions": transactions
+    }
+
+# ==============================
+# 🛡️ CARD STATUS TOGGLE
+# ==============================
+
+@router.post("/toggle-card-status")
+@limiter.limit("5/minute")
+def toggle_card_status(request: Request, data: CardStatusToggle, user=Depends(verify_token)):
+    # 1. Vérification PIN
+    acc = verify_pin(data.account_number, str(user["id"]), data.pin)
+    
+    # 2. Vérification OTP
+    verify_auth_otp(user["sub"], data.otp_code)
+
+    current_status = acc.get("card_status", "active")
+    new_status = "deactivated" if current_status == "active" else "active"
+    
+    accounts_collection.update_one(
+        {"account_number": data.account_number},
+        {"$set": {"card_status": new_status}}
+    )
+
+    log_activity(str(user["id"]), data.account_number, "CARD_STATUS_CHANGE", "SUCCESS", {"new_status": new_status})
+    
+    return {"message": f"Carte {new_status} avec succes.", "card_status": new_status}
+
+# ==============================
+# 🗑️ DELETE ACCOUNT
+# ==============================
+
+@router.post("/delete")
+@limiter.limit("3/minute")
+def delete_account(request: Request, data: AccountDelete, user=Depends(verify_token)):
+    # 1. Vérification PIN
+    acc = verify_pin(data.account_number, str(user["id"]), data.pin)
+    
+    # 2. Vérification OTP
+    verify_auth_otp(user["sub"], data.otp_code)
+
+    # Suppression du compte
+    accounts_collection.delete_one({"account_number": data.account_number, "owner_id": str(user["id"])})
+    
+    # Suppression des transactions associées
+    transactions_collection.delete_many({
+        "$or": [
+            {"account_number": data.account_number},
+            {"from_account": data.account_number},
+            {"to_account": data.account_number}
+        ]
+    })
+
+    log_activity(str(user["id"]), data.account_number, "ACCOUNT_DELETION", "SUCCESS", {"message": "Compte et transactions associées supprimés"})
+    
+    return {"message": "Compte bancaire supprimé avec succès."}
+
+# ==============================
+# 🔄 CARD RENEWAL
+# ==============================
+
+@router.post("/renew-card")
+@limiter.limit("2/minute")
+def renew_card(request: Request, data: CardRenew, user=Depends(verify_token)):
+    RENEWAL_FEE = 10.0
+    
+    # 1. Vérification PIN
+    acc = verify_pin(data.account_number, str(user["id"]), data.pin)
+    
+    # 2. Vérification OTP
+    verify_auth_otp(user["sub"], data.otp_code)
+
+    # 3. Vérification si la carte est réellement expirée
+    if not is_card_expired(acc.get("card_expiry", "01/01")):
+        raise HTTPException(status_code=400, detail="Votre carte est encore valide. Le renouvellement n'est pas nécessaire.")
+
+    # 4. Vérification solde pour frais (10 DT)
+    if acc["balance"] < RENEWAL_FEE:
+        raise HTTPException(status_code=400, detail="Solde insuffisant pour le renouvellement (frais de 10 DT requis).")
+
+    # 4. Génération nouveaux identifiants
+    new_card_number = f"4{''.join([str(random.randint(0, 9)) for _ in range(15)])}"
+    new_expiry = (datetime.utcnow() + relativedelta(years=3)).strftime("%m/%y")
+    new_cvv = str(random.randint(100, 999))
+
+    # 5. Mise à jour de la carte + Prélèvement des frais
+    accounts_collection.update_one(
+        {"account_number": data.account_number},
+        {
+            "$set": {
+                "card_number": new_card_number,
+                "card_expiry": new_expiry,
+                "card_cvv": new_cvv,
+                "card_status": "active" # Réactivation automatique si elle était désactivée
+            },
+            "$inc": {"balance": -RENEWAL_FEE}
+        }
+    )
+
+    # 6. Historique transaction (Frais)
+    save_transaction({
+        "type": "service_fee",
+        "description": "Frais de renouvellement de carte",
+        "account_number": data.account_number,
+        "amount": RENEWAL_FEE,
+        "owner_id": str(user["id"])
+    })
+
+    log_activity(str(user["id"]), data.account_number, "CARD_RENEWAL", "SUCCESS", {"fee": RENEWAL_FEE})
+
+    return {
+        "message": "Carte renouvelée avec succès. Les frais de 10 DT ont été prélevés.",
+        "new_card_number": new_card_number,
+        "new_expiry": new_expiry
     }
