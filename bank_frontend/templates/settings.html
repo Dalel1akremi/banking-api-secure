@@ -4,6 +4,30 @@
     <meta charset="UTF-8">
     <title>Paramètres - Open Banking</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <style>
+        /* Danger Zone */
+        .danger-zone {
+            margin-top: 40px; padding: 25px;
+            border: 1px dashed rgba(248,113,113,.3);
+            border-radius: 12px; background: rgba(248,113,113,.03);
+            text-align: center;
+        }
+        .danger-zone h3 { color: #f87171; font-size: 18px; margin-bottom: 10px; }
+        .danger-zone p { font-size: 14px; color: var(--text-muted); margin-bottom: 20px; }
+
+        /* Modal Overlay */
+        .modal-overlay {
+            position: fixed; inset: 0; background: rgba(0,0,0,.8);
+            display: none; align-items: center; justify-content: center;
+            z-index: 1000; backdrop-filter: blur(4px);
+        }
+        .modal-overlay.active { display: flex; }
+        .modal-content {
+            background: #1e293b; width: 100%; max-width: 450px;
+            padding: 35px; border-radius: 16px; border: 1px solid var(--card-border);
+            text-align: left;
+        }
+    </style>
 </head>
 <body>
 
@@ -79,6 +103,14 @@
 
             <button type="submit" class="btn">Enregistrer les Modifications</button>
         </form>
+
+        <div class="danger-zone">
+            <h3>🔴 Zone Critique</h3>
+            <p>La suppression de votre profil est irréversible. Toutes vos données, comptes bancaires et historiques seront définitivement effacés.</p>
+            <button class="btn" style="background:transparent; border:1px solid #f87171; color:#f87171;" onclick="openModal('modal-delete-profile')">
+                Supprimer mon profil utilisateur
+            </button>
+        </div>
     </div>
 </div>
 
@@ -92,27 +124,67 @@
         });
     }, 4000);
 
-    document.querySelectorAll('.request-otp-btn').forEach(btn => {
-        btn.addEventListener('click', async (e) => {
-            e.preventDefault();
-            btn.disabled = true;
-            btn.innerText = "Envoi...";
-            try {
-                const res = await fetch("/request_auth_otp", { method: "POST" });
-                const data = await res.json();
-                if(res.ok) {
-                    alert(data.message || "Code envoyé !");
-                } else {
-                    alert(data.detail || "Erreur lors de l'envoi");
+    function bindOTPButtons() {
+        document.querySelectorAll('.request-otp-btn').forEach(btn => {
+            if (btn.getAttribute('data-bound')) return;
+            btn.setAttribute('data-bound', 'true');
+            btn.addEventListener('click', async (e) => {
+                e.preventDefault();
+                btn.disabled = true;
+                const originalText = btn.innerText;
+                btn.innerText = "...";
+                try {
+                    const res = await fetch("/request_auth_otp", { method: "POST" });
+                    const data = await res.json();
+                    alert(res.ok ? (data.message || "Code envoyé !") : (data.detail || "Erreur lors de l'envoi"));
+                } catch(err) {
+                    alert("Erreur réseau");
                 }
-            } catch(err) {
-                alert("Erreur réseau");
-            }
-            btn.innerText = "Demander OTP";
-            btn.disabled = false;
+                btn.innerText = originalText;
+                btn.disabled = false;
+            });
         });
-    });
+    }
+
+    document.addEventListener('DOMContentLoaded', bindOTPButtons);
+    bindOTPButtons();
+
+    function openModal(id) { document.getElementById(id).classList.add('active'); }
+    function closeModal(id) { document.getElementById(id).classList.remove('active'); }
+    
+    window.onclick = function(event) {
+        if (event.target.classList.contains('modal-overlay')) {
+            event.target.classList.remove('active');
+        }
+    }
 </script>
+
+<!-- MODAL DELETE PROFILE -->
+<div id="modal-delete-profile" class="modal-overlay">
+    <div class="modal-content">
+        <h2 style="margin-bottom:10px; color:#f87171;">Confirmation de suppression</h2>
+        <p style="color:var(--text-muted); font-size:14px; margin-bottom:20px;">
+            Êtes-vous sûr de vouloir supprimer votre profil ? Cette action est <strong>finale</strong> et supprimera tous vos comptes bancaires associés.
+        </p>
+        <form method="POST" action="/delete_profile">
+            <div class="input-group">
+                <label>Vérification du Mot de Passe</label>
+                <input type="password" name="current_password" required placeholder="••••••••">
+            </div>
+            <div class="input-group">
+                <label>Code OTP de Sécurité</label>
+                <div style="display: flex; gap: 10px;">
+                    <input type="text" name="otp_code" required maxlength="6" pattern="\d{6}" placeholder="123456" style="flex:1;">
+                    <button type="button" class="btn btn-secondary request-otp-btn" style="width:auto; padding:0 15px;">OTP</button>
+                </div>
+            </div>
+            <div style="display:flex; gap:10px; margin-top:25px;">
+                <button type="button" class="btn btn-secondary" onclick="closeModal('modal-delete-profile')" style="flex:1;">Annuler</button>
+                <button type="submit" class="btn" style="flex:1; background:#f87171;">Tout supprimer</button>
+            </div>
+        </form>
+    </div>
+</div>
 
 </body>
 </html>
