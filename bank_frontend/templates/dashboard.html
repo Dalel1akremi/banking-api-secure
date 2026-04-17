@@ -77,7 +77,7 @@
             <div class="visa-chip"></div>
             <h3>Compte Courant</h3>
             <div class="account-number">**** **** {{ acc.account_number[-4:] }}</div>
-            <div class="balance">${{ "%.2f" | format(acc.balance | float) }}</div>
+            <div class="balance">{{ "%.2f" | format(acc.balance | float) }} DT</div>
             <p>Voir les détails &rarr;</p>
         </a>
         {% else %}
