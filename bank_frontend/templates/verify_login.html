@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Vérification 2FA - Open Banking</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+
+<div class="center-container">
+    <div class="glass-box">
+        <h1 class="brand">API Bank</h1>
+        <p style="margin-bottom: 30px;">Authentification à Double Facteurs (2FA)</p>
+
+        {% if error %}
+            <div class="alert alert-error">{{ error }}</div>
+        {% endif %}
+        
+        {% if message %}
+            <div class="alert alert-success">{{ message }}</div>
+        {% endif %}
+        
+        <form method="POST" action="/verify_login">
+            <input type="hidden" name="email" value="{{ email }}">
+            
+            <div class="input-group">
+                <label>✉️ Code de Vérification OTP</label>
+                <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 5px;">Un code à 6 chiffres a été envoyé à <strong>{{ email }}</strong></p>
+                <input type="text" name="otp_code" required maxlength="6" pattern="\d{6}" placeholder="123456" inputmode="numeric" style="letter-spacing:16px; font-size:2rem; text-align: center;">
+            </div>
+
+            <button type="submit" class="btn">Valider et Se Connecter</button>
+        </form>
+
+        <p style="margin-top: 15px; font-size: 14px;"><a href="/" style="color: var(--primary); text-decoration: none;">Annuler et retourner au login</a></p>
+
+        <p style="margin-top: 20px; font-size: 12px; color: var(--text-muted);">🔒 Protégé par Authentification à Double Facteur</p>
+    </div>
+</div>
+
+<script>
+    setTimeout(() => {
+        const flashes = document.querySelectorAll('.alert');
+        flashes.forEach(flash => {
+            flash.style.transition = 'opacity 0.5s ease';
+            flash.style.opacity = '0';
+            setTimeout(() => flash.remove(), 500);
+        });
+    }, 4000);
+</script>
+
+</body>
+</html>

@@ -1,0 +1,9 @@
+<h2>Your Accounts</h2>
+
+{% for acc in accounts %}
+    <p>
+        Account: {{ acc.account_number }} <br>
+        Balance: {{ acc.balance }}
+    </p>
+    <hr>
+{% endfor %}

@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tableau de bord - API Bank</title>
+    <meta name="description" content="Tableau de bord bancaire sécurisé - Gérez vos comptes et effectuez des opérations.">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <style>
+        .account-card {
+            background: linear-gradient(135deg, #1e293b, #0f172a);
+            border: 1px solid var(--card-border);
+            border-radius: 18px; padding: 28px;
+            text-decoration: none; color: var(--text-main);
+            display: block; transition: transform .25s, box-shadow .25s;
+            position: relative; overflow: hidden;
+        }
+        .account-card::before {
+            content: ''; position: absolute; top: -40px; right: -40px;
+            width: 130px; height: 130px;
+            background: radial-gradient(circle, rgba(99,102,241,.25) 0%, transparent 70%);
+            border-radius: 50%; pointer-events: none;
+        }
+        .account-card:hover { transform: translateY(-5px); box-shadow: 0 14px 40px rgba(99,102,241,.22); border-color: rgba(99,102,241,.4); }
+        .account-card h3 { color: var(--text-muted); font-size:13px; text-transform: uppercase; letter-spacing:.06em; margin:0 0 8px; }
+        .account-card .account-number { font-size: 17px; letter-spacing: 4px; font-weight: 600; margin-bottom: 20px; }
+        .account-card .balance { font-size: 32px; font-weight: 800; color: #a5b4fc; margin-bottom: 6px; }
+        .account-card p { font-size: 12px; color: var(--text-muted); margin: 0; }
+        .visa-chip {
+            display: inline-block; width: 30px; height: 22px;
+            background: linear-gradient(135deg, #d4af37, #f5e17a);
+            border-radius: 5px; margin-bottom: 12px;
+        }
+    </style>
+</head>
+<body>
+
+<nav>
+    <div class="brand">API Bank</div>
+    <div class="nav-links" style="display: flex; gap: 20px; align-items: center;">
+        <a href="/beneficiaries">Bénéficiaires</a>
+        <a href="/journal">Journal</a>
+        <a href="/settings">Paramètres</a>
+        <a href="/logout" class="text-danger">Déconnexion</a>
+    </div>
+</nav>
+
+<div class="page-container">
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        <div id="flash-container">
+        {% for category, message in messages %}
+          {% if category == 'success' %}
+          <div class="alert alert-success">{{ message }}</div>
+          {% else %}
+          <div class="alert alert-error">{{ message }}</div>
+          {% endif %}
+        {% endfor %}
+        </div>
+      {% endif %}
+    {% endwith %}
+
+    <div class="page-header flex-between" style="margin-bottom: 30px;">
+        <div>
+            <h1>Vos Comptes Bancaires</h1>
+            <p>Sélectionnez un compte pour consulter son historique ou effectuer une opération.</p>
+        </div>
+        <form method="POST" action="/create_account">
+            <button type="submit" class="btn" style="width: auto; padding: 12px 24px;">+ Ouvrir un Compte</button>
+        </form>
+    </div>
+
+    <div class="accounts-grid">
+        {% for acc in accounts %}
+        <a href="/account/{{ acc.account_number }}" class="account-card" id="account-card-{{ acc.account_number[-4:] }}">
+            <div class="visa-chip"></div>
+            <h3>Compte Courant</h3>
+            <div class="account-number">**** **** {{ acc.account_number[-4:] }}</div>
+            <div class="balance">${{ "%.2f" | format(acc.balance | float) }}</div>
+            <p>Voir les détails &rarr;</p>
+        </a>
+        {% else %}
+        <div class="panel" style="grid-column: 1 / -1; text-align: center; padding: 60px;">
+            <p style="font-size: 18px; margin-bottom: 20px;">Vous n'avez pas encore de compte bancaire.</p>
+            <form method="POST" action="/create_account">
+                <button type="submit" class="btn btn-secondary" style="width: auto; padding: 12px 24px;">Ouvrir mon premier compte</button>
+            </form>
+        </div>
+        {% endfor %}
+    </div>
+
+</div>
+
+<script>
+    setTimeout(() => {
+        document.querySelectorAll('.alert').forEach(flash => {
+            flash.style.transition = 'opacity 0.5s ease';
+            flash.style.opacity = '0';
+            setTimeout(() => flash.remove(), 500);
+        });
+    }, 4000);
+</script>
+
+</body>
+</html>
