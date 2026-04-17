@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Open Banking - Inscription</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <style>
+        .otp-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.7);
+            backdrop-filter: blur(6px);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+        .otp-overlay.active { display: flex; }
+        .otp-modal {
+            background: var(--glass-bg, rgba(20,28,54,0.97));
+            border: 1px solid rgba(255,255,255,0.12);
+            border-radius: 16px;
+            padding: 36px 32px;
+            max-width: 380px;
+            width: 90%;
+            text-align: center;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+        }
+        .otp-modal h2 { margin-bottom: 6px; font-size: 1.3rem; color: #fff; }
+        .otp-modal p  { color: #a0aec0; font-size: 14px; margin-bottom: 20px; }
+        .otp-input {
+            width: 100%;
+            text-align: center;
+            font-size: 2rem;
+            letter-spacing: 12px;
+            padding: 12px;
+            border-radius: 10px;
+            border: 2px solid rgba(255,255,255,0.2);
+            background: rgba(255,255,255,0.05);
+            color: #fff;
+            margin-bottom: 16px;
+            outline: none;
+            box-sizing: border-box;
+        }
+        .otp-input:focus { border-color: var(--primary, #6366f1); }
+        .otp-error { color: #f87171; font-size: 13px; margin-bottom: 10px; display: none; }
+        .otp-actions { display: flex; gap: 10px; justify-content: center; }
+        .btn-secondary {
+            background: transparent;
+            border: 1px solid rgba(255,255,255,0.2);
+            color: #a0aec0;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.2s;
+        }
+        .btn-secondary:hover { border-color: #fff; color: #fff; }
+        .spinner {
+            display: inline-block; width: 14px; height: 14px;
+            border: 2px solid #fff; border-top-color: transparent;
+            border-radius: 50%; animation: spin 0.6s linear infinite;
+            vertical-align: middle; margin-right: 6px;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+
+<!-- ===== MODAL OTP ===== -->
+<div class="otp-overlay" id="otp-overlay">
+    <div class="otp-modal">
+        <h2>📧 Vérification E-mail</h2>
+        <p>Un code à 6 chiffres a été envoyé.<br>
+           <small style="color:#718096;">(Simulation : consultez la console du serveur Uvicorn)</small></p>
+        <input type="text" class="otp-input" id="otp-input"
+               maxlength="6" placeholder="000000"
+               autocomplete="off" inputmode="numeric">
+        <div class="otp-error" id="otp-error"></div>
+        <div class="otp-actions">
+            <button class="btn-secondary" onclick="closeOTP()">Annuler</button>
+            <button class="btn" id="otp-confirm-btn" onclick="confirmOTP()">Confirmer</button>
+        </div>
+        <p style="margin-top:14px; font-size:12px; color:#718096;">
+            Expire dans <span id="otp-timer" style="color:#f6ad55; font-weight:bold;">10:00</span>
+        </p>
+    </div>
+</div>
+
+<!-- ===== FORMULAIRE ===== -->
+<div class="center-container">
+    <div class="glass-box">
+        <h1 class="brand">API Bank</h1>
+        <p style="margin-bottom: 30px;">Créez votre profil sécurisé</p>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+          {% if messages %}
+            {% for category, message in messages %}
+              <div class="alert {% if category == 'success' %}alert-success{% else %}alert-error{% endif %}">{{ message }}</div>
+            {% endfor %}
+          {% endif %}
+        {% endwith %}
+
+        <form id="signup-form" onsubmit="handleSignup(event)">
+            <div style="display:flex; gap:10px;">
+                <div class="input-group">
+                    <label>Prénom</label>
+                    <input type="text" name="username" required placeholder="Dalell" value="{{ username | default('') }}">
+                </div>
+                <div class="input-group">
+                    <label>Nom</label>
+                    <input type="text" name="lastname" required placeholder="Ben Ali" value="{{ lastname | default('') }}">
+                </div>
+            </div>
+
+            <div class="input-group">
+                <label>Carte d'Identité (CIN)</label>
+                <input type="text" name="cin" required placeholder="8 chiffres (ex: 12345678)"
+                       pattern="\d{8}" title="Exactement 8 chiffres" value="{{ cin | default('') }}">
+            </div>
+
+            <div class="input-group">
+                <label>Adresse E-mail</label>
+                <input type="email" name="email" id="email" required placeholder="dalell@email.com" value="{{ email | default('') }}">
+            </div>
+
+            <div class="input-group">
+                <label>Mot de passe robuste</label>
+                <input type="password" name="password" required placeholder="••••••••">
+                <small style="color:var(--text-muted); font-size:11px;">
+                    6-20 car. incluant Majuscule, minuscule, chiffre, symbole (@$!%*?&)
+                </small>
+            </div>
+
+            <!-- Code OTP injecté par JavaScript -->
+            <input type="hidden" name="verification_code" id="verification_code">
+
+            <button type="submit" class="btn" id="submit-btn">S'inscrire</button>
+        </form>
+
+        <p style="margin-top: 15px; font-size: 14px;">Déjà inscrit ?
+            <a href="/" style="color: var(--primary); text-decoration: none; font-weight: bold;">Se connecter</a>
+        </p>
+        <p style="margin-top: 20px; font-size: 12px; color: var(--text-muted);">
+            🔒 Protégé par OTP, Zero Trust &amp; Bcrypt
+        </p>
+    </div>
+</div>
+
+<script>
+    // Auto-hide des messages flash
+    setTimeout(() => {
+        document.querySelectorAll('.alert').forEach(flash => {
+            flash.style.transition = 'opacity 0.5s ease';
+            flash.style.opacity = '0';
+            setTimeout(() => flash.remove(), 500);
+        });
+    }, 4000);
+
+    let timerInterval = null;
+
+    // ① Clic sur "S'inscrire" → envoyer automatiquement l'OTP, puis ouvrir le modal
+    async function handleSignup(e) {
+        e.preventDefault();
+        const email = document.getElementById('email').value;
+        const btn   = document.getElementById('submit-btn');
+
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner"></span>Envoi du code...';
+
+        try {
+            const res = await fetch('/request_otp', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email })
+            });
+            const data = await res.json();
+
+            if (res.ok) {
+                openOTPModal();
+            } else {
+                alert(data.detail || "Erreur lors de l'envoi du code.");
+            }
+        } catch (err) {
+            alert("Erreur réseau. Vérifiez que le serveur Uvicorn est actif.");
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = "S'inscrire";
+        }
+    }
+
+    // ② Afficher le modal et démarrer le compte à rebours 10 minutes
+    function openOTPModal() {
+        document.getElementById('otp-overlay').classList.add('active');
+        document.getElementById('otp-input').value    = '';
+        document.getElementById('otp-error').style.display = 'none';
+        document.getElementById('otp-confirm-btn').disabled  = false;
+        document.getElementById('otp-confirm-btn').textContent = 'Confirmer';
+        document.getElementById('otp-input').focus();
+
+        let seconds = 600;
+        clearInterval(timerInterval);
+        timerInterval = setInterval(() => {
+            seconds--;
+            const m = String(Math.floor(seconds / 60)).padStart(2, '0');
+            const s = String(seconds % 60).padStart(2, '0');
+            document.getElementById('otp-timer').textContent = `${m}:${s}`;
+            if (seconds <= 0) {
+                clearInterval(timerInterval);
+                document.getElementById('otp-timer').textContent = 'Expiré';
+                showOTPError('⏰ Code expiré. Fermez et relancez l\'inscription.');
+                document.getElementById('otp-confirm-btn').disabled = true;
+            }
+        }, 1000);
+    }
+
+    function closeOTP() {
+        document.getElementById('otp-overlay').classList.remove('active');
+        clearInterval(timerInterval);
+    }
+
+    // ③ Bouton "Confirmer" → injecter le code et soumettre le formulaire
+    function confirmOTP() {
+        const code = document.getElementById('otp-input').value.trim();
+        if (!/^\d{6}$/.test(code)) {
+            showOTPError('Veuillez saisir exactement 6 chiffres.');
+            return;
+        }
+
+        document.getElementById('otp-confirm-btn').disabled = true;
+        document.getElementById('otp-confirm-btn').innerHTML = '<span class="spinner"></span>Vérification...';
+
+        // Injecter le code OTP dans le champ caché du formulaire
+        document.getElementById('verification_code').value = code;
+
+        // Désactiver l'intercepteur JS et soumettre vers Flask
+        const form = document.getElementById('signup-form');
+        form.action   = '/process_signup';
+        form.method   = 'POST';
+        form.onsubmit = null;
+        form.submit();
+    }
+
+    function showOTPError(msg) {
+        const el = document.getElementById('otp-error');
+        el.textContent    = msg;
+        el.style.display  = 'block';
+        document.getElementById('otp-confirm-btn').disabled    = false;
+        document.getElementById('otp-confirm-btn').textContent = 'Confirmer';
+    }
+
+    // Touche Entrée = confirmer
+    document.getElementById('otp-input').addEventListener('keydown', e => {
+        if (e.key === 'Enter') confirmOTP();
+    });
+</script>
+
+</body>
+</html>
