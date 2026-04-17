@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Paramètres - Open Banking</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+
+<nav>
+    <div style="display: flex; align-items: center; gap: 15px;">
+        <a href="/dashboard" style="font-size: 24px; color: var(--text-main); font-weight: bold; text-decoration: none;">&larr;</a>
+        <div class="brand">API Bank</div>
+    </div>
+    <div class="nav-links" style="display: flex; gap: 20px; align-items: center;">
+        <a href="/beneficiaries">Bénéficiaires</a>
+        <a href="/journal">Journal</a>
+        <a href="/settings" style="font-weight: bold; color: var(--primary);">Paramètres</a>
+        <a href="/logout" class="text-danger">Déconnexion</a>
+    </div>
+</nav>
+
+<div class="page-container">
+    <div class="page-header">
+        <h1>Paramètres du Compte</h1>
+        <p>Modifiez vos informations. Une double validation est requise.</p>
+    </div>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        <div id="flash-container">
+        {% for category, message in messages %}
+          {% if category == 'success' %}
+          <div class="alert alert-success">{{ message }}</div>
+          {% else %}
+          <div class="alert alert-error">{{ message }}</div>
+          {% endif %}
+        {% endfor %}
+        </div>
+      {% endif %}
+    {% endwith %}
+
+    <div class="panel" style="max-width: 600px; margin: auto;">
+        <h3>Modifier votre Profil</h3>
+        <form method="POST" action="/settings" style="margin-top: 20px;">
+            <div class="input-group">
+                <label>Prénom actuel: {{ user.username }}</label>
+                <input type="text" name="new_username" placeholder="Nouveau prénom (optionnel)">
+            </div>
+            <div class="input-group">
+                <label>Nom actuel: {{ user.lastname }}</label>
+                <input type="text" name="new_lastname" placeholder="Nouveau nom (optionnel)">
+            </div>
+            
+            <hr style="border-color: var(--card-border); margin: 20px 0;">
+
+            <div class="input-group">
+                <label>Nouveau Mot de Passe (optionnel)</label>
+                <input type="password" name="new_password" placeholder="••••••••">
+                <p style="font-size: 11px; color: var(--text-muted); margin-top: 4px;">Laissez vide pour conserver l'actuel.</p>
+            </div>
+
+            <hr style="border-color: var(--card-border); margin: 20px 0;">
+            
+            <h4 style="margin-bottom: 15px; color: #f87171;">Validation de Sécurité (Requise)</h4>
+
+            <div class="input-group">
+                <label>Mot de passe actuel</label>
+                <input type="password" name="current_password" required placeholder="••••••••">
+            </div>
+
+            <div class="input-group">
+                <label>✉️ Code OTP (Envoyé par e-mail)</label>
+                <div style="display: flex; gap: 10px;">
+                    <input type="text" name="otp_code" required maxlength="6" pattern="\d{6}" placeholder="123456" inputmode="numeric" style="flex: 1; letter-spacing:4px; font-size:1.2rem;">
+                    <button type="button" class="btn btn-secondary request-otp-btn" style="width: auto;">Demander OTP</button>
+                </div>
+            </div>
+
+            <button type="submit" class="btn">Enregistrer les Modifications</button>
+        </form>
+    </div>
+</div>
+
+<script>
+    setTimeout(() => {
+        const flashes = document.querySelectorAll('.alert');
+        flashes.forEach(flash => {
+            flash.style.transition = 'opacity 0.5s ease';
+            flash.style.opacity = '0';
+            setTimeout(() => flash.remove(), 500);
+        });
+    }, 4000);
+
+    document.querySelectorAll('.request-otp-btn').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+            e.preventDefault();
+            btn.disabled = true;
+            btn.innerText = "Envoi...";
+            try {
+                const res = await fetch("/request_auth_otp", { method: "POST" });
+                const data = await res.json();
+                if(res.ok) {
+                    alert(data.message || "Code envoyé !");
+                } else {
+                    alert(data.detail || "Erreur lors de l'envoi");
+                }
+            } catch(err) {
+                alert("Erreur réseau");
+            }
+            btn.innerText = "Demander OTP";
+            btn.disabled = false;
+        });
+    });
+</script>
+
+</body>
+</html>
