@@ -1,0 +1,6 @@
+# Secrets et fichiers sensibles
+.env
+*.log
+__pycache__/
+*.pyc
+.venv/
