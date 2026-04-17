@@ -1,0 +1,8 @@
+{"timestamp": "2026-04-16T10:24:28.147071Z", "user_id": "69dd1a62fa98460d6e9813fd", "account_number": "3992900710", "action_type": "ACCOUNT_CREATION", "status": "SUCCESS", "details": {"message": "Account and Visa Card created"}}
+{"timestamp": "2026-04-16T10:26:54.005547Z", "user_id": "69dd1a62fa98460d6e9813fd", "account_number": "3992900710", "action_type": "DEPOSIT", "status": "SUCCESS", "details": {"amount": 10000.0}}
+{"timestamp": "2026-04-16T10:29:23.041002Z", "user_id": "69dd1a62fa98460d6e9813fd", "account_number": "3992900710", "action_type": "WITHDRAW", "status": "SUCCESS", "details": {"amount": 200.0}}
+{"timestamp": "2026-04-16T10:54:03.906254Z", "user_id": "69dd1a62fa98460d6e9813fd", "account_number": "6428157926", "action_type": "ACCOUNT_CREATION", "status": "SUCCESS", "details": {"message": "Account and Visa Card created"}}
+{"timestamp": "2026-04-16T11:38:08.267754Z", "user_id": "69daa3e8adb4f1acf1c61fd3", "account_number": "4585975655", "action_type": "ACCOUNT_CREATION", "status": "SUCCESS", "details": {"message": "Account and Visa Card created"}}
+{"timestamp": "2026-04-16T11:41:31.718493Z", "user_id": "69daa3e8adb4f1acf1c61fd3", "account_number": "4585975655", "action_type": "DEPOSIT", "status": "SUCCESS", "details": {"amount": 100000.0}}
+{"timestamp": "2026-04-16T11:47:32.222194Z", "user_id": "69dd1a62fa98460d6e9813fd", "account_number": "6577687030", "action_type": "ACCOUNT_CREATION", "status": "SUCCESS", "details": {"message": "Account and Visa Card created"}}
+{"timestamp": "2026-04-16T11:48:53.981830Z", "user_id": "69dd1a62fa98460d6e9813fd", "account_number": "6577687030", "action_type": "DEPOSIT", "status": "SUCCESS", "details": {"amount": 500000.0}}

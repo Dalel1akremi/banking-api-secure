@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Journal d'Activité - API Bank</title>
+    <meta name="description" content="Journal des activités et événements de sécurité - Détection d'anomalies par IA.">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <style>
+        /* ── Filter bar ── */
+        .filter-bar {
+            display: flex; gap: 10px; flex-wrap: wrap;
+            margin-bottom: 24px; align-items: center;
+        }
+        .filter-btn {
+            padding: 7px 16px; border-radius: 20px; border: 1px solid var(--card-border);
+            background: transparent; color: var(--text-muted);
+            cursor: pointer; font-size: 13px; font-weight: 500;
+            transition: all .2s;
+        }
+        .filter-btn:hover { border-color: var(--primary); color: var(--primary); }
+        .filter-btn.active { background: var(--primary); color: #000; border-color: var(--primary); font-weight: 700; }
+        .filter-btn.danger { border-color: rgba(248,113,113,.4); color: #f87171; }
+        .filter-btn.danger.active { background: #f87171; color: #000; border-color: #f87171; }
+
+        /* ── Log table rows ── */
+        .log-row {
+            display: grid;
+            grid-template-columns: 40px 160px 130px 100px 130px 1fr;
+            align-items: center; gap: 16px;
+            padding: 14px 20px;
+            border-bottom: 1px solid var(--card-border);
+            transition: background .15s;
+            cursor: default;
+        }
+        .log-row:last-child { border-bottom: none; }
+        .log-row:hover { background: rgba(255,255,255,.025); }
+        .log-row.header {
+            background: rgba(0,0,0,.2);
+            border-radius: 10px 10px 0 0;
+            border-bottom: 1px solid var(--card-border);
+            padding: 12px 20px;
+        }
+        .log-row.header span { font-size: 11px; text-transform: uppercase; letter-spacing: .07em; color: var(--text-muted); font-weight: 700; }
+        .log-icon {
+            width: 34px; height: 34px; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 16px; flex-shrink: 0;
+        }
+        .log-icon.success { background: rgba(52,211,153,.12); }
+        .log-icon.failure { background: rgba(248,113,113,.12); }
+
+        .log-action { font-size: 13px; font-weight: 600; color: var(--text-main); text-transform: uppercase; letter-spacing: .04em; }
+        .log-account { font-size: 13px; color: var(--text-muted); font-family: monospace; }
+        .log-time { font-size: 12px; color: var(--text-muted); }
+        .log-detail { font-size: 12px; color: var(--text-muted); }
+
+        .status-pill {
+            display: inline-flex; align-items: center; gap: 5px;
+            font-size: 11px; font-weight: 700; padding: 4px 10px;
+            border-radius: 20px; text-transform: uppercase; letter-spacing: .05em;
+        }
+        .status-pill.success { background: rgba(52,211,153,.12); color: #34d399; border: 1px solid rgba(52,211,153,.2); }
+        .status-pill.failure { background: rgba(248,113,113,.12); color: #f87171; border: 1px solid rgba(248,113,113,.2); }
+
+        /* ── Top stats ── */
+        .journal-stats {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+            gap: 16px; margin-bottom: 28px;
+        }
+        .jstat {
+            background: var(--card-bg); border: 1px solid var(--card-border);
+            border-radius: 14px; padding: 20px 22px;
+            display: flex; align-items: center; gap: 16px;
+        }
+        .jstat-icon { font-size: 28px; }
+        .jstat-label { font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: .06em; margin-bottom: 4px; }
+        .jstat-value { font-size: 24px; font-weight: 800; color: var(--text-main); }
+        .jstat-value.danger { color: #f87171; }
+        .jstat-value.ok { color: #34d399; }
+    </style>
+</head>
+<body>
+
+<nav>
+    <div style="display: flex; align-items: center; gap: 15px;">
+        <a href="/dashboard" style="font-size: 24px; color: var(--text-main); font-weight: bold; text-decoration: none;">&larr;</a>
+        <div class="brand">API Bank</div>
+    </div>
+    <div class="nav-links" style="display: flex; gap: 20px; align-items: center;">
+        <a href="/beneficiaries">Bénéficiaires</a>
+        <a href="/journal" style="color: var(--primary); font-weight: 700;">Journal</a>
+        <a href="/settings">Paramètres</a>
+        <a href="/logout" class="text-danger">Déconnexion</a>
+    </div>
+</nav>
+
+<div class="page-container">
+
+    <div class="page-header" style="margin-bottom: 24px;">
+        <h1>🛡️ Journal d'Activité</h1>
+        <p>Historique complet des événements — exploitable par un modèle IA de détection d'anomalies.</p>
+    </div>
+
+    <!-- ── KPIs ── -->
+    {% set total = activities | length %}
+    {% set failures = activities | selectattr('status', 'equalto', 'FAILURE') | list | length %}
+    {% set successes = total - failures %}
+    {% set locked = activities | selectattr('action_type', 'equalto', 'ACCOUNT_LOCKED') | list | length %}
+
+    <div class="journal-stats">
+        <div class="jstat">
+            <div class="jstat-icon">📋</div>
+            <div>
+                <div class="jstat-label">Total événements</div>
+                <div class="jstat-value">{{ total }}</div>
+            </div>
+        </div>
+        <div class="jstat">
+            <div class="jstat-icon">✅</div>
+            <div>
+                <div class="jstat-label">Succès</div>
+                <div class="jstat-value ok">{{ successes }}</div>
+            </div>
+        </div>
+        <div class="jstat">
+            <div class="jstat-icon">⚠️</div>
+            <div>
+                <div class="jstat-label">Échecs</div>
+                <div class="jstat-value {{ 'danger' if failures > 0 else 'ok' }}">{{ failures }}</div>
+            </div>
+        </div>
+        <div class="jstat">
+            <div class="jstat-icon">🔒</div>
+            <div>
+                <div class="jstat-label">Verrouillages</div>
+                <div class="jstat-value {{ 'danger' if locked > 0 else 'ok' }}">{{ locked }}</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── Filters ── -->
+    <div class="filter-bar">
+        <span style="font-size: 13px; color: var(--text-muted); margin-right: 4px;">Filtrer :</span>
+        <button class="filter-btn active" onclick="filterLogs('ALL', this)" id="filter-all">Tous</button>
+        <button class="filter-btn" onclick="filterLogs('DEPOSIT', this)">💰 Dépôt</button>
+        <button class="filter-btn" onclick="filterLogs('WITHDRAW', this)">💸 Retrait</button>
+        <button class="filter-btn" onclick="filterLogs('PAYMENT', this)">🛒 Paiement</button>
+        <button class="filter-btn" onclick="filterLogs('TRANSFER', this)">🔁 Transfert</button>
+        <button class="filter-btn danger" onclick="filterLogs('FAILURE', this)">🚨 Échecs uniquement</button>
+        <button class="filter-btn danger" onclick="filterLogs('ACCOUNT_LOCKED', this)">🔒 Verrouillages</button>
+    </div>
+
+    <!-- ── Log Table ── -->
+    <div class="panel" style="padding: 0; overflow: hidden;">
+        <!-- Header row -->
+        <div class="log-row header">
+            <span></span>
+            <span>Action</span>
+            <span>Compte</span>
+            <span>Statut</span>
+            <span>Date &amp; Heure</span>
+            <span>Détails</span>
+        </div>
+
+        <!-- Data rows -->
+        <div id="log-table-body">
+        {% if activities %}
+            {% for act in activities %}
+            {% set is_fail = act.status == 'FAILURE' %}
+            <div class="log-row" data-type="{{ act.action_type }}" data-status="{{ act.status }}">
+                <div class="log-icon {{ 'failure' if is_fail else 'success' }}">
+                    {% if act.action_type == 'DEPOSIT' %}💰
+                    {% elif act.action_type == 'WITHDRAW' %}💸
+                    {% elif act.action_type == 'PAYMENT' %}🛒
+                    {% elif act.action_type == 'TRANSFER_OUT' %}↗️
+                    {% elif act.action_type == 'TRANSFER_IN' %}↙️
+                    {% elif act.action_type == 'ACCOUNT_CREATION' %}🏦
+                    {% elif act.action_type == 'ACCOUNT_LOCKED' %}🔒
+                    {% elif act.action_type == 'PIN_VERIFICATION' %}🔐
+                    {% else %}📋{% endif %}
+                </div>
+                <div class="log-action">{{ act.action_type.replace('_', ' ') }}</div>
+                <div class="log-account">
+                    {% if act.account_number %}****{{ act.account_number[-4:] }}{% else %}—{% endif %}
+                </div>
+                <div>
+                    <span class="status-pill {{ 'failure' if is_fail else 'success' }}">
+                        {{ '✗' if is_fail else '✓' }} {{ act.status }}
+                    </span>
+                </div>
+                <div class="log-time">
+                    {% if act.timestamp %}
+                        {{ act.timestamp[:10] }}<br>
+                        <span style="font-size:11px;">{{ act.timestamp[11:19] }} UTC</span>
+                    {% else %}—{% endif %}
+                </div>
+                <div class="log-detail">
+                    {% if act.details %}
+                        {% if act.details.amount is defined %}<span style="color: var(--text-main); font-weight:600;">${{ "%.2f" | format(act.details.amount | float) }}</span> {% endif %}
+                        {% if act.details.merchant is defined %} · {{ act.details.merchant }}{% endif %}
+                        {% if act.details.to_account is defined %} → ****{{ act.details.to_account[-4:] }}{% endif %}
+                        {% if act.details.from_account is defined %} ← ****{{ act.details.from_account[-4:] }}{% endif %}
+                        {% if act.details.reason is defined %}<span style="color:#f87171;"> {{ act.details.reason }}</span>{% endif %}
+                        {% if act.details.failed_attempts is defined %}<span style="color:#fbbf24;"> Tentative {{ act.details.failed_attempts }}/3</span>{% endif %}
+                        {% if act.details.message is defined %}{{ act.details.message }}{% endif %}
+                    {% else %}—{% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        {% else %}
+            <div style="text-align:center; padding: 80px 20px; color: var(--text-muted);">
+                <div style="font-size: 48px; margin-bottom: 16px;">📋</div>
+                <p style="font-size: 16px;">Aucune activité enregistrée pour le moment.</p>
+                <p style="font-size: 13px; margin-top: 8px;">Effectuez des transactions pour voir apparaître les logs.</p>
+            </div>
+        {% endif %}
+        </div>
+    </div>
+
+    <!-- Export hint -->
+    <div style="margin-top: 16px; padding: 12px 18px; background: rgba(99,102,241,.06); border: 1px solid rgba(99,102,241,.15); border-radius: 10px; font-size: 12px; color: var(--text-muted);">
+        💡 Les logs sont également sauvegardés en temps réel dans <code style="color:var(--primary);">data/ai_activity_logs.json</code> (format JSON Lines) pour analyse par modèle IA.
+    </div>
+
+</div>
+
+<script>
+    function filterLogs(type, btn) {
+        // Update button states
+        document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+
+        const rows = document.querySelectorAll('#log-table-body .log-row');
+        rows.forEach(row => {
+            const rowType = row.dataset.type || '';
+            const rowStatus = row.dataset.status || '';
+
+            let show = false;
+            if (type === 'ALL') {
+                show = true;
+            } else if (type === 'FAILURE') {
+                show = rowStatus === 'FAILURE';
+            } else if (type === 'TRANSFER') {
+                show = rowType.startsWith('TRANSFER');
+            } else {
+                show = rowType === type;
+            }
+            row.style.display = show ? '' : 'none';
+        });
+    }
+</script>
+
+</body>
+</html>
