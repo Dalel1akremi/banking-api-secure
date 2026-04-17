@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Open Banking - Secure Login</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+
+<div class="center-container">
+    <div class="glass-box">
+        <h1 class="brand">API Bank</h1>
+        <p style="margin-bottom: 30px;">Identifiez-vous pour accéder à vos comptes</p>
+
+        {% if error %}
+            <div class="alert alert-error">{{ error }}</div>
+        {% endif %}
+        
+        {% with messages = get_flashed_messages(with_categories=true) %}
+          {% if messages %}
+            {% for category, message in messages %}
+              <div class="alert {% if category == 'success' %}alert-success{% else %}alert-error{% endif %}">{{ message }}</div>
+            {% endfor %}
+          {% endif %}
+        {% endwith %}
+
+        <form method="POST">
+            <div class="input-group">
+                <label>Adresse E-mail</label>
+                <input type="email" name="email" required placeholder="Ex: dalell@email.com" value="{{ email | default('') }}">
+            </div>
+
+            <div class="input-group">
+                <label>Mot de passe</label>
+                <input type="password" name="password" required placeholder="••••••••">
+            </div>
+
+            <button type="submit" class="btn">Connexion Sécurisée</button>
+        </form>
+
+        <p style="margin-top: 15px; font-size: 14px;">Êtes-vous nouveau ? <a href="/signup" style="color: var(--primary); text-decoration: none; font-weight: bold;">Créer un profil</a></p>
+
+        <p style="margin-top: 20px; font-size: 12px; color: var(--text-muted);">🔒 Protégé par un système Zero Trust et OAuth2</p>
+    </div>
+</div>
+
+<script>
+    setTimeout(() => {
+        const flashes = document.querySelectorAll('.alert');
+        flashes.forEach(flash => {
+            flash.style.transition = 'opacity 0.5s ease';
+            flash.style.opacity = '0';
+            setTimeout(() => flash.remove(), 500);
+        });
+    }, 4000);
+</script>
+
+</body>
+</html>
