@@ -15,6 +15,22 @@ limiter = Limiter(
 
 BASE_API_URL = "http://127.0.0.1:8000"
 
+def is_card_expired(expiry_str: str) -> bool:
+    if not expiry_str: return True
+    try:
+        from datetime import datetime
+        exp_month, exp_year = map(int, expiry_str.split('/'))
+        exp_year += 2000
+        now = datetime.utcnow()
+        # Card is valid until the end of the month
+        if exp_month == 12:
+            expiry_date = datetime(exp_year + 1, 1, 1)
+        else:
+            expiry_date = datetime(exp_year, exp_month + 1, 1)
+        return now >= expiry_date
+    except:
+        return True
+
 @app.route("/", methods=["GET", "POST"])
 @limiter.limit("5 per minute")
 def login():
@@ -175,7 +191,9 @@ def account_details(account_number):
     all_activities = act_res.json() if act_res.status_code == 200 else []
     card_activities = [a for a in all_activities if a.get("account_number") == account_number][:15]
         
-    return render_template("account_details.html", account=account, transactions=transactions, beneficiaries=beneficiaries, card_activities=card_activities)
+    is_expired = is_card_expired(account.get("card_expiry"))
+    
+    return render_template("account_details.html", account=account, transactions=transactions, beneficiaries=beneficiaries, card_activities=card_activities, is_expired=is_expired)
 
 @app.route("/deposit", methods=["POST"])
 @limiter.limit("10 per minute")
@@ -350,6 +368,91 @@ def journal():
     act_res = requests.get(f"{BASE_API_URL}/activities/", headers=get_headers())
     activities = act_res.json() if act_res.status_code == 200 else []
     return render_template("journal.html", activities=activities)
+
+@app.route("/toggle_card_status", methods=["POST"])
+def toggle_card_status():
+    if "token" not in session: return redirect("/")
+    account_number = request.form.get("account_number")
+    pin = request.form.get("pin")
+    otp_code = request.form.get("otp_code")
+    
+    res = requests.post(f"{BASE_API_URL}/accounts/toggle-card-status", json={
+        "account_number": account_number,
+        "pin": pin,
+        "otp_code": otp_code
+    }, headers=get_headers())
+    
+    if res.status_code == 200:
+        msg = res.json().get("message", "Statut de la carte mis à jour.")
+        flash(msg, "success")
+    else:
+        detail = res.json().get("detail", "Erreur lors du changement de statut")
+        flash(detail, "error")
+        
+    return redirect(f"/account/{account_number}")
+
+@app.route("/delete_account", methods=["POST"])
+def delete_account():
+    if "token" not in session: return redirect("/")
+    account_number = request.form.get("account_number")
+    pin = request.form.get("pin")
+    otp_code = request.form.get("otp_code")
+    
+    res = requests.post(f"{BASE_API_URL}/accounts/delete", json={
+        "account_number": account_number,
+        "pin": pin,
+        "otp_code": otp_code
+    }, headers=get_headers())
+    
+    if res.status_code == 200:
+        flash("Compte bancaire supprimé avec succès.", "success")
+        return redirect("/dashboard")
+    else:
+        detail = res.json().get("detail", "Erreur lors de la suppression")
+        flash(detail, "error")
+        return redirect(f"/account/{account_number}")
+
+@app.route("/delete_profile", methods=["POST"])
+def delete_profile():
+    if "token" not in session: return redirect("/")
+    current_password = request.form.get("current_password")
+    otp_code = request.form.get("otp_code")
+    
+    res = requests.post(f"{BASE_API_URL}/users/me/delete", json={
+        "current_password": current_password,
+        "otp_code": otp_code
+    }, headers=get_headers())
+    
+    if res.status_code == 200:
+        session.pop("token", None)
+        flash("Votre profil et toutes vos données ont été supprimés.", "success")
+        return redirect("/")
+    else:
+        detail = res.json().get("detail", "Erreur lors de la suppression du profil")
+        flash(detail, "error")
+        return redirect("/settings")
+
+@app.route("/renew_card", methods=["POST"])
+def renew_card():
+    if "token" not in session: return redirect("/")
+    account_number = request.form.get("account_number")
+    pin = request.form.get("pin")
+    otp_code = request.form.get("otp_code")
+    
+    res = requests.post(f"{BASE_API_URL}/accounts/renew-card", json={
+        "account_number": account_number,
+        "pin": pin,
+        "otp_code": otp_code
+    }, headers=get_headers())
+    
+    if res.status_code == 200:
+        flash("Carte renouvelée avec succès. Les frais de 10 DT ont été prélevés.", "success")
+    else:
+        detail = res.json().get("detail", "Erreur lors du renouvellement")
+        flash(detail, "error")
+        
+    return redirect(f"/account/{account_number}")
+
 
 if __name__ == "__main__":
     app.run(port=5000, debug=True)

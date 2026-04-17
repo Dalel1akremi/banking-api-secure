@@ -180,13 +180,22 @@
                     {% elif act.action_type == 'PIN_VERIFICATION' %}🔐
                     {% else %}📋{% endif %}
                 </div>
-                <div class="log-action">{{ act.action_type.replace('_', ' ') }}</div>
+                {% set trans = {
+                    'DEPOSIT': 'DÉPÔT', 'WITHDRAW': 'RETRAIT', 'PAYMENT': 'PAIEMENT',
+                    'TRANSFER_OUT': 'TRANSFERT SORTANT', 'TRANSFER_IN': 'TRANSFERT ENTRANT',
+                    'ACCOUNT_CREATION': 'CRÉATION DE COMPTE', 'ACCOUNT_LOCKED': 'COMPTE VERROUILLÉ',
+                    'PIN_VERIFICATION': 'VÉRIFICATION PIN', 'CARD_STATUS_CHANGE': 'STATUT CARTE',
+                    'ACCOUNT_DELETION': 'SUPPRESSION COMPTE', 'CARD_RENEWAL': 'RENOUVELLEMENT CARTE',
+                    'LOGIN': 'CONNEXION', 'SIGNUP': 'INSCRIPTION', 'PROFILE_UPDATE': 'MISE À JOUR PROFIL',
+                    'PROFILE_DELETION': 'SUPPRESSION PROFIL'
+                } %}
+                <div class="log-action">{{ trans[act.action_type] if act.action_type in trans else act.action_type.replace('_', ' ') }}</div>
                 <div class="log-account">
                     {% if act.account_number %}****{{ act.account_number[-4:] }}{% else %}—{% endif %}
                 </div>
                 <div>
                     <span class="status-pill {{ 'failure' if is_fail else 'success' }}">
-                        {{ '✗' if is_fail else '✓' }} {{ act.status }}
+                        {{ '✗ ÉCHEC' if is_fail else '✓ SUCCÈS' }}
                     </span>
                 </div>
                 <div class="log-time">
@@ -197,7 +206,7 @@
                 </div>
                 <div class="log-detail">
                     {% if act.details %}
-                        {% if act.details.amount is defined %}<span style="color: var(--text-main); font-weight:600;">${{ "%.2f" | format(act.details.amount | float) }}</span> {% endif %}
+                        {% if act.details.amount is defined %}<span style="color: var(--text-main); font-weight:600;">{{ "%.2f" | format(act.details.amount | float) }} DT</span> {% endif %}
                         {% if act.details.merchant is defined %} · {{ act.details.merchant }}{% endif %}
                         {% if act.details.to_account is defined %} → ****{{ act.details.to_account[-4:] }}{% endif %}
                         {% if act.details.from_account is defined %} ← ****{{ act.details.from_account[-4:] }}{% endif %}

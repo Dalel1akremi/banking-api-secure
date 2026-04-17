@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, Field, EmailStr, field_validator
 from werkzeug.security import generate_password_hash
-from app.db import users_collection, otp_collection
+from app.db import users_collection, otp_collection, accounts_collection, transactions_collection, beneficiaries_collection
 from app.rate_limiter import limiter
 import re
 import datetime
@@ -117,6 +117,10 @@ class SettingsUpdate(BaseModel):
     new_lastname: str = None
     new_password: str = None
 
+class UserDelete(BaseModel):
+    current_password: str
+    otp_code: str
+
 @router.put("/me/security")
 @limiter.limit("5/minute")
 def update_security_settings(request: Request, data: SettingsUpdate, user=Depends(verify_token)):
@@ -147,3 +151,40 @@ def update_security_settings(request: Request, data: SettingsUpdate, user=Depend
         users_collection.update_one({"email": email}, {"$set": updates})
 
     return {"message": "Paramètres mis à jour avec succès"}
+
+@router.post("/me/delete")
+@limiter.limit("2/minute")
+def delete_user_profile(request: Request, data: UserDelete, user=Depends(verify_token)):
+    email = user["sub"]
+    db_user = users_collection.find_one({"email": email})
+    if not db_user:
+        raise HTTPException(status_code=404, detail="Utilisateur introuvable")
+
+    # 1. Vérification du mot de passe
+    if not check_password_hash(db_user.get("password", ""), data.current_password):
+        raise HTTPException(status_code=403, detail="Mot de passe actuel incorrect.")
+
+    # 2. Vérification de l'OTP
+    verify_auth_otp(email, data.otp_code)
+
+    user_id = str(db_user["_id"])
+
+    # 3. Nettoyage complet
+    # Suppression des bénéficiaires
+    beneficiaries_collection.delete_many({"owner_id": user_id})
+    
+    # Suppression des transactions (pour tous les comptes de cet utilisateur)
+    transactions_collection.delete_many({"owner_id": user_id})
+    
+    # Suppression des comptes bancaires
+    accounts_collection.delete_many({"owner_id": user_id})
+    
+    # Suppression de l'utilisateur
+    users_collection.delete_one({"_id": db_user["_id"]})
+
+    # Log - On le fait avant de supprimer l'utilisateur si on veut garder une trace liée à son ID 
+    # ou on log l'action de manière générale.
+    from app.security.logger import log_activity
+    log_activity(user_id, "N/A", "USER_PROFILE_DELETION", "SUCCESS", {"email": email})
+
+    return {"message": "Profil utilisateur et toutes les données associées supprimés avec succès."}
