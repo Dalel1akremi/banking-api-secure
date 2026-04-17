@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Bénéficiaires - Open Banking</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+
+<nav>
+    <div style="display: flex; align-items: center; gap: 15px;">
+        <a href="/dashboard" style="font-size: 24px; color: var(--text-main); font-weight: bold; text-decoration: none;">&larr;</a>
+        <div class="brand">API Bank</div>
+    </div>
+    <div class="nav-links" style="display: flex; gap: 20px; align-items: center;">
+        <a href="/beneficiaries" style="font-weight: bold; color: var(--primary);">Bénéficiaires</a>
+        <a href="/journal">Journal</a>
+        <a href="/settings">Paramètres</a>
+        <a href="/logout" class="text-danger">Déconnexion</a>
+    </div>
+</nav>
+
+<div class="page-container">
+    <div class="page-header">
+        <h1>Mes Bénéficiaires</h1>
+        <p>Gérez les comptes des tiers autorisés pour vos transferts.</p>
+    </div>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        <div id="flash-container">
+        {% for category, message in messages %}
+          {% if category == 'success' %}
+          <div class="alert alert-success">{{ message }}</div>
+          {% else %}
+          <div class="alert alert-error">{{ message }}</div>
+          {% endif %}
+        {% endfor %}
+        </div>
+      {% endif %}
+    {% endwith %}
+
+    <div class="dashboard-grid">
+        
+        <div class="panel">
+            <h2>Liste des Bénéficiaires</h2>
+            <div class="table-container" style="margin-top: 20px;">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Nom (Alias)</th>
+                            <th>Numéro de Compte</th>
+                            <th>Identité Vérifiée</th>
+                            <th>Statut</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for b in beneficiaries %}
+                        <tr>
+                            <td style="font-weight: bold; color: #fff;">{{ b.alias }}</td>
+                            <td style="letter-spacing: 2px;">{{ b.account_number }}</td>
+                            <td style="font-size: 13px; color: var(--text-muted);">
+                                {% if b.verified_name %}
+                                    {{ b.verified_name }}
+                                {% else %}
+                                    <span style="font-style: italic;">Non spécifié</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if b.cop_verified %}
+                                    <span class="badge" style="background: rgba(0, 230, 118, 0.1); color: #00e676; border: 1px solid rgba(0, 230, 118, 0.3);">
+                                        ✅ Vérifié
+                                    </span>
+                                {% else %}
+                                    <span class="badge" style="background: rgba(156, 163, 175, 0.1); color: var(--text-muted); border: 1px solid rgba(156, 163, 175, 0.3);">
+                                        Legacy
+                                    </span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="4" style="text-align: center; color: var(--text-muted);">Aucun bénéficiaire enregistré.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        
+        <div class="panel">
+            <h3>Ajouter un Bénéficiaire</h3>
+            <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 20px;">
+                Conformément aux normes Open Banking (CoP), le nom saisi sera vérifié contre l'identité réelle du titulaire.
+            </p>
+            <form method="POST" action="/beneficiaries" style="margin-top: 20px;">
+                <div class="input-group">
+                    <label>Nom complet du titulaire (Sert d'alias)</label>
+                    <input type="text" name="alias" required placeholder="Ex: Jean Martin" maxlength="100">
+                    <p style="font-size: 11px; color: #fbbf24; margin-top: 5px;">⚠️ Doit correspondre exactement au prénom/nom du compte.</p>
+                </div>
+                <div class="input-group">
+                    <label>Numéro de Compte (10 chiffres)</label>
+                    <input type="text" name="account_number" required placeholder="Ex: 1234567890" maxlength="10" pattern="\d{10}">
+                </div>
+
+                <hr style="border-color: var(--card-border); margin: 20px 0;">
+                
+                <h4 style="margin-bottom: 15px; color: #f87171;">Validation de Sécurité</h4>
+
+                <div class="input-group">
+                    <label>Votre mot de passe</label>
+                    <input type="password" name="current_password" required placeholder="••••••••">
+                </div>
+
+                <div class="input-group">
+                    <label>✉️ Code OTP (Envoyé par e-mail)</label>
+                    <div style="display: flex; gap: 10px;">
+                        <input type="text" name="otp_code" required maxlength="6" pattern="\d{6}" placeholder="123456" inputmode="numeric" style="flex: 1; letter-spacing:4px; font-size:1.2rem;">
+                        <button type="button" class="btn btn-secondary request-otp-btn" style="width: auto;">Demander OTP</button>
+                    </div>
+                </div>
+
+                <button type="submit" class="btn">Authentifier et Ajouter</button>
+            </form>
+        </div>
+
+    </div>
+</div>
+
+<script>
+    setTimeout(() => {
+        const flashes = document.querySelectorAll('.alert');
+        flashes.forEach(flash => {
+            flash.style.transition = 'opacity 0.5s ease';
+            flash.style.opacity = '0';
+            setTimeout(() => flash.remove(), 500);
+        });
+    }, 4000);
+
+    document.querySelectorAll('.request-otp-btn').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+            e.preventDefault();
+            btn.disabled = true;
+            btn.innerText = "Envoi...";
+            try {
+                const res = await fetch("/request_auth_otp", { method: "POST" });
+                const data = await res.json();
+                if(res.ok) {
+                    alert(data.message || "Code envoyé !");
+                } else {
+                    alert(data.detail || "Erreur lors de l'envoi");
+                }
+            } catch(err) {
+                alert("Erreur réseau");
+            }
+            btn.innerText = "Demander OTP";
+            btn.disabled = false;
+        });
+    });
+</script>
+
+</body>
+</html>
