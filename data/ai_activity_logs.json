@@ -10,3 +10,9 @@
 {"timestamp": "2026-04-17T15:37:16.991006Z", "user_id": "69dd1a62fa98460d6e9813fd", "account_number": "6577687030", "action_type": "CARD_RENEWAL", "status": "SUCCESS", "details": {"fee": 10.0}}
 {"timestamp": "2026-04-17T15:38:13.569262Z", "user_id": "69dd1a62fa98460d6e9813fd", "account_number": "6577687030", "action_type": "CARD_RENEWAL", "status": "SUCCESS", "details": {"fee": 10.0}}
 {"timestamp": "2026-04-17T16:00:16.749257Z", "user_id": "69dd1a62fa98460d6e9813fd", "account_number": "6577687030", "action_type": "CARD_RENEWAL", "status": "SUCCESS", "details": {"fee": 10.0}}
+{"timestamp": "2026-04-18T12:49:37.712896Z", "user_id": "69dd1a62fa98460d6e9813fd", "account_number": "6577687030", "action_type": "CARD_SUBSCRIPTION_UPDATE", "status": "SUCCESS", "details": {"subscription": "Prime"}}
+{"timestamp": "2026-04-18T12:50:29.568865Z", "user_id": "69dd1a62fa98460d6e9813fd", "account_number": "6577687030", "action_type": "CARD_LIMITS_UPDATE", "status": "SUCCESS", "details": {"message": "Plafonds mis \u00e0 jour"}}
+{"timestamp": "2026-04-18T12:51:24.771750Z", "user_id": "69dd1a62fa98460d6e9813fd", "account_number": "6577687030", "action_type": "CARD_SUBSCRIPTION_UPDATE", "status": "SUCCESS", "details": {"subscription": "Standard"}}
+{"timestamp": "2026-04-20T21:36:55.587282Z", "user_id": "69dd1a62fa98460d6e9813fd", "account_number": "6577687030", "action_type": "CARD_LIMITS_UPDATE", "status": "SUCCESS", "details": {"message": "Plafonds mis \u00e0 jour"}}
+{"timestamp": "2026-04-20T22:08:12.246467Z", "user_id": "69dd1a62fa98460d6e9813fd", "account_number": "6577687030", "action_type": "CARD_SUBSCRIPTION_UPDATE", "status": "SUCCESS", "details": {"subscription": "Prime"}}
+{"timestamp": "2026-04-20T22:08:58.402252Z", "user_id": "69dd1a62fa98460d6e9813fd", "account_number": "6577687030", "action_type": "CARD_LIMITS_UPDATE", "status": "SUCCESS", "details": {"message": "Plafonds mis \u00e0 jour"}}

@@ -195,6 +195,25 @@ def account_details(account_number):
     
     return render_template("account_details.html", account=account, transactions=transactions, beneficiaries=beneficiaries, card_activities=card_activities, is_expired=is_expired)
 
+@app.route("/account/<account_number>/card")
+def card_details(account_number):
+    if "token" not in session:
+        return redirect("/")
+        
+    acc_res = requests.get(f"{BASE_API_URL}/accounts/{account_number}", headers=get_headers())
+    if acc_res.status_code != 200:
+        return redirect("/dashboard")
+    account = acc_res.json()
+    
+    # Fetch card-specific activities (filter by account_number)
+    act_res = requests.get(f"{BASE_API_URL}/activities/", headers=get_headers())
+    all_activities = act_res.json() if act_res.status_code == 200 else []
+    card_activities = [a for a in all_activities if a.get("account_number") == account_number][:20]
+        
+    is_expired = is_card_expired(account.get("card_expiry"))
+    
+    return render_template("card_details.html", account=account, card_activities=card_activities, is_expired=is_expired)
+
 @app.route("/deposit", methods=["POST"])
 @limiter.limit("10 per minute")
 def deposit():
@@ -228,12 +247,16 @@ def withdraw():
     amount = float(request.form.get("amount", 0))
     pin = request.form.get("pin", "")
     otp_code = request.form.get("otp_code", "")
+    is_foreign = request.form.get("is_foreign") == "on"
+    is_contactless = request.form.get("is_contactless") == "on"
     
     res = requests.post(f"{BASE_API_URL}/accounts/withdraw", json={
         "account_number": account_number,
         "amount": amount,
         "pin": pin,
-        "otp_code": otp_code
+        "otp_code": otp_code,
+        "is_foreign": is_foreign,
+        "is_contactless": is_contactless
     }, headers=get_headers())
     
     if res.status_code != 200:
@@ -283,13 +306,19 @@ def process_payment():
     merchant = request.form.get("merchant")
     pin = request.form.get("pin", "")
     otp_code = request.form.get("otp_code", "")
+    is_online = request.form.get("is_online") == "on"
+    is_foreign = request.form.get("is_foreign") == "on"
+    is_contactless = request.form.get("is_contactless") == "on"
     
     res = requests.post(f"{BASE_API_URL}/accounts/payment", json={
         "account_number": account_number,
         "amount": amount,
         "merchant": merchant,
         "pin": pin,
-        "otp_code": otp_code
+        "otp_code": otp_code,
+        "is_online": is_online,
+        "is_foreign": is_foreign,
+        "is_contactless": is_contactless
     }, headers=get_headers())
     
     if res.status_code != 200:
@@ -451,6 +480,82 @@ def renew_card():
         detail = res.json().get("detail", "Erreur lors du renouvellement")
         flash(detail, "error")
         
+    return redirect(f"/account/{account_number}")
+
+@app.route("/update_card_limits", methods=["POST"])
+def update_card_limits():
+    if "token" not in session: return redirect("/")
+    account_number = request.form.get("account_number")
+    online_payment_limit = float(request.form.get("online_payment_limit", 1000))
+    atm_withdrawal_limit = float(request.form.get("atm_withdrawal_limit", 500))
+    pin = request.form.get("pin")
+    otp_code = request.form.get("otp_code")
+    
+    res = requests.post(f"{BASE_API_URL}/accounts/update-limits", json={
+        "account_number": account_number,
+        "online_payment_limit": online_payment_limit,
+        "atm_withdrawal_limit": atm_withdrawal_limit,
+        "pin": pin,
+        "otp_code": otp_code
+    }, headers=get_headers())
+    
+    if res.status_code == 200:
+        flash("Plafonds mis à jour avec succès.", "success")
+    else:
+        detail = res.json().get("detail", "Erreur lors de la mise à jour")
+        flash(detail, "error")
+    return redirect(f"/account/{account_number}")
+
+@app.route("/update_card_options", methods=["POST"])
+def update_card_options():
+    if "token" not in session: return redirect("/")
+    account_number = request.form.get("account_number")
+    contactless_payment = request.form.get("contactless_payment") == "on"
+    internet_payments = request.form.get("internet_payments") == "on"
+    foreign_transactions = request.form.get("foreign_transactions") == "on"
+    domestic_withdrawals = request.form.get("domestic_withdrawals") == "on"
+    foreign_withdrawals = request.form.get("foreign_withdrawals") == "on"
+    pin = request.form.get("pin")
+    otp_code = request.form.get("otp_code")
+    
+    res = requests.post(f"{BASE_API_URL}/accounts/update-options", json={
+        "account_number": account_number,
+        "contactless_payment": contactless_payment,
+        "internet_payments": internet_payments,
+        "foreign_transactions": foreign_transactions,
+        "domestic_withdrawals": domestic_withdrawals,
+        "foreign_withdrawals": foreign_withdrawals,
+        "pin": pin,
+        "otp_code": otp_code
+    }, headers=get_headers())
+    
+    if res.status_code == 200:
+        flash("Options de sécurité mises à jour.", "success")
+    else:
+        detail = res.json().get("detail", "Erreur lors de la mise à jour")
+        flash(detail, "error")
+    return redirect(f"/account/{account_number}")
+
+@app.route("/update_card_subscription", methods=["POST"])
+def update_card_subscription():
+    if "token" not in session: return redirect("/")
+    account_number = request.form.get("account_number")
+    subscription = request.form.get("subscription", "Standard")
+    pin = request.form.get("pin")
+    otp_code = request.form.get("otp_code")
+    
+    res = requests.post(f"{BASE_API_URL}/accounts/update-subscription", json={
+        "account_number": account_number,
+        "subscription": subscription,
+        "pin": pin,
+        "otp_code": otp_code
+    }, headers=get_headers())
+    
+    if res.status_code == 200:
+        flash(f"Abonnement mis à jour vers {subscription}.", "success")
+    else:
+        detail = res.json().get("detail", "Erreur lors de l'abonnement")
+        flash(detail, "error")
     return redirect(f"/account/{account_number}")
 
 

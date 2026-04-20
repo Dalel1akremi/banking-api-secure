@@ -32,6 +32,27 @@
             transform: rotateY(-4deg) rotateX(3deg) translateY(-4px);
             box-shadow: 0 30px 80px rgba(0,0,0,.7);
         }
+
+        /* 💎 PRIME CARD STYLE */
+        .visa-card.prime {
+            background: linear-gradient(135deg, #000000 0%, #1a1a1a 40%, #2b2b2b 100%) !important;
+            border: 1px solid rgba(224, 170, 62, 0.4);
+            box-shadow: 0 20px 60px rgba(0,0,0,.8), 0 0 25px rgba(224, 170, 62, 0.15);
+        }
+        .visa-card.prime::before {
+            background: radial-gradient(ellipse at 80% 20%, rgba(224, 170, 62, .15) 0%, transparent 55%) !important;
+        }
+        .visa-card.prime .deco-circle.c1 { background: #e0aa3e !important; }
+        .visa-card.prime .deco-circle.c2 { background: #c5a059 !important; }
+        
+        .prime-badge {
+            position: absolute; bottom: 85px; right: 26px;
+            font-size: 9px; font-weight: 900; color: #e0aa3e;
+            letter-spacing: 2px; text-transform: uppercase;
+            border: 1px solid #e0aa3e; padding: 3px 10px; border-radius: 4px;
+            background: rgba(0,0,0,0.4);
+            backdrop-filter: blur(2px);
+        }
         /* Background holographic glow */
         .visa-card::before {
             content: '';
@@ -211,9 +232,14 @@
 </nav>
 
 <div class="page-container">
-    <div class="page-header">
-        <h1>Détails du Compte</h1>
-        <p>Numéro : <strong>**** **** **** {{ account.account_number[-4:] }}</strong></p>
+    <div class="page-header flex-between">
+        <div>
+            <h1>Détails du Compte</h1>
+            <p>Numéro : <strong>**** **** **** {{ account.account_number[-4:] }}</strong></p>
+        </div>
+        <a href="/account/{{ account.account_number }}/card" class="btn" style="width: auto; padding: 12px 24px; background: linear-gradient(135deg, #6366f1, #8b5cf6); border:none; display: flex; align-items: center; gap: 10px;">
+            <span>💳</span> Ma Carte Visa
+        </a>
     </div>
 
     {% with messages = get_flashed_messages(with_categories=true) %}
@@ -230,8 +256,8 @@
       {% endif %}
     {% endwith %}
 
-    <!-- ── Layout principal 3 colonnes ── -->
-    <div style="display: grid; grid-template-columns: 1fr 320px; gap: 24px; align-items: start;">
+    <!-- ── Layout principal 2 colonnes ── -->
+    <div style="display: grid; grid-template-columns: 1fr 400px; gap: 24px; align-items: start;" id="main-grid-layout">
 
         <!-- ── COLONNE GAUCHE : Historique ── -->
         <div>
@@ -290,9 +316,12 @@
                     </table>
                 </div>
             </div>
+        </div>
 
+        <!-- ── COLONNE DROITE : Opérations + Activité Carte ── -->
+        <div id="right-column-container">
             <!-- ── ONGLETS OPÉRATIONS ── -->
-            <div class="tabs" style="margin-top: 24px;">
+            <div class="tabs" style="margin-top: 0;">
                 <button class="tab-btn active" onclick="showTab(event, 'tab-deposit')" id="btn-deposit">Dépôt</button>
                 <button class="tab-btn" onclick="showTab(event, 'tab-withdraw')" id="btn-withdraw">Retrait</button>
                 <button class="tab-btn" onclick="showTab(event, 'tab-transfer')" id="btn-transfer">Transfert</button>
@@ -329,6 +358,13 @@
                     <div class="input-group">
                         <label>Montant (DT)</label>
                         <input type="number" step="0.01" name="amount" required placeholder="Ex: 200">
+                    </div>
+                    <div class="input-group" style="background: rgba(0,0,0,0.2); padding: 10px; border-radius: 8px; margin-bottom: 15px;">
+                        <label style="margin-bottom: 8px;">🛠️ Options de simulation</label>
+                        <div style="display: flex; gap: 15px; font-size: 13px; color: var(--text-main);">
+                            <label style="display:flex; align-items:center; gap:5px; margin:0;"><input type="checkbox" name="is_foreign"> À l'étranger</label>
+                            <label style="display:flex; align-items:center; gap:5px; margin:0;"><input type="checkbox" name="is_contactless"> Sans contact</label>
+                        </div>
                     </div>
                     <div class="input-group">
                         <label>🔐 Code Confidentiel (PIN)</label>
@@ -398,6 +434,14 @@
                         <label>Montant (DT)</label>
                         <input type="number" step="0.01" name="amount" required placeholder="Ex: 85.50">
                     </div>
+                    <div class="input-group" style="background: rgba(0,0,0,0.2); padding: 10px; border-radius: 8px; margin-bottom: 15px;">
+                        <label style="margin-bottom: 8px;">🛠️ Options de simulation</label>
+                        <div style="display: flex; gap: 15px; font-size: 13px; color: var(--text-main);">
+                            <label style="display:flex; align-items:center; gap:5px; margin:0;"><input type="checkbox" name="is_online"> En ligne</label>
+                            <label style="display:flex; align-items:center; gap:5px; margin:0;"><input type="checkbox" name="is_foreign"> À l'étranger</label>
+                            <label style="display:flex; align-items:center; gap:5px; margin:0;"><input type="checkbox" name="is_contactless"> Sans contact</label>
+                        </div>
+                    </div>
                     <div class="input-group">
                         <label>🔐 Code Confidentiel (PIN)</label>
                         <input type="password" name="pin" required maxlength="4" pattern="\d{4}" placeholder="••••" inputmode="numeric" style="letter-spacing:8px; font-size:1.2rem;">
@@ -412,166 +456,45 @@
                     <button type="submit" class="btn" style="background:#e040fb; color:#fff; border:none;" id="submit-payment">Payer la facture</button>
                 </form>
             </div>
-        </div>
 
-        <!-- ── COLONNE DROITE : Carte Visa + Activités ── -->
-        <div>
-            <!-- Solde rapide -->
-            <div class="balance-panel">
-                <div class="balance-label">Solde disponible</div>
-                <div class="balance-amount">{{ "%.2f" | format(account.balance | float) }} DT</div>
-            </div>
-
-            <!-- ──── CARTE VISA ──── -->
-            <div class="visa-card-wrapper">
-                <div class="visa-card" id="visa-card-el">
-                    <div class="deco-circle c1"></div>
-                    <div class="deco-circle c2"></div>
-
-                    <div class="card-logo">
-                        <span class="bank-name">API Bank</span>
-                        {% if is_expired %}
-                        <div class="card-status-badge expired">Expirée</div>
-                        {% else %}
-                        <div class="card-status-badge {{ account.card_status or 'active' }}">
-                            {{ 'Active' if (account.card_status or 'active') == 'active' else 'Désactivée' }}
-                        </div>
-                        {% endif %}
-                        <span class="visa-word">VISA</span>
-                    </div>
-
-                    <div class="card-chip"></div>
-
-                    <!-- Numéro de carte masqué partiellement -->
-                    <div class="card-number" id="card-number-display">
-                        {% if account.card_number %}
-                            {{ account.card_number[:4] }} ****
-                            **** {{ account.card_number[-4:] }}
-                        {% else %}
-                            **** **** **** ****
-                        {% endif %}
-                    </div>
-
-                    <div class="card-footer">
-                        <div>
-                            <div class="card-label">Titulaire</div>
-                            <div class="card-value" style="font-size:13px;">API Bank Client</div>
-                        </div>
-                        <div>
-                            <div class="card-label">Expire</div>
-                            <div class="card-value" id="card-expiry-display">
-                                {% if account.card_expiry %}{{ account.card_expiry }}{% else %}--/--{% endif %}
-                            </div>
-                        </div>
-                        <div style="text-align:right;">
-                            <div class="card-label">CVV</div>
-                            <div class="card-value">
-                                <span id="cvv-value" style="filter:blur(5px); transition: filter .4s;">
-                                    {% if account.card_cvv %}{{ account.card_cvv }}{% else %}***{% endif %}
-                                </span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Note PCI-DSS -->
-            <div class="pci-notice">
-                <span>⚠️</span>
-                <span><strong>Simulation académique.</strong> En production (PCI-DSS), le CVV ne doit jamais être stocké.</span>
-            </div>
-
-            <!-- Bouton révéler CVV -->
-            <div style="display:flex; gap:10px; margin-bottom:24px;">
-                <button class="cvv-reveal-btn" id="reveal-cvv-btn" onclick="toggleCVV()" style="flex:1; justify-content:center; padding:10px;">
-                    <span id="eye-icon">👁️</span> Révéler le CVV
-                </button>
-                <button class="cvv-reveal-btn" onclick="toggleFullCard()" style="flex:1; justify-content:center; padding:10px;" id="reveal-card-btn">
-                    🔓 Voir numéro complet
-                </button>
-            </div>
-
-            <!-- ──── GESTION ACTIONS ──── -->
-            <div class="panel" style="margin-bottom: 24px; border-color: rgba(99,102,241,.3);">
-                <h3 style="font-size: 15px; margin-bottom: 15px; display: flex; align-items: center; gap: 8px;">
-                    🛠️ Gestion de la Carte
-                </h3>
-                <button class="btn {{ 'btn-secondary' if (account.card_status or 'active') == 'active' else '' }}" 
-                        onclick="openModal('modal-toggle-card')" 
-                        style="width: 100%; margin-bottom: 10px; {{ 'background:#f87171;' if (account.card_status or 'active') == 'active' else 'background:#34d399;' }}">
-                    {{ 'Désactiver la carte' if (account.card_status or 'active') == 'active' else 'Réactiver la carte' }}
-                </button>
-
-                <button class="btn" onclick="handleRenewClick()" style="width: 100%; background: #6366f1; margin-bottom: 10px;">
-                    🔄 Renouveler la carte (10 DT)
-                </button>
-                
-                <div class="danger-zone">
-                    <h3>⚠️ Zone de danger</h3>
-                    <p>La suppression de ce compte bancaire est irréversible. Toutes les transactions seront effacées.</p>
-                    <button class="btn" style="background:transparent; border:1px solid #f87171; color:#f87171;" onclick="openModal('modal-delete-account')">
-                        Supprimer ce compte
-                    </button>
-                </div>
-            </div>
-
-            <!-- ──── JOURNAL D'ACTIVITÉ CARTE ──── -->
-            <div class="panel" style="padding: 20px;">
+            <!-- ── ACTIVITÉ RÉCENTE DE LA CARTE ── -->
+            <div class="panel" style="padding: 20px; margin-top: 24px;">
                 <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:14px;">
-                    <h3 style="margin:0; font-size:14px;">🛡️ Activités de ce compte</h3>
-                    <span style="font-size:10px; color:var(--text-muted); background: rgba(99,102,241,.1); padding:3px 8px; border-radius:20px;">LOG IA</span>
+                    <h3 style="margin:0; font-size:14px;">🛡️ Activité Récente de la Carte</h3>
+                    <span style="font-size:10px; color:var(--text-muted); background: rgba(99,102,241,.1); padding:3px 8px; border-radius:20px;">LOG CARTE</span>
                 </div>
 
                 {% if card_activities %}
-                <div class="card-activity-feed">
+                <div class="card-activity-feed" style="max-height: 400px; overflow-y: auto;">
                     {% for act in card_activities %}
                     {% set is_fail = act.status == 'FAILURE' %}
-                    <div class="activity-item">
-                        <div class="activity-icon {{ 'failure' if is_fail else 'success' }}">
-                            {% if act.action_type == 'DEPOSIT' %}💰
-                            {% elif act.action_type == 'WITHDRAW' %}💸
+                    <div class="activity-item" style="display: flex; align-items: center; gap: 12px; padding: 11px 0; border-bottom: 1px solid var(--card-border);">
+                        <div class="activity-icon {{ 'failure' if is_fail else 'success' }}" style="width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 14px; flex-shrink: 0; {{ 'background: rgba(248,113,113,0.12); color: #f87171;' if is_fail else 'background: rgba(52,211,153,0.12); color: #34d399;' }}">
+                            {% if act.action_type == 'WITHDRAW' %}💸
                             {% elif act.action_type == 'PAYMENT' %}🛒
-                            {% elif act.action_type == 'TRANSFER_OUT' %}↗️
-                            {% elif act.action_type == 'TRANSFER_IN' %}↙️
-                            {% elif act.action_type == 'ACCOUNT_CREATION' %}🏦
-                            {% elif act.action_type == 'ACCOUNT_LOCKED' %}🔒
                             {% elif act.action_type == 'PIN_VERIFICATION' %}🔐
+                            {% elif act.action_type == 'CARD_STATUS_CHANGE' %}🔄
+                            {% elif act.action_type == 'CARD_RENEWAL' %}✨
                             {% else %}📋{% endif %}
                         </div>
-                        {% set trans = {
-                            'DEPOSIT': 'DÉPÔT', 'WITHDRAW': 'RETRAIT', 'PAYMENT': 'PAIEMENT',
-                            'TRANSFER_OUT': 'TRANSFERT SORTANT', 'TRANSFER_IN': 'TRANSFERT ENTRANT',
-                            'ACCOUNT_CREATION': 'CRÉATION DE COMPTE', 'ACCOUNT_LOCKED': 'COMPTE VERROUILLÉ',
-                            'PIN_VERIFICATION': 'VÉRIFICATION PIN', 'CARD_STATUS_CHANGE': 'STATUT CARTE',
-                            'ACCOUNT_DELETION': 'SUPPRESSION COMPTE', 'CARD_RENEWAL': 'RENOUVELLEMENT CARTE',
-                            'LOGIN': 'CONNEXION', 'SIGNUP': 'INSCRIPTION', 'PROFILE_UPDATE': 'MISE À JOUR PROFIL',
-                            'PROFILE_DELETION': 'SUPPRESSION PROFIL'
-                        } %}
                         <div style="flex:1; min-width:0;">
-                            <div class="act-type">{{ trans[act.action_type] if act.action_type in trans else act.action_type.replace('_', ' ') }}</div>
-                            <div class="act-detail">
-                                {% if act.details %}
-                                  {% if act.details.amount is defined %}{{ "%.2f" | format(act.details.amount | float) }} DT{% endif %}
-                                  {% if act.details.merchant is defined %} · {{ act.details.merchant }}{% endif %}
-                                  {% if act.details.to_account is defined %} → ****{{ act.details.to_account[-4:] }}{% endif %}
-                                  {% if act.details.from_account is defined %} ← ****{{ act.details.from_account[-4:] }}{% endif %}
-                                {% endif %}
-                            </div>
+                             <div style="font-size:12px; font-weight:600; color:var(--text-main);">{{ act.action_type.replace('_', ' ') }}</div>
+                             <div style="font-size:11px; color:var(--text-muted);">
+                                 {% if act.details %}
+                                   {% if act.details.amount is defined %}{{ "%.2f" | format(act.details.amount | float) }} DT{% endif %}
+                                   {% if act.details.merchant is defined %} · {{ act.details.merchant }}{% endif %}
+                                 {% endif %}
+                             </div>
                         </div>
-                        <div style="display:flex; flex-direction:column; align-items:flex-end; gap:4px;">
-                            <span class="act-badge {{ 'failure' if is_fail else 'success' }}">
-                                {{ 'ÉCHEC' if is_fail else 'SUCCÈS' }}
-                            </span>
-                            <span class="act-time">{{ act.timestamp[:10] if act.timestamp else '' }}</span>
+                        <div style="text-align:right;">
+                            <span style="font-size:10px; color:{{ '#f87171' if is_fail else '#34d399' }}; font-weight:700;">{{ 'ÉCHEC' if is_fail else 'OK' }}</span>
+                            <div style="font-size:9px; color:var(--text-muted);">{{ act.timestamp[:10] }}</div>
                         </div>
                     </div>
                     {% endfor %}
                 </div>
                 {% else %}
-                <div style="text-align:center; padding: 30px 0; color: var(--text-muted);">
-                    <div style="font-size:32px; margin-bottom:10px;">📋</div>
-                    <p style="font-size:13px;">Aucune activité enregistrée pour ce compte.</p>
-                </div>
+                <p style="text-align:center; padding:40px; color:var(--text-muted); font-size: 12px;">Aucune activité enregistrée.</p>
                 {% endif %}
             </div>
         </div>
@@ -597,57 +520,6 @@
         event.currentTarget.classList.add('active');
     }
 
-    // ─── CVV Reveal (anti-shoulder surfing) ───
-    let cvvRevealed = false;
-    function toggleCVV() {
-        cvvRevealed = !cvvRevealed;
-        const cvv = document.getElementById('cvv-value');
-        const btn = document.getElementById('reveal-cvv-btn');
-        cvv.style.filter = cvvRevealed ? 'blur(0)' : 'blur(5px)';
-        btn.innerHTML = cvvRevealed
-            ? '<span>🙈</span> Masquer le CVV'
-            : '<span>👁️</span> Révéler le CVV';
-        // Auto-hide after 10 seconds for security
-        if (cvvRevealed) {
-            setTimeout(() => {
-                if (cvvRevealed) toggleCVV();
-            }, 10000);
-        }
-    }
-
-    // ─── Full card number reveal ───
-    let cardRevealed = false;
-    const fullCardNumber = "{{ account.card_number if account.card_number else '' }}";
-    function toggleFullCard() {
-        cardRevealed = !cardRevealed;
-        const display = document.getElementById('card-number-display');
-        const btn = document.getElementById('reveal-card-btn');
-        if (cardRevealed && fullCardNumber) {
-            // Format as groups of 4
-            const formatted = fullCardNumber.match(/.{1,4}/g).join(' ');
-            display.textContent = formatted;
-            btn.innerHTML = '🔒 Masquer le numéro';
-        } else {
-            const last4 = fullCardNumber ? fullCardNumber.slice(-4) : '****';
-            display.textContent = `${fullCardNumber.slice(0,4) || '****'} **** **** ${last4}`;
-            btn.innerHTML = '🔓 Voir numéro complet';
-        }
-        if (cardRevealed) {
-            setTimeout(() => {
-                if (cardRevealed) toggleFullCard();
-            }, 15000);
-        }
-    }
-
-    function handleRenewClick() {
-        const isExpired = {{ 'true' if is_expired else 'false' }};
-        if (!isExpired) {
-            alert("Votre carte est encore valide ! Le renouvellement n'est pas nécessaire pour le moment.");
-            return;
-        }
-        openModal('modal-renew-card');
-    }
-
     function openModal(id) { document.getElementById(id).classList.add('active'); }
     function closeModal(id) { document.getElementById(id).classList.remove('active'); }
     
@@ -657,94 +529,7 @@
             event.target.classList.remove('active');
         }
     }
-</script>
 
-<!-- MODALS -->
-<div id="modal-toggle-card" class="modal-overlay">
-    <div class="modal-content">
-        <h2 style="margin-bottom:10px;">{{ 'Désactiver' if (account.card_status or 'active') == 'active' else 'Réactiver' }} la carte</h2>
-        <p style="color:var(--text-muted); font-size:14px; margin-bottom:20px;">
-            Veuillez confirmer cette action avec votre code PIN et un code OTP.
-        </p>
-        <form method="POST" action="/toggle_card_status">
-            <input type="hidden" name="account_number" value="{{ account.account_number }}">
-            <div class="input-group">
-                <label>Code PIN</label>
-                <input type="password" name="pin" required maxlength="4" pattern="\d{4}" placeholder="••••">
-            </div>
-            <div class="input-group">
-                <label>Code OTP</label>
-                <div style="display: flex; gap: 10px;">
-                    <input type="text" name="otp_code" required maxlength="6" pattern="\d{6}" placeholder="123456" style="flex:1;">
-                    <button type="button" class="btn btn-secondary request-otp-btn" style="width:auto; padding:0 15px;">OTP</button>
-                </div>
-            </div>
-            <div style="display:flex; gap:10px; margin-top:20px;">
-                <button type="button" class="btn btn-secondary" onclick="closeModal('modal-toggle-card')" style="flex:1;">Annuler</button>
-                <button type="submit" class="btn" style="flex:1; {{ 'background:#f87171;' if (account.card_status or 'active') == 'active' else 'background:#34d399;' }}">Confirmer</button>
-            </div>
-        </form>
-    </div>
-</div>
-
-<div id="modal-delete-account" class="modal-overlay">
-    <div class="modal-content">
-        <h2 style="margin-bottom:10px; color:#f87171;">Supprimer le compte</h2>
-        <p style="color:var(--text-muted); font-size:14px; margin-bottom:20px;">
-            Cette action supprimera définitivement le compte <strong>****{{ account.account_number[-4:] }}</strong>.
-        </p>
-        <form method="POST" action="/delete_account">
-            <input type="hidden" name="account_number" value="{{ account.account_number }}">
-            <div class="input-group">
-                <label>Code PIN</label>
-                <input type="password" name="pin" required maxlength="4" pattern="\d{4}" placeholder="••••">
-            </div>
-            <div class="input-group">
-                <label>Code OTP</label>
-                <div style="display: flex; gap: 10px;">
-                    <input type="text" name="otp_code" required maxlength="6" pattern="\d{6}" placeholder="123456" style="flex:1;">
-                    <button type="button" class="btn btn-secondary request-otp-btn" style="width:auto; padding:0 15px;">OTP</button>
-                </div>
-            </div>
-            <div style="display:flex; gap:10px; margin-top:20px;">
-                <button type="button" class="btn btn-secondary" onclick="closeModal('modal-delete-account')" style="flex:1;">Annuler</button>
-                <button type="submit" class="btn" style="flex:1; background:#f87171;">Supprimer définitivement</button>
-            </div>
-        </form>
-    </div>
-</div>
-
-<div id="modal-renew-card" class="modal-overlay">
-    <div class="modal-content">
-        <h2 style="margin-bottom:10px;">Renouveler la carte</h2>
-        <p style="color:var(--text-muted); font-size:14px; margin-bottom:10px;">
-            Un nouveau numéro de carte, CVV et date d'expiration seront générés.
-        </p>
-        <p style="color:#f59e0b; font-size:14px; margin-bottom:20px; font-weight:bold;">
-            ⚠️ Des frais de 10 DT seront prélevés de votre solde.
-        </p>
-        <form method="POST" action="/renew_card">
-            <input type="hidden" name="account_number" value="{{ account.account_number }}">
-            <div class="input-group">
-                <label>Code PIN</label>
-                <input type="password" name="pin" required maxlength="4" pattern="\d{4}" placeholder="••••">
-            </div>
-            <div class="input-group">
-                <label>Code OTP</label>
-                <div style="display: flex; gap: 10px;">
-                    <input type="text" name="otp_code" required maxlength="6" pattern="\d{6}" placeholder="123456" style="flex:1;">
-                    <button type="button" class="btn btn-secondary request-otp-btn" style="width:auto; padding:0 15px;">OTP</button>
-                </div>
-            </div>
-            <div style="display:flex; gap:10px; margin-top:20px;">
-                <button type="button" class="btn btn-secondary" onclick="closeModal('modal-renew-card')" style="flex:1;">Annuler</button>
-                <button type="submit" class="btn" style="flex:1; background:#6366f1;">Confirmer (10 DT)</button>
-            </div>
-        </form>
-    </div>
-</div>
-
-<script>
     // ─── OTP Buttons Event Binding ───
     function bindOTPButtons() {
         document.querySelectorAll('.request-otp-btn').forEach(btn => {

@@ -36,6 +36,8 @@ class Withdraw(BaseModel):
     amount: float = Field(..., gt=0, le=1000000)
     pin: str = Field(..., pattern=r"^\d{4}$")
     otp_code: str
+    is_foreign: bool = False
+    is_contactless: bool = False
 
 class Transfer(BaseModel):
     from_account: str = Field(..., pattern=r"^\d{10}$")
@@ -48,6 +50,32 @@ class Payment(BaseModel):
     account_number: str = Field(..., pattern=r"^\d{10}$")
     amount: float = Field(..., gt=0, le=1000000)
     merchant: str = Field(..., min_length=2, max_length=100, pattern=r"^[a-zA-Z0-9À-ÿ_\-\s\(\)&]+$")
+    pin: str = Field(..., pattern=r"^\d{4}$")
+    otp_code: str
+    is_online: bool = False
+    is_foreign: bool = False
+    is_contactless: bool = False
+
+class CardLimitsUpdate(BaseModel):
+    account_number: str = Field(..., pattern=r"^\d{10}$")
+    online_payment_limit: float = Field(..., ge=0)
+    atm_withdrawal_limit: float = Field(..., ge=0)
+    pin: str = Field(..., pattern=r"^\d{4}$")
+    otp_code: str
+
+class CardOptionsUpdate(BaseModel):
+    account_number: str = Field(..., pattern=r"^\d{10}$")
+    contactless_payment: bool
+    internet_payments: bool
+    foreign_transactions: bool
+    domestic_withdrawals: bool
+    foreign_withdrawals: bool
+    pin: str = Field(..., pattern=r"^\d{4}$")
+    otp_code: str
+
+class CardSubscriptionUpdate(BaseModel):
+    account_number: str = Field(..., pattern=r"^\d{10}$")
+    subscription: str
     pin: str = Field(..., pattern=r"^\d{4}$")
     otp_code: str
 
@@ -224,7 +252,15 @@ def create_account(request: Request, background_tasks: BackgroundTasks, account:
         "card_number":   card_number,
         "card_expiry":   card_expiry,
         "card_cvv":      card_cvv,
-        "card_status":   "active"
+        "card_status":   "active",
+        "card_subscription": "Standard",
+        "online_payment_limit": 1000.0,
+        "atm_withdrawal_limit": 500.0,
+        "contactless_payment": True,
+        "internet_payments": True,
+        "foreign_transactions": False,
+        "domestic_withdrawals": True,
+        "foreign_withdrawals": False
     }
     accounts_collection.insert_one(data)
 
@@ -336,6 +372,20 @@ def withdraw(request: Request, data: Withdraw, user=Depends(verify_token)):
     # ✅ Vérification OTP
     verify_auth_otp(user["sub"], data.otp_code)
 
+    # ✅ Vérification des options et plafonds de la carte
+    if data.is_contactless and not acc.get("contactless_payment", True):
+        raise HTTPException(status_code=403, detail="Le paiement sans contact est désactivé pour cette carte.")
+        
+    if data.is_foreign and not acc.get("foreign_withdrawals", False):
+        raise HTTPException(status_code=403, detail="Les retraits à l'étranger sont désactivés.")
+        
+    if not data.is_foreign and not acc.get("domestic_withdrawals", True):
+        raise HTTPException(status_code=403, detail="Les retraits en Tunisie sont désactivés.")
+
+    atm_limit = acc.get("atm_withdrawal_limit", 500.0)
+    if data.amount > atm_limit:
+        raise HTTPException(status_code=400, detail=f"Montant supérieur à votre plafond de retrait ({atm_limit} DT).")
+
     if acc["balance"] < data.amount:
         raise HTTPException(status_code=400, detail="Insufficient balance")
 
@@ -385,6 +435,20 @@ def payment(request: Request, data: Payment, user=Depends(verify_token)):
 
     # ✅ Vérification OTP
     verify_auth_otp(user["sub"], data.otp_code)
+
+    # ✅ Vérification des options et plafonds de la carte
+    if data.is_contactless and not acc.get("contactless_payment", True):
+        raise HTTPException(status_code=403, detail="Le paiement sans contact est désactivé pour cette carte.")
+        
+    if data.is_foreign and not acc.get("foreign_transactions", False):
+        raise HTTPException(status_code=403, detail="Les transactions à l'étranger sont désactivées.")
+        
+    if data.is_online:
+        if not acc.get("internet_payments", True):
+            raise HTTPException(status_code=403, detail="Les paiements sur Internet sont désactivés.")
+        online_limit = acc.get("online_payment_limit", 1000.0)
+        if data.amount > online_limit:
+            raise HTTPException(status_code=400, detail=f"Montant supérieur à votre plafond de paiement en ligne ({online_limit} DT).")
 
     if acc["balance"] < data.amount:
         raise HTTPException(status_code=400, detail="Insufficient balance")
@@ -558,7 +622,7 @@ def delete_account(request: Request, data: AccountDelete, user=Depends(verify_to
 @router.post("/renew-card")
 @limiter.limit("2/minute")
 def renew_card(request: Request, data: CardRenew, user=Depends(verify_token)):
-    RENEWAL_FEE = 10.0
+    RENEWAL_FEE = 0.0 if acc.get("card_subscription") == "Prime" else 10.0
     
     # 1. Vérification PIN
     acc = verify_pin(data.account_number, str(user["id"]), data.pin)
@@ -609,3 +673,79 @@ def renew_card(request: Request, data: CardRenew, user=Depends(verify_token)):
         "new_card_number": new_card_number,
         "new_expiry": new_expiry
     }
+
+# ==============================
+# ⚙️ CARD SETTINGS
+# ==============================
+
+@router.post("/update-limits")
+@limiter.limit("5/minute")
+def update_limits(request: Request, data: CardLimitsUpdate, user=Depends(verify_token)):
+    acc = verify_pin(data.account_number, str(user["id"]), data.pin)
+    verify_auth_otp(user["sub"], data.otp_code)
+    
+    # 💎 Restriction Prime : Seuls les membres Prime peuvent modifier les plafonds
+    if acc.get("card_subscription") != "Prime":
+        log_activity(str(user["id"]), data.account_number, "CARD_LIMITS_UPDATE", "FAILURE", {"reason": "Non-Prime access restriction"})
+        raise HTTPException(status_code=403, detail="La modification des plafonds est réservée aux membres Prime.")
+
+    accounts_collection.update_one(
+        {"account_number": data.account_number},
+        {"$set": {
+            "online_payment_limit": data.online_payment_limit,
+            "atm_withdrawal_limit": data.atm_withdrawal_limit
+        }}
+    )
+    log_activity(str(user["id"]), data.account_number, "CARD_LIMITS_UPDATE", "SUCCESS", {"message": "Plafonds mis à jour"})
+    return {"message": "Plafonds mis à jour avec succès."}
+
+@router.post("/update-options")
+@limiter.limit("5/minute")
+def update_options(request: Request, data: CardOptionsUpdate, user=Depends(verify_token)):
+    acc = verify_pin(data.account_number, str(user["id"]), data.pin)
+    verify_auth_otp(user["sub"], data.otp_code)
+
+    accounts_collection.update_one(
+        {"account_number": data.account_number},
+        {"$set": {
+            "contactless_payment": data.contactless_payment,
+            "internet_payments": data.internet_payments,
+            "foreign_transactions": data.foreign_transactions,
+            "domestic_withdrawals": data.domestic_withdrawals,
+            "foreign_withdrawals": data.foreign_withdrawals
+        }}
+    )
+    log_activity(str(user["id"]), data.account_number, "CARD_OPTIONS_UPDATE", "SUCCESS", {"message": "Options mises à jour"})
+    return {"message": "Options de la carte mises à jour."}
+
+@router.post("/update-subscription")
+@limiter.limit("2/minute")
+def update_subscription(request: Request, data: CardSubscriptionUpdate, user=Depends(verify_token)):
+    acc = verify_pin(data.account_number, str(user["id"]), data.pin)
+    verify_auth_otp(user["sub"], data.otp_code)
+
+    if acc.get("card_subscription") == data.subscription:
+        raise HTTPException(status_code=400, detail=f"Vous êtes déjà abonné à {data.subscription}.")
+    
+    fee = 20.0 if data.subscription == "Prime" else 0.0
+
+    if fee > 0 and acc["balance"] < fee:
+        raise HTTPException(status_code=400, detail=f"Solde insuffisant pour souscrire à {data.subscription} (frais de {fee} DT).")
+
+    update_fields = {"$set": {"card_subscription": data.subscription}}
+    if fee > 0:
+        update_fields["$inc"] = {"balance": -fee}
+
+    accounts_collection.update_one({"account_number": data.account_number}, update_fields)
+    
+    if fee > 0:
+        save_transaction({
+            "type": "service_fee",
+            "description": f"Frais abonnement {data.subscription}",
+            "account_number": data.account_number,
+            "amount": fee,
+            "owner_id": str(user["id"])
+        })
+
+    log_activity(str(user["id"]), data.account_number, "CARD_SUBSCRIPTION_UPDATE", "SUCCESS", {"subscription": data.subscription})
+    return {"message": f"Abonnement mis à jour vers {data.subscription}."}
