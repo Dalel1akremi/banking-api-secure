@@ -40,6 +40,7 @@
     <div class="nav-links" style="display: flex; gap: 20px; align-items: center;">
         <a href="/beneficiaries">Bénéficiaires</a>
         <a href="/journal">Journal</a>
+        <a href="/support" style="color: var(--primary); font-weight: 800;">📩 Support</a>
         <a href="/settings">Paramètres</a>
         <a href="/logout" class="text-danger">Déconnexion</a>
     </div>
@@ -102,5 +103,6 @@
     }, 4000);
 </script>
 
+<script src="{{ url_for('static', filename='chatbot.js') }}"></script>
 </body>
 </html>

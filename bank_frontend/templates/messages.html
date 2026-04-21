@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Messagerie Sécurisée - API Bank</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <style>
+        .inbox-layout { display: grid; grid-template-columns: 2fr 1fr; gap: 30px; }
+        .message-card {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid var(--card-border);
+            border-radius: 12px; padding: 20px;
+            margin-bottom: 15px; cursor: pointer; transition: 0.3s;
+        }
+        .message-card:hover { background: rgba(255, 255, 255, 0.06); transform: translateX(5px); }
+        .msg-category { font-size: 10px; background: rgba(99, 102, 241, 0.2); color: #818cf8; padding: 2px 8px; border-radius: 4px; font-weight: bold; }
+        .msg-date { font-size: 11px; color: var(--text-muted); }
+        .msg-subject { font-weight: 700; color: var(--text-main); margin: 8px 0; }
+        .msg-preview { font-size: 13px; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        
+        .new-message-panel { position: sticky; top: 20px; }
+        
+        select, textarea {
+            width: 100%; padding: 12px; background: rgba(0, 0, 0, 0.2);
+            border: 1px solid var(--card-border); border-radius: 8px;
+            color: var(--text-main); font-size: 14px; margin-bottom: 15px; outline: none;
+        }
+        textarea { height: 150px; resize: none; }
+    </style>
+</head>
+<body>
+
+<nav>
+    <div style="display: flex; align-items: center; gap: 15px;">
+        <a href="/dashboard" style="font-size: 24px; color: var(--text-main); font-weight: bold; text-decoration: none;">&larr;</a>
+        <div class="brand">API Bank</div>
+    </div>
+    <div class="nav-links">
+        <a href="/dashboard">Dashboard</a>
+        <a href="/journal">Journal</a>
+        <a href="/support" style="color: var(--primary); font-weight: 800;">📩 Support</a>
+        <a href="/settings">Paramètres</a>
+        <a href="/logout" class="text-danger">Déconnexion</a>
+    </div>
+</nav>
+
+<div class="page-container">
+    <div class="page-header">
+        <h1>📨 Messagerie Sécurisée</h1>
+        <p>Échangez en toute confidentialité avec votre conseiller bancaire.</p>
+    </div>
+
+    {% with messages_flash = get_flashed_messages(with_categories=true) %}
+      {% if messages_flash %}
+        <div id="flash-container">
+        {% for category, message in messages_flash %}
+          <div class="alert alert-{{ 'success' if category == 'success' else 'error' }}">{{ message }}</div>
+        {% endfor %}
+        </div>
+      {% endif %}
+    {% endwith %}
+
+    <div class="inbox-layout">
+        <!-- ── COLONNE GAUCHE : HISTORIQUE ── -->
+        <div>
+            <div class="panel">
+                <h2 style="margin-bottom: 20px;">🗂️ Boîte de réception</h2>
+                {% if messages %}
+                    {% for msg in messages %}
+                    <div class="message-card">
+                        <div class="flex-between">
+                            <span class="msg-category">{{ msg.category }}</span>
+                            <span class="msg-date">{{ msg.timestamp[:16] if msg.timestamp is string else '—' }}</span>
+                        </div>
+                        <div class="msg-subject">{{ msg.subject }}</div>
+                        <div class="msg-preview">{{ msg.content }}</div>
+                        <div style="margin-top: 10px; font-size: 11px;">
+                            Statut : <span style="color: var(--primary);">{{ msg.status }}</span>
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <div style="text-align: center; padding: 60px; color: var(--text-muted);">
+                        <p style="font-size: 40px; margin-bottom: 10px;">Empty</p>
+                        <p>Aucun message pour le moment.</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- ── COLONNE DROITE : NOUVELLE DEMANDE ── -->
+        <div class="new-message-panel">
+            <div class="panel">
+                <h3 style="margin-bottom: 20px;">✍️ Nouvelle Demande</h3>
+                <form method="POST" action="/support/send_message">
+                    <div class="input-group">
+                        <label>Sujet</label>
+                        <input type="text" name="subject" required placeholder="Ex: Problème de carte">
+                    </div>
+                    <div class="input-group">
+                        <label>Catégorie</label>
+                        <select name="category" required>
+                            <option value="Assurance">Assurance</option>
+                            <option value="Credit">Crédit</option>
+                            <option value="Incident Carte" selected>Incident Carte</option>
+                            <option value="Placement">Placement</option>
+                            <option value="Autre">Autre</option>
+                        </select>
+                    </div>
+                    <div class="input-group">
+                        <label>Message</label>
+                        <textarea name="content" required placeholder="Décrivez votre demande en détail..."></textarea>
+                    </div>
+                    <button type="submit" class="btn">🚀 Envoyer le message</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    setTimeout(() => {
+        document.querySelectorAll('.alert').forEach(flash => {
+            flash.style.transition = 'opacity 0.5s ease';
+            flash.style.opacity = '0';
+            setTimeout(() => flash.remove(), 500);
+        });
+    }, 4000);
+</script>
+
+</body>
+</html>

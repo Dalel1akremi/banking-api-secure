@@ -111,6 +111,7 @@
     <div class="nav-links">
         <a href="/dashboard">Dashboard</a>
         <a href="/journal">Journal</a>
+        <a href="/support" style="color: var(--primary); font-weight: 800;">📩 Support</a>
         <a href="/logout" class="text-danger">Déconnexion</a>
     </div>
 </nav>
@@ -452,5 +453,6 @@
     }, 4000);
 </script>
 
+<script src="{{ url_for('static', filename='chatbot.js') }}"></script>
 </body>
 </html>

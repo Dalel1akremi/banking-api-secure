@@ -45,6 +45,10 @@
 </div>
 
 <script>
+    // Nettoyer l'historique du chatbot à la déconnexion / retour au login
+    localStorage.removeItem('cb_history');
+    localStorage.removeItem('cb_open');
+
     setTimeout(() => {
         const flashes = document.querySelectorAll('.alert');
         flashes.forEach(flash => {

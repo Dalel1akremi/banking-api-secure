@@ -418,7 +418,7 @@ def toggle_card_status():
         detail = res.json().get("detail", "Erreur lors du changement de statut")
         flash(detail, "error")
         
-    return redirect(f"/account/{account_number}")
+    return redirect(f"/card/{account_number}")
 
 @app.route("/delete_account", methods=["POST"])
 def delete_account():
@@ -480,7 +480,7 @@ def renew_card():
         detail = res.json().get("detail", "Erreur lors du renouvellement")
         flash(detail, "error")
         
-    return redirect(f"/account/{account_number}")
+    return redirect(f"/card/{account_number}")
 
 @app.route("/update_card_limits", methods=["POST"])
 def update_card_limits():
@@ -504,7 +504,7 @@ def update_card_limits():
     else:
         detail = res.json().get("detail", "Erreur lors de la mise à jour")
         flash(detail, "error")
-    return redirect(f"/account/{account_number}")
+    return redirect(f"/card/{account_number}")
 
 @app.route("/update_card_options", methods=["POST"])
 def update_card_options():
@@ -534,7 +534,7 @@ def update_card_options():
     else:
         detail = res.json().get("detail", "Erreur lors de la mise à jour")
         flash(detail, "error")
-    return redirect(f"/account/{account_number}")
+    return redirect(f"/card/{account_number}")
 
 @app.route("/update_card_subscription", methods=["POST"])
 def update_card_subscription():
@@ -556,8 +556,43 @@ def update_card_subscription():
     else:
         detail = res.json().get("detail", "Erreur lors de l'abonnement")
         flash(detail, "error")
-    return redirect(f"/account/{account_number}")
+    return redirect(f"/card/{account_number}")
 
+
+@app.route("/support")
+def support_page():
+    if "token" not in session: return redirect("/")
+    res = requests.get(f"{BASE_API_URL}/support/messages/history", headers=get_headers())
+    messages = res.json() if res.status_code == 200 else []
+    return render_template("messages.html", messages=messages)
+
+@app.route("/support/chat", methods=["POST"])
+def support_chat():
+    if "token" not in session: return ("Unauthorized", 401)
+    message = request.json.get("message")
+    res = requests.post(f"{BASE_API_URL}/support/chat", json={"message": message}, headers=get_headers())
+    return (res.content, res.status_code, {"Content-Type": "application/json"})
+
+@app.route("/support/send_message", methods=["POST"])
+def send_support_message():
+    if "token" not in session: return redirect("/")
+    subject = request.form.get("subject")
+    category = request.form.get("category")
+    content = request.form.get("content")
+    
+    res = requests.post(f"{BASE_API_URL}/support/messages/send", json={
+        "subject": subject,
+        "category": category,
+        "content": content
+    }, headers=get_headers())
+    
+    if res.status_code == 200:
+        flash("Message envoyé avec succès. Un conseiller vous répondra bientôt.", "success")
+    else:
+        detail = res.json().get("detail", "Erreur lors de l'envoi")
+        flash(detail, "error")
+        
+    return redirect("/support")
 
 if __name__ == "__main__":
     app.run(port=5000, debug=True)

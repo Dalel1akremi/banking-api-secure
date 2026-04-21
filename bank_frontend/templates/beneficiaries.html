@@ -12,9 +12,10 @@
         <a href="/dashboard" style="font-size: 24px; color: var(--text-main); font-weight: bold; text-decoration: none;">&larr;</a>
         <div class="brand">API Bank</div>
     </div>
-    <div class="nav-links" style="display: flex; gap: 20px; align-items: center;">
-        <a href="/beneficiaries" style="font-weight: bold; color: var(--primary);">Bénéficiaires</a>
+    <div class="nav-links">
+        <a href="/dashboard">Dashboard</a>
         <a href="/journal">Journal</a>
+        <a href="/support" style="color: var(--primary); font-weight: 800;">📩 Support</a>
         <a href="/settings">Paramètres</a>
         <a href="/logout" class="text-danger">Déconnexion</a>
     </div>
@@ -160,5 +161,6 @@
     });
 </script>
 
+<script src="{{ url_for('static', filename='chatbot.js') }}"></script>
 </body>
 </html>
