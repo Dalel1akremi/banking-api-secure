@@ -15,6 +15,21 @@ limiter = Limiter(
 
 BASE_API_URL = "http://127.0.0.1:8000"
 
+@app.context_processor
+def inject_is_admin():
+    import base64
+    import json
+    token = session.get("token")
+    if not token: return dict(is_admin=False)
+    try:
+        payload = token.split(".")[1]
+        payload += "=" * ((4 - len(payload) % 4) % 4)
+        decoded = base64.b64decode(payload).decode("utf-8")
+        data = json.loads(decoded)
+        return dict(is_admin=data.get("is_admin", False))
+    except:
+        return dict(is_admin=False)
+
 def is_card_expired(expiry_str: str) -> bool:
     if not expiry_str: return True
     try:
@@ -593,6 +608,49 @@ def send_support_message():
         flash(detail, "error")
         
     return redirect("/support")
+
+# ==========================================
+# ADMIN ROUTES
+# ==========================================
+
+@app.route("/admin/dashboard")
+def admin_dashboard():
+    if "token" not in session: return redirect("/")
+    
+    stats_res = requests.get(f"{BASE_API_URL}/admin/stats", headers=get_headers())
+    if stats_res.status_code == 403:
+        flash("Accès refusé. Privilèges administrateur requis.", "error")
+        return redirect("/dashboard")
+        
+    stats = stats_res.json() if stats_res.status_code == 200 else {}
+    
+    act_res = requests.get(f"{BASE_API_URL}/admin/activities", headers=get_headers())
+    activities = act_res.json() if act_res.status_code == 200 else []
+    
+    return render_template("admin_dashboard.html", stats=stats, activities=activities)
+
+@app.route("/admin/messages")
+def admin_messages():
+    if "token" not in session: return redirect("/")
+    
+    msg_res = requests.get(f"{BASE_API_URL}/admin/messages", headers=get_headers())
+    if msg_res.status_code == 403:
+        flash("Accès refusé. Privilèges administrateur requis.", "error")
+        return redirect("/dashboard")
+        
+    messages = msg_res.json() if msg_res.status_code == 200 else []
+    return render_template("admin_messages.html", messages=messages)
+
+@app.route("/admin/resolve_message/<msg_id>", methods=["POST"])
+def admin_resolve_message(msg_id):
+    if "token" not in session: return redirect("/")
+    
+    res = requests.put(f"{BASE_API_URL}/admin/messages/{msg_id}/resolve", headers=get_headers())
+    if res.status_code == 200:
+        flash("Message résolu avec succès.", "success")
+    else:
+        flash("Erreur lors de la résolution.", "error")
+    return redirect("/admin/messages")
 
 if __name__ == "__main__":
     app.run(port=5000, debug=True)

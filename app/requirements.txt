@@ -6,3 +6,4 @@ slowapi
 werkzeug
 python-dotenv
 python-dateutil
+google-generativeai

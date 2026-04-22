@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Administration - Messagerie</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <style>
+        .msg-grid { display: grid; gap: 15px; }
+        .msg-card {
+            background: rgba(255, 255, 255, 0.03); border: 1px solid var(--card-border);
+            border-radius: 12px; padding: 20px;
+        }
+        .msg-category { font-size: 10px; background: rgba(251, 191, 36, 0.2); color: #fbbf24; padding: 2px 8px; border-radius: 4px; font-weight: bold; }
+        .msg-status.SENT { color: #ef4444; }
+        .msg-status.RESOLVED { color: #10b981; }
+    </style>
+</head>
+<body>
+
+<nav>
+    <div style="display: flex; align-items: center; gap: 15px;">
+        <a href="/dashboard" style="font-size: 24px; color: var(--text-main); font-weight: bold; text-decoration: none;">&larr;</a>
+        <div class="brand" style="color: #fbbf24;">Admin API Bank</div>
+    </div>
+    <div class="nav-links">
+        <a href="/admin/dashboard">Tableau de bord</a>
+        <a href="/admin/messages" style="color: #fbbf24; font-weight: 800;">Messagerie Support</a>
+        <a href="/logout" class="text-danger">Déconnexion</a>
+    </div>
+</nav>
+
+<div class="page-container">
+    <div class="page-header">
+        <h1>📨 Gestion du Support Client</h1>
+        <p>Traitez les réclamations et demandes des utilisateurs.</p>
+    </div>
+
+    {% with messages_flash = get_flashed_messages(with_categories=true) %}
+      {% if messages_flash %}
+        <div id="flash-container">
+        {% for category, message in messages_flash %}
+          <div class="alert alert-{{ 'success' if category == 'success' else 'error' }}">{{ message }}</div>
+        {% endfor %}
+        </div>
+      {% endif %}
+    {% endwith %}
+
+    <div class="panel">
+        <div class="msg-grid">
+            {% for msg in messages %}
+            <div class="msg-card">
+                <div class="flex-between" style="margin-bottom: 10px;">
+                    <div>
+                        <span class="msg-category">{{ msg.category }}</span>
+                        <span style="font-size: 12px; color: var(--text-muted); margin-left: 10px;">ID Utilisateur: {{ msg.user_id }}</span>
+                    </div>
+                    <span style="font-size: 11px; color: var(--text-muted);">{{ msg.timestamp[:16] if msg.timestamp is string else '—' }}</span>
+                </div>
+                <h3 style="margin: 0 0 10px; font-size: 16px;">{{ msg.subject }}</h3>
+                <p style="font-size: 14px; color: var(--text-muted); background: rgba(0,0,0,0.2); padding: 15px; border-radius: 8px;">{{ msg.content }}</p>
+                
+                <div class="flex-between" style="margin-top: 15px; align-items: center;">
+                    <div style="font-size: 12px;">
+                        Statut actuel: <strong class="msg-status {{ msg.status }}">{{ msg.status }}</strong>
+                    </div>
+                    {% if msg.status != 'RESOLVED' %}
+                    <form method="POST" action="/admin/resolve_message/{{ msg.id }}">
+                        <button type="submit" class="btn" style="width: auto; padding: 8px 16px; background: #10b981; color: #fff;">Marquer comme Résolu</button>
+                    </form>
+                    {% else %}
+                    <span style="font-size: 12px; color: #10b981; font-weight: bold;">✔ Traité</span>
+                    {% endif %}
+                </div>
+            </div>
+            {% else %}
+            <div style="text-align: center; padding: 40px; color: var(--text-muted);">Aucun message dans la file d'attente.</div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<script>
+    setTimeout(() => {
+        document.querySelectorAll('.alert').forEach(flash => {
+            flash.style.transition = 'opacity 0.5s ease';
+            flash.style.opacity = '0';
+            setTimeout(() => flash.remove(), 500);
+        });
+    }, 4000);
+</script>
+
+</body>
+</html>

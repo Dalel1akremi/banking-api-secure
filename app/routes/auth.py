@@ -95,7 +95,8 @@ def verify_login_2fa(request: Request, data: Verify2FA):
     # Valid! Issue tokens
     otp_collection.delete_one({"email": data.email})
     
-    token = create_access_token({"sub": db_user["email"], "id": str(db_user["_id"])})
+    is_admin = db_user.get("is_admin", False)
+    token = create_access_token({"sub": db_user["email"], "id": str(db_user["_id"]), "is_admin": is_admin})
     return {
         "access_token": token,
         "token_type": "bearer"

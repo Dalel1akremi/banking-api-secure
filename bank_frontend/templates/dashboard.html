@@ -41,6 +41,9 @@
         <a href="/beneficiaries">Bénéficiaires</a>
         <a href="/journal">Journal</a>
         <a href="/support" style="color: var(--primary); font-weight: 800;">📩 Support</a>
+        {% if is_admin %}
+        <a href="/admin/dashboard" style="color: #fbbf24; font-weight: 800;">⚡ Admin</a>
+        {% endif %}
         <a href="/settings">Paramètres</a>
         <a href="/logout" class="text-danger">Déconnexion</a>
     </div>

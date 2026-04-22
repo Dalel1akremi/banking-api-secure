@@ -3,7 +3,18 @@ from pydantic import BaseModel, Field
 from app.security.auth import verify_token
 from app.db import support_collection, users_collection
 import datetime
+import os
+import google.generativeai as genai
+from dotenv import load_dotenv
 
+load_dotenv()
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+
+if GEMINI_API_KEY:
+    genai.configure(api_key=GEMINI_API_KEY)
+    gemini_model = genai.GenerativeModel('gemini-2.5-flash')
+else:
+    gemini_model = None
 router = APIRouter(prefix="/support", tags=["Support"])
 
 # ==============================
@@ -26,21 +37,37 @@ class SupportMessageRequest(BaseModel):
 def chatbot_responder(data: ChatRequest, user=Depends(verify_token)):
     msg = data.message.lower()
     
-    # Simple keyword-based logic (General Advice only as requested)
+    # 1. Règles strictes pour les actions sensibles
     if any(k in msg for k in ["bonjour", "salut", "hello"]):
         reply = "Bonjour ! Je suis votre assistant API Bank. Comment puis-je vous guider aujourd'hui ?"
     elif "solde" in msg:
         reply = "Pour consulter votre solde, rendez-vous sur votre 'Tableau de Bord'. Vous y verrez le solde actualisé de tous vos comptes."
-    elif any(k in msg for k in ["bloquer", "opposition", "perdu", "vol"]):
+    elif any(k in msg for k in ["bloquer", "opposition", "perdu", "vol", "désactiver"]):
         reply = "En cas de perte ou vol, allez dans 'Ma Carte' -> 'État de la carte' et cliquez sur 'Désactiver'. C'est instantané et sécurisé."
-    elif "plafond" in msg:
+    elif any(k in msg for k in ["plafond", "limite"]):
         reply = "Les plafonds de paiement et retrait peuvent être modifiés dans la section 'Plafonds' de votre carte. Notez que cette option est réservée aux membres Prime."
-    elif "prime" in msg:
+    elif any(k in msg for k in ["prime", "abonnement"]):
         reply = "L'offre Prime (20 DT/an) vous permet de modifier vos plafonds, d'avoir des frais de renouvellement de carte gratuits et un design de carte exclusif."
-    elif any(k in msg for k in ["conseiller", "messagerie", "contacter", "écrire"]):
-        reply = "Pour une demande personnalisée, utilisez notre 'Messagerie Sécurisée' accessible depuis le menu Support. Un conseiller vous répondra sous 24h."
+    elif any(k in msg for k in ["conseiller", "messagerie", "contacter", "écrire", "réclamation", "plainte"]):
+        reply = "Pour une réclamation ou une demande personnalisée, utilisez notre 'Messagerie Sécurisée' accessible depuis le menu Support. Un conseiller vous répondra sous 24h."
+    elif any(k in msg for k in ["virement", "transfert", "déposer", "retirer", "payer"]):
+        reply = "Pour effectuer des opérations bancaires (virement, dépôt, retrait, paiement), veuillez vous rendre sur la page de détails de votre compte et utiliser les formulaires dédiés."
     else:
-        reply = "Je ne suis pas sûr de comprendre. Vous pouvez me poser des questions sur votre solde, la sécurité de votre carte ou l'offre Prime. Sinon, contactez un conseiller via la messagerie."
+        # 2. IA pour l'assistance générale
+        if gemini_model:
+            try:
+                system_prompt = (
+                    "Tu es l'assistant virtuel de 'API Bank'. Ton rôle est d'aider les utilisateurs avec des informations générales sur la banque, "
+                    "expliquer les services, guider l'utilisateur, reformuler ses demandes et répondre aux questions fréquentes. "
+                    "Reste professionnel, concis et poli. Si on te demande des actions sensibles (comme bloquer la carte ou vérifier le solde), "
+                    "dis à l'utilisateur de consulter l'interface ou de contacter le support. Ne donne jamais de fausses informations financières."
+                )
+                response = gemini_model.generate_content(f"{system_prompt}\n\nQuestion de l'utilisateur: {data.message}")
+                reply = response.text
+            except Exception as e:
+                reply = "Je suis désolé, je rencontre des difficultés de connexion en ce moment. Vous pouvez toujours contacter un conseiller via la messagerie."
+        else:
+            reply = "Je ne suis pas sûr de comprendre. Vous pouvez me poser des questions sur votre solde, la sécurité de votre carte ou l'offre Prime. Sinon, contactez un conseiller via la messagerie."
 
     return {"reply": reply}
 
