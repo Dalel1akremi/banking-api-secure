@@ -76,13 +76,67 @@
             <tbody>
                 {% for act in activities %}
                 <tr>
-                    <td>{{ act.timestamp[:16] if act.timestamp is string else '—' }}</td>
+                    <td>{{ act.timestamp[:16].replace('T', ' ') if act.timestamp is string else '—' }}</td>
                     <td style="font-family: monospace;">{{ act.account_number[-4:] if act.account_number else 'N/A' }}</td>
-                    <td><span style="background: rgba(255,255,255,0.1); padding: 4px 8px; border-radius: 4px; font-size: 11px;">{{ act.activity_type }}</span></td>
-                    <td style="font-weight: bold; color: {{ '#10b981' if act.amount and act.amount > 0 else '#ef4444' }};">
-                        {{ act.amount if act.amount else '-' }}
+                    <td>
+                        <span style="background: rgba(255,255,255,0.1); padding: 4px 8px; border-radius: 4px; font-size: 11px;">
+                            {% set actions = {
+                                'DEPOSIT': 'Dépôt',
+                                'WITHDRAW': 'Retrait',
+                                'TRANSFER_OUT': 'Virement (Envoi)',
+                                'TRANSFER_IN': 'Virement (Reçu)',
+                                'PAYMENT': 'Paiement',
+                                'ACCOUNT_CREATION': 'Création Compte',
+                                'CARD_STATUS_CHANGE': 'Statut Carte',
+                                'CARD_RENEWAL': 'Renouvellement',
+                                'CARD_LIMITS_UPDATE': 'Plafonds',
+                                'CARD_OPTIONS_UPDATE': 'Options Carte',
+                                'CARD_SUBSCRIPTION_UPDATE': 'Abonnement',
+                                'ACCOUNT_DELETION': 'Suppression',
+                                'PIN_VERIFICATION': 'Vérif. PIN',
+                                'ACCOUNT_LOCKED': 'Compte Bloqué'
+                            } %}
+                            {{ actions[act.action_type] if act.action_type in actions else act.action_type }}
+                        </span>
                     </td>
-                    <td style="font-size: 13px; color: var(--text-muted);">{{ act.description }}</td>
+                    <td style="font-weight: bold; color: {{ '#10b981' if act.details and act.details.amount and act.details.amount|float > 0 else '#ef4444' }};">
+                        {{ act.details.amount if (act.details and act.details.amount) else '-' }}
+                    </td>
+                    <td style="font-size: 13px; color: var(--text-muted);">
+                        {% set t = act.action_type %}
+                        {% set d = act.details or {} %}
+                        {% if t == 'DEPOSIT' %}
+                            Dépôt de {{ d.amount }} DT effectué avec succès.
+                        {% elif t == 'WITHDRAW' %}
+                            Retrait de {{ d.amount }} DT effectué avec succès.
+                        {% elif t == 'PAYMENT' %}
+                            Paiement de {{ d.amount }} DT{% if d.merchant %} chez {{ d.merchant }}{% endif %}.
+                        {% elif t == 'TRANSFER_OUT' %}
+                            Virement de {{ d.amount }} DT vers le compte {{ d.to_account[-4:] if d.to_account else '' }}.
+                        {% elif t == 'TRANSFER_IN' %}
+                            Virement de {{ d.amount }} DT reçu du compte {{ d.from_account[-4:] if d.from_account else '' }}.
+                        {% elif t == 'ACCOUNT_CREATION' %}
+                            Nouveau compte bancaire créé. PIN envoyé par email.
+                        {% elif t == 'CARD_STATUS_CHANGE' %}
+                            Statut de la carte modifié : {% if d.new_status == 'active' %}Activée{% else %}Désactivée{% endif %}.
+                        {% elif t == 'CARD_RENEWAL' %}
+                            Renouvellement de carte. Frais prélevés : {{ d.fee if d.fee else '0' }} DT.
+                        {% elif t == 'CARD_LIMITS_UPDATE' %}
+                            {% if act.status == 'FAILURE' %}Modification des plafonds refusée (abonnement Standard).{% else %}Plafonds de la carte mis à jour.{% endif %}
+                        {% elif t == 'CARD_OPTIONS_UPDATE' %}
+                            Options de sécurité de la carte mises à jour.
+                        {% elif t == 'CARD_SUBSCRIPTION_UPDATE' %}
+                            Passage à l'abonnement {{ d.subscription }}.
+                        {% elif t == 'ACCOUNT_DELETION' %}
+                            Compte bancaire et transactions supprimés.
+                        {% elif t == 'PIN_VERIFICATION' %}
+                            Vérification du code PIN. Échec n°{{ d.failed_attempts }}.
+                        {% elif t == 'ACCOUNT_LOCKED' %}
+                            Compte verrouillé suite à trop d'échecs (PIN). Blocage 15 min.
+                        {% else %}
+                            {% if act.status == 'SUCCESS' %}Succès{% else %}Échec{% endif %}
+                        {% endif %}
+                    </td>
                 </tr>
                 {% else %}
                 <tr><td colspan="5" style="text-align: center; color: var(--text-muted);">Aucune activité récente.</td></tr>
