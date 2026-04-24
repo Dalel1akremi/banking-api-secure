@@ -36,13 +36,17 @@
 <body>
 
 <nav>
-    <div class="brand">API Bank</div>
-    <div class="nav-links" style="display: flex; gap: 20px; align-items: center;">
+    <div style="display: flex; align-items: center; gap: 15px;">
+        <a href="/dashboard" class="brand" style="text-decoration: none;">API Bank</a>
+    </div>
+    <div class="nav-links">
+        <a href="/dashboard">Dashboard</a>
+        <a href="/bills">💡 Factures</a>
         <a href="/beneficiaries">Bénéficiaires</a>
         <a href="/journal">Journal</a>
-        <a href="/support" style="color: var(--primary); font-weight: 800;">📩 Support</a>
+        <a href="/support">📩 Support</a>
         {% if is_admin %}
-        <a href="/admin/dashboard" style="color: #fbbf24; font-weight: 800;">⚡ Admin</a>
+        <a href="/admin/dashboard" style="color: #fbbf24;">⚡ Admin</a>
         {% endif %}
         <a href="/settings">Paramètres</a>
         <a href="/logout" class="text-danger">Déconnexion</a>
@@ -107,5 +111,6 @@
 </script>
 
 <script src="{{ url_for('static', filename='chatbot.js') }}"></script>
+<script src="{{ url_for('static', filename='inactivity.js') }}"></script>
 </body>
 </html>

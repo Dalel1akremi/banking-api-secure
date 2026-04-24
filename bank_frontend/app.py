@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, session, flash
+from flask import Flask, render_template, request, redirect, session, flash, Response
 import requests
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
@@ -118,16 +118,21 @@ def process_signup():
     cin = request.form["cin"]
     email = request.form["email"]
     password = request.form["password"]
+    phone = request.form.get("phone", "").strip() or None
     verification_code = request.form["verification_code"]
 
-    res = requests.post(f"{BASE_API_URL}/users/", json={
+    payload = {
         "username": username,
         "lastname": lastname,
         "cin": cin,
         "email": email,
         "password": password,
         "verification_code": verification_code
-    })
+    }
+    if phone:
+        payload["phone"] = phone
+
+    res = requests.post(f"{BASE_API_URL}/users/", json=payload)
 
     if res.status_code == 200:
         flash("Compte créé avec succès ! Vous pouvez vous connecter.", "success")
@@ -140,7 +145,7 @@ def process_signup():
             flash(f"Erreur sur le champ '{field}' : {error_msg}", "error")
         else:
             flash(error_detail, "error")
-        return render_template("signup.html", username=username, lastname=lastname, cin=cin, email=email)
+        return render_template("signup.html", username=username, lastname=lastname, cin=cin, email=email, phone=phone or "")
 
 @app.route("/logout")
 def logout():
@@ -378,6 +383,27 @@ def settings():
     user_data = res.json() if res.status_code == 200 else {}
     return render_template("settings.html", user=user_data)
 
+@app.route("/settings/contact", methods=["POST"])
+@limiter.limit("3 per minute")
+def update_contact():
+    if "token" not in session: return redirect("/")
+    current_password = request.form.get("current_password")
+    otp_code         = request.form.get("otp_code")
+    new_email        = request.form.get("new_email") or None
+    new_phone        = request.form.get("new_phone") or None
+
+    payload = {"current_password": current_password, "otp_code": otp_code}
+    if new_email:  payload["new_email"]  = new_email
+    if new_phone:  payload["new_phone"]  = new_phone
+
+    res = requests.put(f"{BASE_API_URL}/users/me/contact", json=payload, headers=get_headers())
+    if res.status_code == 200:
+        flash("Coordonnées mises à jour avec succès !", "success")
+    else:
+        detail = res.json().get("detail", "Erreur lors de la mise à jour")
+        flash(detail if isinstance(detail, str) else str(detail), "error")
+    return redirect("/settings")
+
 @app.route("/beneficiaries", methods=["GET", "POST"])
 def beneficiaries():
     if "token" not in session: return redirect("/")
@@ -412,6 +438,100 @@ def journal():
     act_res = requests.get(f"{BASE_API_URL}/activities/", headers=get_headers())
     activities = act_res.json() if act_res.status_code == 200 else []
     return render_template("journal.html", activities=activities)
+
+# ==========================================
+# RIB / IBAN
+# ==========================================
+
+@app.route("/account/<account_number>/rib")
+def account_rib(account_number):
+    if "token" not in session: return redirect("/")
+    res = requests.get(f"{BASE_API_URL}/accounts/{account_number}/rib", headers=get_headers())
+    if res.status_code != 200:
+        flash("Impossible de charger le RIB.", "error")
+        return redirect(f"/account/{account_number}")
+    rib_data = res.json()
+    return render_template("rib.html", rib=rib_data, account_number=account_number)
+
+@app.route("/account/<account_number>/rib/pdf")
+def download_rib_pdf(account_number):
+    if "token" not in session: return redirect("/")
+    res = requests.get(f"{BASE_API_URL}/accounts/{account_number}/rib/pdf", headers=get_headers(), stream=True)
+    if res.status_code != 200:
+        flash("Erreur lors de la génération du RIB PDF.", "error")
+        return redirect(f"/account/{account_number}/rib")
+    return Response(
+        res.content,
+        mimetype="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="RIB_{account_number}.pdf"'}
+    )
+
+# ==========================================
+# RECEIPT PDF
+# ==========================================
+
+@app.route("/account/<account_number>/receipt/<int:tx_index>")
+def download_receipt(account_number, tx_index):
+    if "token" not in session: return redirect("/")
+    # Appel de l'endpoint PDF du backend FastAPI
+    res = requests.get(
+        f"{BASE_API_URL}/accounts/receipt/{account_number}/{tx_index}", 
+        headers=get_headers(),
+        stream=True
+    )
+    
+    if res.status_code != 200:
+        print(f"BACKEND ERROR: {res.status_code} - {res.text}") # Debug log
+        flash(f"Impossible de générer ce reçu (Erreur {res.status_code}).", "error")
+        return redirect(f"/account/{account_number}")
+    return Response(
+        res.content,
+        mimetype="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="Recu_{account_number}_{tx_index}.pdf"'}
+    )
+
+# ==========================================
+# BILLS PAGE
+# ==========================================
+
+@app.route("/bills")
+def bills():
+    if "token" not in session: return redirect("/")
+    res = requests.get(f"{BASE_API_URL}/accounts/", headers=get_headers())
+    accounts = res.json() if res.status_code == 200 else []
+    return render_template("bills.html", accounts=accounts)
+
+@app.route("/pay_bill", methods=["POST"])
+@limiter.limit("10 per minute")
+def pay_bill():
+    if "token" not in session: return redirect("/")
+    account_number = request.form.get("account_number")
+    provider       = request.form.get("provider")
+    category       = request.form.get("category")
+    bill_reference = request.form.get("bill_reference")
+    amount         = float(request.form.get("amount", 0))
+    pin            = request.form.get("pin", "")
+    otp_code       = request.form.get("otp_code", "")
+
+    res = requests.post(f"{BASE_API_URL}/accounts/bill-payment", json={
+        "account_number": account_number,
+        "provider":       provider,
+        "category":       category,
+        "bill_reference": bill_reference,
+        "amount":         amount,
+        "pin":            pin,
+        "otp_code":       otp_code
+    }, headers=get_headers())
+
+    if res.status_code == 200:
+        flash(f"Facture {provider} payée avec succès !", "success")
+    else:
+        try:
+            detail = res.json().get("detail", "Erreur lors du paiement")
+        except:
+            detail = f"Erreur serveur ({res.status_code})"
+        flash(detail, "error")
+    return redirect("/bills")
 
 @app.route("/toggle_card_status", methods=["POST"])
 def toggle_card_status():

@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, Request, BackgroundTasks
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 from app.security.auth import verify_token
 from app.db import accounts_collection, client, transactions_collection, users_collection
@@ -7,12 +8,13 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from app.routes.user import verify_auth_otp
 import random
 from datetime import datetime
-import smtplib, os
+import smtplib, os, io, bson
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from dotenv import load_dotenv
 from app.security.logger import log_activity
 from dateutil.relativedelta import relativedelta
+from fpdf import FPDF
 
 load_dotenv()
 
@@ -91,6 +93,15 @@ class AccountDelete(BaseModel):
 
 class CardRenew(BaseModel):
     account_number: str = Field(..., pattern=r"^\d{10}$")
+    pin: str = Field(..., pattern=r"^\d{4}$")
+    otp_code: str
+
+class BillPayment(BaseModel):
+    account_number: str = Field(..., pattern=r"^\d{10}$")
+    provider: str = Field(..., min_length=2, max_length=100)
+    category: str = Field(..., pattern=r"^(electricity|water|internet|phone|gas|other)$")
+    bill_reference: str = Field(..., min_length=3, max_length=50, pattern=r"^[a-zA-Z0-9\-\/]+$")
+    amount: float = Field(..., gt=0, le=1000000)
     pin: str = Field(..., pattern=r"^\d{4}$")
     otp_code: str
 
@@ -749,3 +760,347 @@ def update_subscription(request: Request, data: CardSubscriptionUpdate, user=Dep
 
     log_activity(str(user["id"]), data.account_number, "CARD_SUBSCRIPTION_UPDATE", "SUCCESS", {"subscription": data.subscription})
     return {"message": f"Abonnement mis à jour vers {data.subscription}."}
+
+
+# ==============================
+# 📄 RIB / IBAN
+# ==============================
+
+def generate_rib_key(bank_code: str, branch_code: str, account_number: str) -> str:
+    """Calcule la clé RIB tunisienne (modulo 97)."""
+    num_str = bank_code + branch_code + account_number + "00"
+    # Convert letters to digits (A=1, B=2, ...)
+    numeric = "".join(
+        str(ord(c) - 64) if c.isalpha() else c for c in num_str
+    )
+    key = 97 - (int(numeric) % 97)
+    return str(key).zfill(2)
+
+@router.get("/{account_number}/rib")
+def get_rib(account_number: str, user=Depends(verify_token)):
+    acc = accounts_collection.find_one({
+        "account_number": account_number,
+        "owner_id": str(user["id"])
+    })
+    if not acc:
+        raise HTTPException(status_code=404, detail="Compte introuvable")
+
+    # RIB Tunisien simulé : banque=03, agence=001, numéro=account_number padded to 13
+    bank_code   = "03"
+    branch_code = "001"
+    acc_padded  = account_number.zfill(13)
+    rib_key     = generate_rib_key(bank_code, branch_code, acc_padded)
+    rib         = f"{bank_code} {branch_code} {acc_padded} {rib_key}"
+
+    # IBAN Tunisien : TN59 + bank(2) + branch(3) + account(13) + key(2)
+    iban_raw = f"TN59{bank_code}{branch_code}{acc_padded}{rib_key}"
+    iban     = " ".join(iban_raw[i:i+4] for i in range(0, len(iban_raw), 4))
+
+    db_user = users_collection.find_one({"_id": bson.ObjectId(user["id"])})
+    owner_name = f"{db_user.get('username','')} {db_user.get('lastname','')}".strip() if db_user else "Titulaire"
+
+    return {
+        "account_number": account_number,
+        "rib": rib,
+        "iban": iban,
+        "bank_name": "API Bank",
+        "bank_code": bank_code,
+        "branch_code": branch_code,
+        "owner_name": owner_name,
+    }
+
+@router.get("/{account_number}/rib/pdf")
+def download_rib_pdf(account_number: str, user=Depends(verify_token)):
+    acc = accounts_collection.find_one({
+        "account_number": account_number,
+        "owner_id": str(user["id"])
+    })
+    if not acc:
+        raise HTTPException(status_code=404, detail="Compte introuvable")
+
+    bank_code   = "03"
+    branch_code = "001"
+    acc_padded  = account_number.zfill(13)
+    rib_key     = generate_rib_key(bank_code, branch_code, acc_padded)
+    rib         = f"{bank_code} {branch_code} {acc_padded} {rib_key}"
+    iban_raw    = f"TN59{bank_code}{branch_code}{acc_padded}{rib_key}"
+    iban        = " ".join(iban_raw[i:i+4] for i in range(0, len(iban_raw), 4))
+
+    db_user = users_collection.find_one({"_id": bson.ObjectId(user["id"])})
+    owner_name = f"{db_user.get('username','')} {db_user.get('lastname','')}".strip() if db_user else "Titulaire"
+
+    pdf = FPDF()
+    pdf.add_page()
+    pdf.set_margins(20, 20, 20)
+
+    # Header
+    pdf.set_fill_color(30, 41, 59)
+    pdf.rect(0, 0, 210, 45, 'F')
+    pdf.set_text_color(255, 255, 255)
+    pdf.set_font("Helvetica", "B", 22)
+    pdf.set_xy(20, 12)
+    pdf.cell(0, 10, "API Bank", ln=True)
+    pdf.set_font("Helvetica", "", 11)
+    pdf.set_xy(20, 25)
+    pdf.cell(0, 8, "Relevé d'Identité Bancaire (RIB)", ln=True)
+
+    pdf.set_text_color(30, 41, 59)
+    pdf.set_xy(20, 55)
+    pdf.set_font("Helvetica", "B", 13)
+    pdf.cell(0, 8, "Informations du titulaire", ln=True)
+    pdf.set_font("Helvetica", "", 11)
+    pdf.set_xy(20, 65)
+    pdf.cell(60, 8, "Titulaire :", ln=False)
+    pdf.set_font("Helvetica", "B", 11)
+    pdf.cell(0, 8, owner_name, ln=True)
+
+    pdf.set_font("Helvetica", "", 11)
+    pdf.set_xy(20, 75)
+    pdf.cell(60, 8, "Date d'émission :", ln=False)
+    pdf.set_font("Helvetica", "B", 11)
+    pdf.cell(0, 8, datetime.utcnow().strftime("%d/%m/%Y"), ln=True)
+
+    # RIB Box
+    pdf.set_fill_color(241, 245, 249)
+    pdf.rect(15, 90, 180, 55, 'F')
+    pdf.set_draw_color(99, 102, 241)
+    pdf.rect(15, 90, 180, 55, 'D')
+
+    pdf.set_text_color(30, 41, 59)
+    pdf.set_font("Helvetica", "B", 12)
+    pdf.set_xy(20, 95)
+    pdf.cell(0, 8, "Coordonnées bancaires", ln=True)
+
+    rows = [
+        ("Banque", f"{bank_code} — API Bank"),
+        ("Agence", branch_code),
+        ("Numéro de compte", account_number),
+        ("Clé RIB", rib_key),
+        ("RIB complet", rib),
+        ("IBAN", iban),
+    ]
+    y = 106
+    for label, value in rows:
+        pdf.set_font("Helvetica", "", 10)
+        pdf.set_text_color(100, 116, 139)
+        pdf.set_xy(22, y)
+        pdf.cell(55, 7, label + " :", ln=False)
+        pdf.set_font("Helvetica", "B", 10)
+        pdf.set_text_color(30, 41, 59)
+        pdf.cell(0, 7, value, ln=True)
+        y += 7
+
+    # Footer
+    pdf.set_fill_color(248, 250, 252)
+    pdf.rect(0, 260, 210, 37, 'F')
+    pdf.set_font("Helvetica", "I", 9)
+    pdf.set_text_color(148, 163, 184)
+    pdf.set_xy(20, 265)
+    pdf.multi_cell(170, 5, "Ce document est généré automatiquement par API Bank. Il est valable comme justificatif d'identité bancaire. Document confidentiel — ne pas divulguer à des tiers non autorisés.", align="C")
+
+    buf = io.BytesIO(pdf.output())
+    return StreamingResponse(
+        buf,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="RIB_{account_number}.pdf"'}
+    )
+
+
+# ==============================
+# 📜 TRANSACTION RECEIPT PDF
+# ==============================
+
+@router.get("/receipt/{account_number}/{tx_index}")
+def download_receipt(account_number: str, tx_index: int, user=Depends(verify_token)):
+    email = user["sub"]
+    db_user = users_collection.find_one({"email": email})
+    if not db_user:
+        raise HTTPException(status_code=404, detail="Utilisateur non trouvé")
+
+    # Verify account ownership
+    acc = accounts_collection.find_one({
+        "account_number": account_number,
+        "owner_id": str(db_user["_id"])
+    })
+    if not acc:
+        raise HTTPException(status_code=404, detail="Compte introuvable ou accès non autorisé")
+
+    # Get transactions EXACTLY like the frontend shows them
+    transactions = list(transactions_collection.find(
+        {
+            "$or": [
+                {"account_number": account_number},
+                {"from_account": account_number},
+                {"to_account": account_number}
+            ]
+        }
+    ).sort("timestamp", -1))
+
+    if tx_index < 0 or tx_index >= len(transactions):
+        print(f"DEBUG: tx_index {tx_index} out of range for {len(transactions)} txs")
+        raise HTTPException(status_code=404, detail="Transaction introuvable (Index hors limites)")
+
+    tx = transactions[tx_index]
+
+    # Determine direction & data
+    tx_type = tx.get("type", "unknown")
+    amount  = tx.get("amount", 0.0)
+    ts      = tx.get("timestamp")
+    ts_str  = ts.strftime("%d/%m/%Y %H:%M:%S") if hasattr(ts, "strftime") else str(ts)[:19]
+    owner_name = f"{db_user.get('username','')} {db_user.get('lastname','')}".strip().upper() or "CLIENT API BANK"
+
+    # --- Thème dynamique ---
+    themes = {
+        "transfer": ("VIREMENT BANCAIRE", (99, 102, 241)),  # Indigo
+        "bill_payment": ("PAIEMENT DE FACTURE", (139, 92, 246)), # Violet
+        "deposit": ("DÉPÔT EN ESPÈCES", (34, 197, 94)), # Green
+        "withdraw": ("RETRAIT D'ARGENT", (239, 68, 68)), # Red
+        "payment": ("PAIEMENT COMMERÇANT", (20, 184, 166)), # Teal
+    }
+    title_label, primary_color = themes.get(tx_type, ("TRANSACTION BANCAIRE", (71, 85, 105)))
+    ref = str(tx.get("_id", ""))[-10:].upper()
+
+    pdf = FPDF()
+    pdf.add_page()
+    pdf.set_auto_page_break(auto=True, margin=15)
+    pdf.set_fill_color(252, 252, 253)
+    pdf.rect(0, 0, 210, 297, 'F')
+    
+    pdf.set_fill_color(*primary_color)
+    pdf.rect(0, 0, 210, 50, 'F')
+    
+    pdf.set_text_color(255, 255, 255)
+    pdf.set_font("Helvetica", "B", 26)
+    pdf.set_xy(20, 15)
+    pdf.cell(0, 10, "API Bank", ln=True)
+    pdf.set_font("Helvetica", "", 10)
+    pdf.set_xy(20, 28)
+    pdf.cell(0, 5, "La banque digitale de demain, sécurisée aujourd'hui.", ln=True)
+    
+    pdf.set_font("Helvetica", "B", 14)
+    pdf.set_xy(20, 65)
+    pdf.set_text_color(*primary_color)
+    pdf.cell(0, 10, title_label, ln=True)
+    pdf.set_draw_color(*primary_color)
+    pdf.line(20, 75, 190, 75)
+
+    pdf.set_fill_color(255, 255, 255)
+    pdf.set_draw_color(226, 232, 240)
+    pdf.rect(20, 85, 170, 45, 'FD')
+    pdf.set_xy(20, 95)
+    pdf.set_font("Helvetica", "", 12)
+    pdf.set_text_color(100, 116, 139)
+    pdf.cell(170, 10, "Montant de l'opération", align="C", ln=True)
+    pdf.set_font("Helvetica", "B", 34)
+    pdf.set_text_color(30, 41, 59)
+    direction = "+" if tx_type == "deposit" or (tx_type == "transfer" and tx.get("to_account") == account_number) else "-"
+    pdf.cell(170, 15, f"{direction} {amount:,.2f} TND", align="C", ln=True)
+
+    pdf.set_xy(20, 145)
+    pdf.set_font("Helvetica", "B", 11)
+    pdf.set_text_color(71, 85, 105)
+    pdf.cell(0, 10, "INFORMATIONS DÉTAILLÉES", ln=True)
+    
+    details = [
+        ("Référence Transaction", f"TXN-{ref}"),
+        ("Date de valeur", ts_str[:10]),
+        ("Heure de l'opération", ts_str[11:19] + " UTC"),
+        ("Titulaire du compte", owner_name.upper()),
+        ("Compte débité", f"TN59 12345 {account_number} 45"),
+    ]
+
+    if tx_type == "transfer":
+        details.append(("Bénéficiaire", tx.get("to_account", "N/A")))
+        details.append(("Motif / Label", tx.get("description", "Virement sortant")))
+    elif tx_type == "bill_payment":
+        details.append(("Prestataire", tx.get("provider", "N/A").upper()))
+        details.append(("Référence Facture", tx.get("bill_reference", "N/A")))
+    elif tx_type == "payment":
+        details.append(("Marchand", tx.get("merchant", "N/A")))
+    
+    details.append(("Statut", "CONFIRMÉ / EXÉCUTÉ"))
+
+    y = 158
+    for i, (label, value) in enumerate(details):
+        if i % 2 == 0:
+            pdf.set_fill_color(248, 250, 252)
+            pdf.rect(20, y, 170, 12, 'F')
+        pdf.set_xy(25, y + 3)
+        pdf.set_font("Helvetica", "", 10)
+        pdf.set_text_color(100, 116, 139)
+        pdf.cell(60, 6, label)
+        pdf.set_font("Helvetica", "B", 10)
+        pdf.set_text_color(30, 41, 59)
+        pdf.cell(100, 6, str(value), align="R", ln=True)
+        y += 12
+
+    pdf.set_xy(140, y + 20)
+    pdf.set_font("Helvetica", "B", 8)
+    pdf.set_text_color(*primary_color)
+    pdf.cell(50, 5, "SÉCURISÉ PAR API BANK", align="C", ln=True)
+    pdf.rect(140, y + 18, 50, 15)
+    pdf.set_font("Helvetica", "I", 7)
+    pdf.set_xy(140, y + 24)
+    pdf.cell(50, 5, "Signature Numérique : Validée", align="C", ln=True)
+
+    pdf.set_xy(20, 265)
+    pdf.set_draw_color(226, 232, 240)
+    pdf.line(20, 264, 190, 264)
+    pdf.set_font("Helvetica", "I", 8)
+    pdf.set_text_color(148, 163, 184)
+    footer_text = "Ce document est un justificatif officiel généré par le système API Bank. API Bank S.A. au capital de 100.000.000 TND — 1002 Tunis, Tunisie."
+    pdf.multi_cell(170, 4, footer_text, align="C")
+
+    buf = io.BytesIO(pdf.output())
+    return StreamingResponse(buf, media_type="application/pdf", headers={"Content-Disposition": f'attachment; filename="Recu_API_Bank_{ref}.pdf"'})
+
+
+# ==============================
+# 💡 BILL PAYMENT
+# ==============================
+
+@router.post("/bill-payment")
+@limiter.limit("10/minute")
+def bill_payment(request: Request, data: BillPayment, user=Depends(verify_token)):
+    if data.amount <= 0:
+        raise HTTPException(status_code=400, detail="Le montant doit être positif")
+
+    acc = verify_pin(data.account_number, str(user["id"]), data.pin)
+
+    if acc.get("card_status") == "deactivated":
+        raise HTTPException(status_code=403, detail="Cette carte est désactivée.")
+    if is_card_expired(acc.get("card_expiry", "01/01")):
+        raise HTTPException(status_code=403, detail="Cette carte est expirée.")
+    if not acc.get("internet_payments", True):
+        raise HTTPException(status_code=403, detail="Les paiements en ligne sont désactivés.")
+
+    online_limit = acc.get("online_payment_limit", 1000.0)
+    if data.amount > online_limit:
+        raise HTTPException(status_code=400, detail=f"Montant supérieur au plafond en ligne ({online_limit} DT).")
+
+    verify_auth_otp(user["sub"], data.otp_code)
+
+    if acc["balance"] < data.amount:
+        raise HTTPException(status_code=400, detail="Solde insuffisant")
+
+    result = accounts_collection.update_one(
+        {"account_number": data.account_number, "owner_id": str(user["id"]), "balance": {"$gte": data.amount}},
+        {"$inc": {"balance": -data.amount}}
+    )
+    if result.matched_count == 0:
+        raise HTTPException(status_code=400, detail="Solde insuffisant ou compte introuvable")
+
+    save_transaction({
+        "type": "bill_payment",
+        "account_number": data.account_number,
+        "merchant": data.provider,
+        "provider": data.provider,
+        "category": data.category,
+        "bill_reference": data.bill_reference,
+        "amount": data.amount,
+        "owner_id": str(user["id"])
+    })
+    log_activity(str(user["id"]), data.account_number, "BILL_PAYMENT", "SUCCESS", {
+        "amount": data.amount, "provider": data.provider, "category": data.category
+    })
+    return {"message": f"Facture {data.provider} payée avec succès."}

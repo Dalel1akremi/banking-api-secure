@@ -14,6 +14,7 @@ class User(BaseModel):
     lastname: str = Field(..., min_length=2, max_length=50, pattern=r"^[a-zA-Z\s]+$")
     email: EmailStr
     cin: str = Field(..., pattern=r"^\d{8}$")
+    phone: str = Field(None, pattern=r"^\+?[0-9]{8,15}$")
     password: str = Field(..., min_length=6, max_length=20)
     verification_code: str = Field(..., pattern=r"^\d{6}$")
 
@@ -107,7 +108,8 @@ def get_current_user(user=Depends(verify_token)):
         "username": db_user.get("username"),
         "lastname": db_user.get("lastname"),
         "email": db_user.get("email"),
-        "cin": db_user.get("cin")
+        "cin": db_user.get("cin"),
+        "phone": db_user.get("phone")
     }
 
 class SettingsUpdate(BaseModel):
@@ -116,6 +118,12 @@ class SettingsUpdate(BaseModel):
     new_username: str = None
     new_lastname: str = None
     new_password: str = None
+
+class ContactUpdate(BaseModel):
+    current_password: str
+    otp_code: str
+    new_email: str = Field(None, description="Nouvel email")
+    new_phone: str = Field(None, pattern=r"^\+?[0-9]{8,15}$")
 
 class UserDelete(BaseModel):
     current_password: str
@@ -188,3 +196,38 @@ def delete_user_profile(request: Request, data: UserDelete, user=Depends(verify_
     log_activity(user_id, "N/A", "USER_PROFILE_DELETION", "SUCCESS", {"email": email})
 
     return {"message": "Profil utilisateur et toutes les données associées supprimés avec succès."}
+
+@router.put("/me/contact")
+@limiter.limit("3/minute")
+def update_contact_info(request: Request, data: ContactUpdate, user=Depends(verify_token)):
+    """Met à jour l'email et/ou le numéro de téléphone de l'utilisateur."""
+    email = user["sub"]
+    db_user = users_collection.find_one({"email": email})
+    if not db_user:
+        raise HTTPException(status_code=404, detail="Utilisateur introuvable")
+
+    # 1. Vérification mot de passe
+    if not check_password_hash(db_user.get("password", ""), data.current_password):
+        raise HTTPException(status_code=403, detail="Mot de passe actuel incorrect.")
+
+    # 2. Vérification OTP
+    verify_auth_otp(email, data.otp_code)
+
+    updates = {}
+    if data.new_email:
+        # Vérifier que le nouvel email n'est pas déjà utilisé
+        if users_collection.find_one({"email": data.new_email}):
+            raise HTTPException(status_code=400, detail="Cet email est déjà utilisé par un autre compte.")
+        updates["email"] = data.new_email
+    if data.new_phone:
+        updates["phone"] = data.new_phone
+
+    if not updates:
+        raise HTTPException(status_code=400, detail="Aucune modification fournie.")
+
+    users_collection.update_one({"email": email}, {"$set": updates})
+
+    from app.security.logger import log_activity
+    log_activity(str(db_user["_id"]), "N/A", "CONTACT_UPDATE", "SUCCESS", {"fields": list(updates.keys())})
+
+    return {"message": "Coordonnées mises à jour avec succès.", "updated": list(updates.keys())}

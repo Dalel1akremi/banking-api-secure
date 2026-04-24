@@ -105,13 +105,18 @@
 
 <nav>
     <div style="display: flex; align-items: center; gap: 15px;">
-        <a href="/account/{{ account.account_number }}" style="font-size: 24px; color: var(--text-main); font-weight: bold; text-decoration: none;">&larr;</a>
-        <div class="brand">API Bank</div>
+        <a href="/dashboard" class="brand" style="text-decoration: none;">API Bank</a>
     </div>
     <div class="nav-links">
         <a href="/dashboard">Dashboard</a>
+        <a href="/bills">💡 Factures</a>
+        <a href="/beneficiaries">Bénéficiaires</a>
         <a href="/journal">Journal</a>
-        <a href="/support" style="color: var(--primary); font-weight: 800;">📩 Support</a>
+        <a href="/support">📩 Support</a>
+        {% if is_admin %}
+        <a href="/admin/dashboard" style="color: #fbbf24;">⚡ Admin</a>
+        {% endif %}
+        <a href="/settings">Paramètres</a>
         <a href="/logout" class="text-danger">Déconnexion</a>
     </div>
 </nav>

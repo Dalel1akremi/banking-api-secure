@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Paiement de Factures - API Bank</title>
+    <meta name="description" content="Payez vos factures d'électricité, eau, internet et téléphone en toute sécurité.">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <style>
+        /* Provider Grid */
+        .providers-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+            gap: 14px;
+            margin-bottom: 32px;
+        }
+        .provider-card {
+            background: rgba(255,255,255,.03);
+            border: 2px solid rgba(255,255,255,.07);
+            border-radius: 16px; padding: 20px 14px;
+            text-align: center; cursor: pointer;
+            transition: all .2s ease;
+            user-select: none;
+        }
+        .provider-card:hover {
+            border-color: rgba(99,102,241,.5);
+            background: rgba(99,102,241,.08);
+            transform: translateY(-2px);
+        }
+        .provider-card.selected {
+            border-color: #6366f1;
+            background: rgba(99,102,241,.15);
+            box-shadow: 0 0 0 3px rgba(99,102,241,.2);
+        }
+        .provider-icon { font-size: 32px; margin-bottom: 10px; }
+        .provider-name { font-size: 13px; font-weight: 700; color: var(--text-main); }
+        .provider-cat  { font-size: 11px; color: var(--text-muted); margin-top: 3px; }
+
+        /* Category sections */
+        .category-section { margin-bottom: 28px; }
+        .category-title {
+            font-size: 12px; font-weight: 700; text-transform: uppercase;
+            letter-spacing: .1em; color: var(--text-muted);
+            margin-bottom: 12px; display: flex; align-items: center; gap: 8px;
+        }
+        .category-title::after {
+            content: ''; flex: 1; height: 1px; background: var(--card-border);
+        }
+
+        /* Payment form panel */
+        .payment-panel {
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 16px; padding: 28px;
+            position: sticky; top: 24px;
+        }
+        .selected-provider-display {
+            display: flex; align-items: center; gap: 14px;
+            background: rgba(99,102,241,.1); border: 1px solid rgba(99,102,241,.25);
+            border-radius: 12px; padding: 14px 18px; margin-bottom: 20px;
+        }
+        .spd-icon { font-size: 28px; }
+        .spd-name { font-size: 15px; font-weight: 700; color: var(--text-main); }
+        .spd-cat  { font-size: 12px; color: var(--text-muted); }
+
+        /* Layout */
+        .bills-layout {
+            display: grid;
+            grid-template-columns: 1fr 380px;
+            gap: 28px; align-items: start;
+        }
+        @media (max-width: 860px) {
+            .bills-layout { grid-template-columns: 1fr; }
+            .payment-panel { position: static; }
+        }
+
+        .no-selection {
+            text-align: center; padding: 50px 20px;
+            color: var(--text-muted); font-size: 14px;
+        }
+        .no-selection .big-icon { font-size: 48px; margin-bottom: 12px; }
+
+        /* Modal */
+        .modal-overlay {
+            position: fixed; inset: 0; background: rgba(0,0,0,.8);
+            display: none; align-items: center; justify-content: center;
+            z-index: 1000; backdrop-filter: blur(4px);
+        }
+        .modal-overlay.active { display: flex; }
+        .modal-content {
+            background: #1e293b; width: 100%; max-width: 420px;
+            padding: 32px; border-radius: 16px; border: 1px solid var(--card-border);
+        }
+    </style>
+</head>
+<body>
+
+<nav>
+    <div style="display: flex; align-items: center; gap: 15px;">
+        <a href="/dashboard" class="brand" style="text-decoration: none;">API Bank</a>
+    </div>
+    <div class="nav-links">
+        <a href="/dashboard">Dashboard</a>
+        <a href="/bills">💡 Factures</a>
+        <a href="/beneficiaries">Bénéficiaires</a>
+        <a href="/journal">Journal</a>
+        <a href="/support">📩 Support</a>
+        {% if is_admin %}
+        <a href="/admin/dashboard" style="color: #fbbf24;">⚡ Admin</a>
+        {% endif %}
+        <a href="/settings">Paramètres</a>
+        <a href="/logout" class="text-danger">Déconnexion</a>
+    </div>
+</nav>
+
+<div class="page-container">
+    <div class="page-header">
+        <h1>💡 Paiement de Factures</h1>
+        <p>Sélectionnez un fournisseur puis complétez le formulaire de paiement.</p>
+    </div>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        <div id="flash-container">
+        {% for category, message in messages %}
+          <div class="alert {{ 'alert-success' if category == 'success' else 'alert-error' }}">{{ message }}</div>
+        {% endfor %}
+        </div>
+      {% endif %}
+    {% endwith %}
+
+    <div class="bills-layout">
+
+        <!-- LEFT: Provider Selection -->
+        <div>
+            <div class="category-section">
+                <div class="category-title">⚡ Électricité & Gaz</div>
+                <div class="providers-grid">
+                    <div class="provider-card" onclick="selectProvider(this, 'STEG (Électricité &amp; Gaz)', 'electricity', '⚡')">
+                        <div class="provider-icon">⚡</div>
+                        <div class="provider-name">STEG</div>
+                        <div class="provider-cat">Électricité & Gaz</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="category-section">
+                <div class="category-title">💧 Eau</div>
+                <div class="providers-grid">
+                    <div class="provider-card" onclick="selectProvider(this, 'SONEDE (Eau)', 'water', '💧')">
+                        <div class="provider-icon">💧</div>
+                        <div class="provider-name">SONEDE</div>
+                        <div class="provider-cat">Distribution d'eau</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="category-section">
+                <div class="category-title">📡 Internet & Téléphone</div>
+                <div class="providers-grid">
+                    <div class="provider-card" onclick="selectProvider(this, 'Tunisie Telecom', 'phone', '📞')">
+                        <div class="provider-icon">📞</div>
+                        <div class="provider-name">Tunisie Telecom</div>
+                        <div class="provider-cat">Fixe & Mobile</div>
+                    </div>
+                    <div class="provider-card" onclick="selectProvider(this, 'Ooredoo', 'phone', '📱')">
+                        <div class="provider-icon">📱</div>
+                        <div class="provider-name">Ooredoo</div>
+                        <div class="provider-cat">Mobile & Fibre</div>
+                    </div>
+                    <div class="provider-card" onclick="selectProvider(this, 'Orange Tunisie', 'phone', '🟠')">
+                        <div class="provider-icon">🟠</div>
+                        <div class="provider-name">Orange</div>
+                        <div class="provider-cat">Mobile</div>
+                    </div>
+                    <div class="provider-card" onclick="selectProvider(this, 'Topnet', 'internet', '🌐')">
+                        <div class="provider-icon">🌐</div>
+                        <div class="provider-name">Topnet</div>
+                        <div class="provider-cat">Internet ADSL/Fibre</div>
+                    </div>
+                    <div class="provider-card" onclick="selectProvider(this, 'GlobalNet', 'internet', '🌐')">
+                        <div class="provider-icon">🌐</div>
+                        <div class="provider-name">GlobalNet</div>
+                        <div class="provider-cat">Internet</div>
+                    </div>
+                    <div class="provider-card" onclick="selectProvider(this, 'Hexabyte', 'internet', '🌐')">
+                        <div class="provider-icon">🌐</div>
+                        <div class="provider-name">Hexabyte</div>
+                        <div class="provider-cat">Internet</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- RIGHT: Payment Form -->
+        <div>
+            <div class="payment-panel">
+                <h3 style="margin-bottom: 20px;">💳 Formulaire de Paiement</h3>
+
+                <!-- No selection state -->
+                <div id="no-selection-msg" class="no-selection">
+                    <div class="big-icon">👆</div>
+                    <p>Sélectionnez un fournisseur<br>à gauche pour continuer.</p>
+                </div>
+
+                <!-- Form (hidden until selection) -->
+                <form id="bill-form" method="POST" action="/pay_bill" style="display:none;">
+                    <input type="hidden" name="provider"  id="input-provider">
+                    <input type="hidden" name="category"  id="input-category">
+
+                    <div class="selected-provider-display" id="spd">
+                        <div class="spd-icon" id="spd-icon">⚡</div>
+                        <div>
+                            <div class="spd-name" id="spd-name">Fournisseur</div>
+                            <div class="spd-cat"  id="spd-cat">Catégorie</div>
+                        </div>
+                    </div>
+
+                    <div class="input-group">
+                        <label>Compte à débiter</label>
+                        <select name="account_number" required style="width:100%; padding:12px 15px; background:rgba(0,0,0,.2); border:1px solid var(--card-border); border-radius:8px; color:var(--text-main); font-size:16px; outline:none;">
+                            <option value="" disabled selected>-- Choisir un compte --</option>
+                            {% for acc in accounts %}
+                            <option value="{{ acc.account_number }}">
+                                ****{{ acc.account_number[-4:] }} — {{ "%.2f"|format(acc.balance|float) }} DT
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="input-group">
+                        <label>Référence de la Facture</label>
+                        <input type="text" name="bill_reference" id="input-reference" required
+                               placeholder="Ex: 123456789" maxlength="50"
+                               pattern="[a-zA-Z0-9\-\/]+"
+                               style="font-family: monospace; letter-spacing: 2px;">
+                        <p style="font-size:11px; color:var(--text-muted); margin-top:4px;">
+                            Numéro de référence indiqué sur votre facture.
+                        </p>
+                    </div>
+
+                    <div class="input-group">
+                        <label>Montant à payer (DT)</label>
+                        <input type="number" name="amount" required step="0.001" min="0.1"
+                               placeholder="Ex: 85.500">
+                    </div>
+
+                    <hr style="border-color: var(--card-border); margin: 20px 0;">
+                    <h4 style="margin-bottom:15px; color:#f59e0b; font-size:13px;">🔐 Validation de Sécurité</h4>
+
+                    <div class="input-group">
+                        <label>Code Confidentiel (PIN)</label>
+                        <input type="password" name="pin" required maxlength="4"
+                               pattern="\d{4}" placeholder="••••"
+                               inputmode="numeric"
+                               style="letter-spacing:8px; font-size:1.2rem;">
+                    </div>
+
+                    <div class="input-group">
+                        <label>✉️ Code OTP</label>
+                        <div style="display:flex; gap:10px;">
+                            <input type="text" name="otp_code" required maxlength="6"
+                                   pattern="\d{6}" placeholder="123456"
+                                   inputmode="numeric"
+                                   style="flex:1; letter-spacing:4px; font-size:1.2rem;">
+                            <button type="button" class="btn btn-secondary request-otp-btn" style="width:auto;">OTP</button>
+                        </div>
+                    </div>
+
+                    <button type="submit" class="btn" style="background:linear-gradient(135deg,#6366f1,#8b5cf6); border:none;">
+                        💳 Payer la facture
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    function selectProvider(card, name, category, icon) {
+        // Deselect all
+        document.querySelectorAll('.provider-card').forEach(c => c.classList.remove('selected'));
+        card.classList.add('selected');
+
+        // Fill hidden inputs
+        document.getElementById('input-provider').value  = name;
+        document.getElementById('input-category').value  = category;
+
+        // Update display
+        document.getElementById('spd-icon').textContent = icon;
+        document.getElementById('spd-name').textContent = name;
+        const catLabels = {
+            electricity: 'Électricité & Gaz', water: 'Eau',
+            phone: 'Téléphonie', internet: 'Internet'
+        };
+        document.getElementById('spd-cat').textContent = catLabels[category] || category;
+
+        // Show form
+        document.getElementById('no-selection-msg').style.display = 'none';
+        document.getElementById('bill-form').style.display = 'block';
+
+        // Scroll to form on mobile
+        if (window.innerWidth < 860) {
+            document.querySelector('.payment-panel').scrollIntoView({ behavior: 'smooth' });
+        }
+    }
+
+    // OTP button
+    document.querySelectorAll('.request-otp-btn').forEach(btn => {
+        btn.addEventListener('click', async () => {
+            btn.disabled = true;
+            btn.textContent = '...';
+            try {
+                const res = await fetch('/request_auth_otp', { method: 'POST' });
+                const data = await res.json();
+                alert(res.ok ? (data.message || 'Code OTP envoyé !') : (data.detail || 'Erreur'));
+            } catch { alert('Erreur réseau'); }
+            btn.textContent = 'OTP';
+            btn.disabled = false;
+        });
+    });
+
+    // Flash dismiss
+    setTimeout(() => {
+        document.querySelectorAll('.alert').forEach(el => {
+            el.style.transition = 'opacity 0.5s';
+            el.style.opacity = '0';
+            setTimeout(() => el.remove(), 500);
+        });
+    }, 4000);
+</script>
+<script src="{{ url_for('static', filename='chatbot.js') }}"></script>
+<script src="{{ url_for('static', filename='inactivity.js') }}"></script>
+</body>
+</html>

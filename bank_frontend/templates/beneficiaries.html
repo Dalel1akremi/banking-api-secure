@@ -9,13 +9,17 @@
 
 <nav>
     <div style="display: flex; align-items: center; gap: 15px;">
-        <a href="/dashboard" style="font-size: 24px; color: var(--text-main); font-weight: bold; text-decoration: none;">&larr;</a>
-        <div class="brand">API Bank</div>
+        <a href="/dashboard" class="brand" style="text-decoration: none;">API Bank</a>
     </div>
     <div class="nav-links">
         <a href="/dashboard">Dashboard</a>
+        <a href="/bills">💡 Factures</a>
+        <a href="/beneficiaries">Bénéficiaires</a>
         <a href="/journal">Journal</a>
-        <a href="/support" style="color: var(--primary); font-weight: 800;">📩 Support</a>
+        <a href="/support">📩 Support</a>
+        {% if is_admin %}
+        <a href="/admin/dashboard" style="color: #fbbf24;">⚡ Admin</a>
+        {% endif %}
         <a href="/settings">Paramètres</a>
         <a href="/logout" class="text-danger">Déconnexion</a>
     </div>
@@ -58,19 +62,24 @@
                     <tbody>
                         {% for b in beneficiaries %}
                         <tr>
-                            <td style="font-weight: bold; color: #fff;">{{ b.alias }}</td>
-                            <td style="letter-spacing: 2px;">{{ b.account_number }}</td>
-                            <td style="font-size: 13px; color: var(--text-muted);">
-                                {% if b.verified_name %}
-                                    {{ b.verified_name }}
-                                {% else %}
-                                    <span style="font-style: italic;">Non spécifié</span>
+                            <td style="font-weight: bold; color: #fff;">
+                                {{ b.alias }}
+                                {% if b.is_external %}
+                                    <span style="font-size: 10px; color: #fbbf24; display: block; font-weight: normal;">⚠️ Externe</span>
                                 {% endif %}
+                            </td>
+                            <td style="letter-spacing: 1px; font-family: monospace; font-size: 14px;">{{ b.account_number }}</td>
+                            <td style="font-size: 13px; color: var(--text-muted);">
+                                {{ b.verified_name or '—' }}
                             </td>
                             <td>
                                 {% if b.cop_verified %}
                                     <span class="badge" style="background: rgba(0, 230, 118, 0.1); color: #00e676; border: 1px solid rgba(0, 230, 118, 0.3);">
-                                        ✅ Vérifié
+                                        ✅ Vérifié (CoP)
+                                    </span>
+                                {% elif b.is_external %}
+                                    <span class="badge" style="background: rgba(251, 191, 36, 0.1); color: #fbbf24; border: 1px solid rgba(251, 191, 36, 0.3);">
+                                        🌍 Externe
                                     </span>
                                 {% else %}
                                     <span class="badge" style="background: rgba(156, 163, 175, 0.1); color: var(--text-muted); border: 1px solid rgba(156, 163, 175, 0.3);">
@@ -92,17 +101,17 @@
         <div class="panel">
             <h3>Ajouter un Bénéficiaire</h3>
             <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 20px;">
-                Conformément aux normes Open Banking (CoP), le nom saisi sera vérifié contre l'identité réelle du titulaire.
+                Vous pouvez ajouter un compte <strong>interne</strong> (10 chiffres) ou <strong>externe</strong> (RIB/IBAN).
             </p>
             <form method="POST" action="/beneficiaries" style="margin-top: 20px;">
                 <div class="input-group">
-                    <label>Nom complet du titulaire (Sert d'alias)</label>
+                    <label>Nom complet / Alias</label>
                     <input type="text" name="alias" required placeholder="Ex: Jean Martin" maxlength="100">
-                    <p style="font-size: 11px; color: #fbbf24; margin-top: 5px;">⚠️ Doit correspondre exactement au prénom/nom du compte.</p>
+                    <p style="font-size: 11px; color: #a0aec0; margin-top: 5px;">Pour les comptes internes, le nom doit correspondre exactement au titulaire.</p>
                 </div>
                 <div class="input-group">
-                    <label>Numéro de Compte (10 chiffres)</label>
-                    <input type="text" name="account_number" required placeholder="Ex: 1234567890" maxlength="10" pattern="\d{10}">
+                    <label>Numéro de Compte ou RIB</label>
+                    <input type="text" name="account_number" required placeholder="10 à 20 chiffres" maxlength="20" pattern="\d{10,20}">
                 </div>
 
                 <hr style="border-color: var(--card-border); margin: 20px 0;">

@@ -220,13 +220,18 @@
 
 <nav>
     <div style="display: flex; align-items: center; gap: 15px;">
-        <a href="/dashboard" style="font-size: 24px; color: var(--text-main); font-weight: bold; text-decoration: none;">&larr;</a>
-        <div class="brand">API Bank</div>
+        <a href="/dashboard" class="brand" style="text-decoration: none;">API Bank</a>
     </div>
     <div class="nav-links">
         <a href="/dashboard">Dashboard</a>
+        <a href="/bills">💡 Factures</a>
+        <a href="/beneficiaries">Bénéficiaires</a>
         <a href="/journal">Journal</a>
-        <a href="/support" style="color: var(--primary); font-weight: 800;">📩 Support</a>
+        <a href="/support">📩 Support</a>
+        {% if is_admin %}
+        <a href="/admin/dashboard" style="color: #fbbf24;">⚡ Admin</a>
+        {% endif %}
+        <a href="/settings">Paramètres</a>
         <a href="/logout" class="text-danger">Déconnexion</a>
     </div>
 </nav>
@@ -237,9 +242,14 @@
             <h1>Détails du Compte</h1>
             <p>Numéro : <strong>**** **** **** {{ account.account_number[-4:] }}</strong></p>
         </div>
-        <a href="/account/{{ account.account_number }}/card" class="btn" style="width: auto; padding: 12px 24px; background: linear-gradient(135deg, #6366f1, #8b5cf6); border:none; display: flex; align-items: center; gap: 10px;">
-            <span>💳</span> Ma Carte Visa
-        </a>
+        <div style="display:flex; gap:10px;">
+            <a href="/account/{{ account.account_number }}/rib" class="btn" style="width:auto; padding:12px 20px; background:rgba(99,102,241,.15); border:1px solid rgba(99,102,241,.3); color:#a5b4fc; display:flex; align-items:center; gap:8px; text-decoration:none;">
+                📄 Mon RIB
+            </a>
+            <a href="/account/{{ account.account_number }}/card" class="btn" style="width: auto; padding: 12px 24px; background: linear-gradient(135deg, #6366f1, #8b5cf6); border:none; display: flex; align-items: center; gap: 10px;">
+                <span>💳</span> Ma Carte Visa
+            </a>
+        </div>
     </div>
 
     {% with messages = get_flashed_messages(with_categories=true) %}
@@ -275,6 +285,7 @@
                                 <th>Montant</th>
                                 <th>Détails</th>
                                 <th>Date</th>
+                                <th>Reçu</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -295,14 +306,23 @@
                                         {% else %}
                                             Envoyé à ****{{ tx.to_account[-4:] }}
                                         {% endif %}
-                                    {% elif tx.type == "payment" %}
-                                        {{ tx.merchant }}
+                                    {% elif tx.type in ["payment", "bill_payment"] %}
+                                        {{ tx.merchant or tx.provider or '' }}
+                                    {% elif tx.type == "service_fee" %}
+                                        {{ tx.description or 'Frais de service' }}
                                     {% else %}
                                         —
                                     {% endif %}
                                 </td>
                                 <td style="font-size: 13px; color: var(--text-muted);">
                                     {{ tx.timestamp[:10] if tx.timestamp is string else '—' }}
+                                </td>
+                                <td>
+                                    <a href="/account/{{ account.account_number }}/receipt/{{ loop.index0 }}"
+                                       class="btn-receipt"
+                                       style="display:inline-flex; align-items:center; gap:6px; font-size:12px; color:#fff; text-decoration:none; background: #6366f1; padding:6px 12px; border-radius:6px; font-weight: 600; transition: background 0.2s;">
+                                        📥 PDF
+                                    </a>
                                 </td>
                             </tr>
                             {% else %}
@@ -325,7 +345,6 @@
                 <button class="tab-btn active" onclick="showTab(event, 'tab-deposit')" id="btn-deposit">Dépôt</button>
                 <button class="tab-btn" onclick="showTab(event, 'tab-withdraw')" id="btn-withdraw">Retrait</button>
                 <button class="tab-btn" onclick="showTab(event, 'tab-transfer')" id="btn-transfer">Transfert</button>
-                <button class="tab-btn" onclick="showTab(event, 'tab-payment')" id="btn-payment">Paiement</button>
             </div>
 
             <div id="tab-deposit" class="panel tab-content active" style="margin-top: 0; border-radius: 0 0 14px 14px;">
@@ -414,47 +433,6 @@
                 </form>
             </div>
 
-            <div id="tab-payment" class="panel tab-content" style="margin-top: 0; border-radius: 0 0 14px 14px;">
-                <h3 style="margin-bottom: 20px;">🛒 Paiement de Service</h3>
-                <form method="POST" action="/process_payment">
-                    <input type="hidden" name="account_number" value="{{ account.account_number }}">
-                    <div class="input-group">
-                        <label>Service / Facture</label>
-                        <select name="merchant" required style="width: 100%; padding: 12px 15px; background: rgba(0, 0, 0, 0.2); border: 1px solid var(--card-border); border-radius: 8px; color: var(--text-main); font-size: 16px; outline: none; margin-bottom: 15px;">
-                            <option value="" disabled selected>-- Choisir un service --</option>
-                            <option value="STEG (Électricité &amp; Gaz)">STEG (Électricité &amp; Gaz)</option>
-                            <option value="SONEDE (Eau)">SONEDE (Eau)</option>
-                            <option value="Tunisie Telecom">Tunisie Telecom</option>
-                            <option value="Ooredoo">Ooredoo</option>
-                            <option value="Orange">Orange</option>
-                            <option value="Topnet">Topnet</option>
-                        </select>
-                    </div>
-                    <div class="input-group">
-                        <label>Montant (DT)</label>
-                        <input type="number" step="0.01" name="amount" required placeholder="Ex: 85.50">
-                    </div>
-                    <div class="input-group" style="background: rgba(0,0,0,0.2); padding: 10px; border-radius: 8px; margin-bottom: 15px;">
-                        <label style="margin-bottom: 8px;">🛠️ Options de simulation</label>
-                        <div style="display: flex; gap: 15px; font-size: 13px; color: var(--text-main);">
-                            <label style="display:flex; align-items:center; gap:5px; margin:0;"><input type="checkbox" name="is_online"> En ligne</label>
-                            <label style="display:flex; align-items:center; gap:5px; margin:0;"><input type="checkbox" name="is_foreign"> À l'étranger</label>
-                            <label style="display:flex; align-items:center; gap:5px; margin:0;"><input type="checkbox" name="is_contactless"> Sans contact</label>
-                        </div>
-                    </div>
-                    <div class="input-group">
-                        <label>🔐 Code Confidentiel (PIN)</label>
-                        <input type="password" name="pin" required maxlength="4" pattern="\d{4}" placeholder="••••" inputmode="numeric" style="letter-spacing:8px; font-size:1.2rem;">
-                    </div>
-                    <div class="input-group">
-                        <label>✉️ Code OTP</label>
-                        <div style="display: flex; gap: 10px;">
-                            <input type="text" name="otp_code" required maxlength="6" pattern="\d{6}" placeholder="123456" inputmode="numeric" style="flex: 1; letter-spacing:4px; font-size:1.2rem;">
-                            <button type="button" class="btn btn-secondary request-otp-btn" style="width: auto;">Demander OTP</button>
-                        </div>
-                    </div>
-                    <button type="submit" class="btn" style="background:#e040fb; color:#fff; border:none;" id="submit-payment">Payer la facture</button>
-                </form>
             </div>
 
             <!-- ── ACTIVITÉ RÉCENTE DE LA CARTE ── -->
@@ -562,5 +540,6 @@
 </script>
 
 <script src="{{ url_for('static', filename='chatbot.js') }}"></script>
+<script src="{{ url_for('static', filename='inactivity.js') }}"></script>
 </body>
 </html>

@@ -125,6 +125,15 @@
             </div>
 
             <div class="input-group">
+                <label>Numéro de Téléphone <span style="color:var(--text-muted); font-size:11px;">(optionnel)</span></label>
+                <input type="tel" name="phone" placeholder="Ex: +21620123456"
+                       pattern="\+?[0-9]{8,15}" title="8 à 15 chiffres, avec ou sans +" value="{{ phone | default('') }}">
+                <small style="color:var(--text-muted); font-size:11px;">
+                    Utilisé pour les alertes et la récupération de compte.
+                </small>
+            </div>
+
+            <div class="input-group">
                 <label>Mot de passe robuste</label>
                 <input type="password" name="password" required placeholder="••••••••">
                 <small style="color:var(--text-muted); font-size:11px;">

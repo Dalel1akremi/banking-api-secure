@@ -84,13 +84,17 @@
 
 <nav>
     <div style="display: flex; align-items: center; gap: 15px;">
-        <a href="/dashboard" style="font-size: 24px; color: var(--text-main); font-weight: bold; text-decoration: none;">&larr;</a>
-        <div class="brand">API Bank</div>
+        <a href="/dashboard" class="brand" style="text-decoration: none;">API Bank</a>
     </div>
     <div class="nav-links">
         <a href="/dashboard">Dashboard</a>
+        <a href="/bills">💡 Factures</a>
         <a href="/beneficiaries">Bénéficiaires</a>
-        <a href="/support" style="color: var(--primary); font-weight: 800;">📩 Support</a>
+        <a href="/journal">Journal</a>
+        <a href="/support">📩 Support</a>
+        {% if is_admin %}
+        <a href="/admin/dashboard" style="color: #fbbf24;">⚡ Admin</a>
+        {% endif %}
         <a href="/settings">Paramètres</a>
         <a href="/logout" class="text-danger">Déconnexion</a>
     </div>
@@ -144,12 +148,13 @@
     <div class="filter-bar">
         <span style="font-size: 13px; color: var(--text-muted); margin-right: 4px;">Filtrer :</span>
         <button class="filter-btn active" onclick="filterLogs('ALL', this)" id="filter-all">Tous</button>
-        <button class="filter-btn" onclick="filterLogs('DEPOSIT', this)">💰 Dépôt</button>
-        <button class="filter-btn" onclick="filterLogs('WITHDRAW', this)">💸 Retrait</button>
-        <button class="filter-btn" onclick="filterLogs('PAYMENT', this)">🛒 Paiement</button>
-        <button class="filter-btn" onclick="filterLogs('TRANSFER', this)">🔁 Transfert</button>
-        <button class="filter-btn danger" onclick="filterLogs('FAILURE', this)">🚨 Échecs uniquement</button>
-        <button class="filter-btn danger" onclick="filterLogs('ACCOUNT_LOCKED', this)">🔒 Verrouillages</button>
+        <button class="filter-btn" onclick="filterLogs('DEPOSIT', this)">&#128176; Dépôt</button>
+        <button class="filter-btn" onclick="filterLogs('WITHDRAW', this)">&#128184; Retrait</button>
+        <button class="filter-btn" onclick="filterLogs('PAYMENT', this)">&#128717; Paiement</button>
+        <button class="filter-btn" onclick="filterLogs('BILL_PAYMENT', this)">&#128161; Factures</button>
+        <button class="filter-btn" onclick="filterLogs('TRANSFER', this)">&#128257; Transfert</button>
+        <button class="filter-btn danger" onclick="filterLogs('FAILURE', this)">&#128680; Échecs uniquement</button>
+        <button class="filter-btn danger" onclick="filterLogs('ACCOUNT_LOCKED', this)">&#128274; Verrouillages</button>
     </div>
 
     <!-- ── Log Table ── -->
@@ -171,24 +176,25 @@
             {% set is_fail = act.status == 'FAILURE' %}
             <div class="log-row" data-type="{{ act.action_type }}" data-status="{{ act.status }}">
                 <div class="log-icon {{ 'failure' if is_fail else 'success' }}">
-                    {% if act.action_type == 'DEPOSIT' %}💰
-                    {% elif act.action_type == 'WITHDRAW' %}💸
-                    {% elif act.action_type == 'PAYMENT' %}🛒
-                    {% elif act.action_type == 'TRANSFER_OUT' %}↗️
-                    {% elif act.action_type == 'TRANSFER_IN' %}↙️
-                    {% elif act.action_type == 'ACCOUNT_CREATION' %}🏦
-                    {% elif act.action_type == 'ACCOUNT_LOCKED' %}🔒
-                    {% elif act.action_type == 'PIN_VERIFICATION' %}🔐
-                    {% else %}📋{% endif %}
+                    {% if act.action_type == 'DEPOSIT' %}&#128176;
+                    {% elif act.action_type == 'WITHDRAW' %}&#128184;
+                    {% elif act.action_type == 'PAYMENT' %}&#128717;
+                    {% elif act.action_type == 'BILL_PAYMENT' %}&#128161;
+                    {% elif act.action_type == 'TRANSFER_OUT' %}&rarr;
+                    {% elif act.action_type == 'TRANSFER_IN' %}&larr;
+                    {% elif act.action_type == 'ACCOUNT_CREATION' %}&#127982;
+                    {% elif act.action_type == 'ACCOUNT_LOCKED' %}&#128274;
+                    {% elif act.action_type == 'PIN_VERIFICATION' %}&#128272;
+                    {% else %}&#128203;{% endif %}
                 </div>
                 {% set trans = {
-                    'DEPOSIT': 'DÉPÔT', 'WITHDRAW': 'RETRAIT', 'PAYMENT': 'PAIEMENT',
+                    'DEPOSIT': 'DEPOT', 'WITHDRAW': 'RETRAIT', 'PAYMENT': 'PAIEMENT',
+                    'BILL_PAYMENT': 'PAIEMENT FACTURE',
                     'TRANSFER_OUT': 'TRANSFERT SORTANT', 'TRANSFER_IN': 'TRANSFERT ENTRANT',
-                    'ACCOUNT_CREATION': 'CRÉATION DE COMPTE', 'ACCOUNT_LOCKED': 'COMPTE VERROUILLÉ',
-                    'PIN_VERIFICATION': 'VÉRIFICATION PIN', 'CARD_STATUS_CHANGE': 'STATUT CARTE',
+                    'ACCOUNT_CREATION': 'CREATION DE COMPTE', 'ACCOUNT_LOCKED': 'COMPTE VERROUILLE',
+                    'PIN_VERIFICATION': 'VERIFICATION PIN', 'CARD_STATUS_CHANGE': 'STATUT CARTE',
                     'ACCOUNT_DELETION': 'SUPPRESSION COMPTE', 'CARD_RENEWAL': 'RENOUVELLEMENT CARTE',
-                    'LOGIN': 'CONNEXION', 'SIGNUP': 'INSCRIPTION', 'PROFILE_UPDATE': 'MISE À JOUR PROFIL',
-                    'PROFILE_DELETION': 'SUPPRESSION PROFIL'
+                    'CONTACT_UPDATE': 'MAJ COORDONNEES', 'LOGIN': 'CONNEXION', 'SIGNUP': 'INSCRIPTION'
                 } %}
                 <div class="log-action">{{ trans[act.action_type] if act.action_type in trans else act.action_type.replace('_', ' ') }}</div>
                 <div class="log-account">
@@ -262,5 +268,6 @@
 </script>
 
 <script src="{{ url_for('static', filename='chatbot.js') }}"></script>
+<script src="{{ url_for('static', filename='inactivity.js') }}"></script>
 </body>
 </html>

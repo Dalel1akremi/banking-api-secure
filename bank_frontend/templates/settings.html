@@ -33,13 +33,18 @@
 
 <nav>
     <div style="display: flex; align-items: center; gap: 15px;">
-        <a href="/dashboard" style="font-size: 24px; color: var(--text-main); font-weight: bold; text-decoration: none;">&larr;</a>
-        <div class="brand">API Bank</div>
+        <a href="/dashboard" class="brand" style="text-decoration: none;">API Bank</a>
     </div>
-    <div class="nav-links" style="display: flex; gap: 20px; align-items: center;">
+    <div class="nav-links">
+        <a href="/dashboard">Dashboard</a>
+        <a href="/bills">💡 Factures</a>
         <a href="/beneficiaries">Bénéficiaires</a>
         <a href="/journal">Journal</a>
-        <a href="/settings" style="font-weight: bold; color: var(--primary);">Paramètres</a>
+        <a href="/support">📩 Support</a>
+        {% if is_admin %}
+        <a href="/admin/dashboard" style="color: #fbbf24;">⚡ Admin</a>
+        {% endif %}
+        <a href="/settings">Paramètres</a>
         <a href="/logout" class="text-danger">Déconnexion</a>
     </div>
 </nav>
@@ -111,6 +116,36 @@
                 Supprimer mon profil utilisateur
             </button>
         </div>
+    </div>
+
+    <!-- ═══ SECTION COORDONNÉES DE CONTACT ═══ -->
+    <div class="panel" style="max-width: 600px; margin: 28px auto 0;">
+        <h3>📞 Coordonnées de Contact</h3>
+        <p style="font-size: 13px; color: var(--text-muted); margin: 8px 0 22px;">Modifiez votre adresse e-mail ou numéro de téléphone. Une double validation est requise.</p>
+        <form method="POST" action="/settings/contact">
+            <div class="input-group">
+                <label>Email actuel : {{ user.email }}</label>
+                <input type="email" name="new_email" placeholder="Nouvel email (optionnel)">
+            </div>
+            <div class="input-group">
+                <label>Numéro de téléphone actuel : {{ user.phone or 'Non renseigné' }}</label>
+                <input type="tel" name="new_phone" placeholder="Ex: +21620123456 (optionnel)" pattern="\+?[0-9]{8,15}">
+            </div>
+            <hr style="border-color: var(--card-border); margin: 20px 0;">
+            <h4 style="margin-bottom: 15px; color: #f87171;">Validation de Sécurité (Requise)</h4>
+            <div class="input-group">
+                <label>Mot de passe actuel</label>
+                <input type="password" name="current_password" required placeholder="••••••••">
+            </div>
+            <div class="input-group">
+                <label>✉️ Code OTP</label>
+                <div style="display: flex; gap: 10px;">
+                    <input type="text" name="otp_code" required maxlength="6" pattern="\d{6}" placeholder="123456" inputmode="numeric" style="flex: 1; letter-spacing:4px; font-size:1.2rem;">
+                    <button type="button" class="btn btn-secondary request-otp-btn" style="width: auto;">Demander OTP</button>
+                </div>
+            </div>
+            <button type="submit" class="btn">Mettre à jour mes coordonnées</button>
+        </form>
     </div>
 </div>
 
@@ -186,5 +221,6 @@
     </div>
 </div>
 
+<script src="{{ url_for('static', filename='inactivity.js') }}"></script>
 </body>
 </html>
