@@ -61,7 +61,62 @@
         </div>
     </div>
 
-    <div class="panel">
+    <div class="panel" style="margin-top: 40px;">
+        <h2>📋 Gestion des Demandes de Crédit</h2>
+        <table class="activity-table">
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Compte</th>
+                    <th>Montant</th>
+                    <th>Objet</th>
+                    <th>Revenu/Charges</th>
+                    <th>Statut</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for c in credits %}
+                <tr>
+                    <td>{{ c.created_at }}</td>
+                    <td style="font-family: monospace;">{{ c.account_number[-4:] }}</td>
+                    <td style="font-weight: bold;">{{ "%.0f" | format(c.amount) }} DT</td>
+                    <td style="font-size: 13px;">{{ c.purpose_label }} ({{ c.duration }}m)</td>
+                    <td style="font-size: 12px; color: var(--text-muted);">
+                        Inc: {{ c.monthly_income }} / Ch: {{ c.monthly_charges }}
+                    </td>
+                    <td>
+                        <span style="padding: 4px 8px; border-radius: 4px; font-size: 11px; 
+                            {% if c.status == 'approved' %}background: rgba(16,185,129,0.2); color: #10b981;
+                            {% elif c.status == 'rejected' %}background: rgba(239,68,68,0.2); color: #ef4444;
+                            {% elif c.status == 'review' %}background: rgba(99,102,241,0.2); color: #818cf8;
+                            {% else %}background: rgba(245,158,11,0.2); color: #fbbf24;{% endif %}">
+                            {{ c.status | upper }}
+                        </span>
+                    </td>
+                    <td>
+                        {% if c.status == 'pending' or c.status == 'review' %}
+                        <div style="display: flex; gap: 8px;">
+                            <form action="/admin/credit/approve/{{ c.id }}" method="POST">
+                                <button type="submit" style="background: #10b981; color: white; border: none; padding: 5px 10px; border-radius: 6px; cursor: pointer; font-size: 11px; font-weight: bold;">Approuver</button>
+                            </form>
+                            <form action="/admin/credit/reject/{{ c.id }}" method="POST" onsubmit="return confirm('Voulez-vous vraiment rejeter cette demande ?');">
+                                <button type="submit" style="background: #ef4444; color: white; border: none; padding: 5px 10px; border-radius: 6px; cursor: pointer; font-size: 11px; font-weight: bold;">Rejeter</button>
+                            </form>
+                        </div>
+                        {% else %}
+                        —
+                        {% endif %}
+                    </td>
+                </tr>
+                {% else %}
+                <tr><td colspan="7" style="text-align: center; color: var(--text-muted);">Aucune demande de crédit enregistrée.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <div class="panel" style="margin-top: 40px;">
         <h2>Dernières Activités Globales</h2>
         <table class="activity-table">
             <thead>

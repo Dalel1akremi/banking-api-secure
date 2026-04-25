@@ -10,8 +10,9 @@
     "monthly_income": 4000.0,
     "monthly_charges": 800.0,
     "description": "",
-    "status": "pending",
-    "note": "Votre dossier a été reçu et sera étudié prochainement.",
-    "created_at": "2026-04-25"
+    "status": "approved",
+    "note": "Votre demande de crédit a été acceptée par l'administrateur.",
+    "created_at": "2026-04-25",
+    "is_manual": true
   }
 ]

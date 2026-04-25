@@ -906,8 +906,58 @@ def admin_dashboard():
     
     act_res = requests.get(f"{BASE_API_URL}/admin/activities", headers=get_headers())
     activities = act_res.json() if act_res.status_code == 200 else []
+
+    # Load all credit requests for admin management
+    all_credits = load_credits()
+    # Sort by date descending
+    all_credits.sort(key=lambda c: c.get("created_at", ""), reverse=True)
     
-    return render_template("admin_dashboard.html", stats=stats, activities=activities)
+    return render_template("admin_dashboard.html", stats=stats, activities=activities, credits=all_credits)
+
+@app.route("/admin/credit/approve/<credit_id>", methods=["POST"])
+def admin_approve_credit(credit_id):
+    if "token" not in session: return redirect("/")
+    
+    credits = load_credits()
+    found = False
+    for c in credits:
+        if c["id"] == credit_id:
+            c["status"] = "approved"
+            c["is_manual"] = True
+            c["note"] = "Votre demande de crédit a été acceptée par l'administrateur."
+            found = True
+            break
+    
+    if found:
+        save_credits(credits)
+        flash(f"Crédit {credit_id} approuvé.", "success")
+    else:
+        flash("Demande de crédit introuvable.", "error")
+        
+    return redirect("/admin/dashboard")
+
+@app.route("/admin/credit/reject/<credit_id>", methods=["POST"])
+def admin_reject_credit(credit_id):
+    if "token" not in session: return redirect("/")
+    
+    reason = request.form.get("reason", "Dossier incomplet ou non éligible.")
+    credits = load_credits()
+    found = False
+    for c in credits:
+        if c["id"] == credit_id:
+            c["status"] = "rejected"
+            c["is_manual"] = True
+            c["note"] = f"Demande refusée : {reason}"
+            found = True
+            break
+    
+    if found:
+        save_credits(credits)
+        flash(f"Crédit {credit_id} rejeté.", "warning")
+    else:
+        flash("Demande de crédit introuvable.", "error")
+        
+    return redirect("/admin/dashboard")
 
 @app.route("/admin/messages")
 def admin_messages():
@@ -1321,9 +1371,9 @@ def credit_request(account_number):
     all_credits = load_credits()
     my_credits = [c for c in all_credits if c.get("account_number") == account_number]
 
-    # Simulate status progression
+    # Simulate status progression only for non-manual entries
     for c in my_credits:
-        if c.get("status") not in ("approved", "rejected"):
+        if not c.get("is_manual") and c.get("status") not in ("approved", "rejected"):
             c["status"] = simulate_status(c["created_at"], c.get("purpose", "autre"))
 
     save_credits(all_credits)
