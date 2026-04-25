@@ -1,0 +1,17 @@
+[
+  {
+    "id": "05C59497-E",
+    "account_number": "4777710662",
+    "purpose": "immobilier",
+    "purpose_label": "Crédit Immobilier",
+    "amount": 25000.0,
+    "duration": 36,
+    "monthly_payment": "777.66",
+    "monthly_income": 4000.0,
+    "monthly_charges": 800.0,
+    "description": "",
+    "status": "pending",
+    "note": "Votre dossier a été reçu et sera étudié prochainement.",
+    "created_at": "2026-04-25"
+  }
+]

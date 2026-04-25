@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Demande de Crédit - API Bank</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { background-color: #0f172a; color: #f8fafc; font-family: 'Inter', sans-serif; margin: 0; padding: 0; }
+        nav { display: flex; justify-content: space-between; align-items: center; padding: 15px 30px; background: rgba(30,41,59,0.8); backdrop-filter: blur(10px); border-bottom: 1px solid rgba(255,255,255,0.05); }
+        .nav-links a { color: #cbd5e1; text-decoration: none; margin-left: 20px; font-size: 14px; font-weight: 500; transition: color 0.2s; }
+        .nav-links a:hover { color: #fff; }
+        .brand { font-size: 20px; font-weight: 800; color: #fff; }
+
+        /* Credit score ring */
+        .score-ring { position: relative; width: 120px; height: 120px; }
+        .score-ring svg { transform: rotate(-90deg); }
+        .score-ring .score-text { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+
+        /* Status timeline */
+        .step-line { position: absolute; left: 19px; top: 40px; bottom: 0; width: 2px; background: rgba(255,255,255,0.06); }
+        .step-line-fill { width: 2px; background: linear-gradient(to bottom, #10b981, #059669); transition: height 0.8s ease; }
+        .step-dot { width: 38px; height: 38px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 16px; }
+        .step-dot.done { background: rgba(16,185,129,0.2); border: 2px solid #10b981; }
+        .step-dot.current { background: rgba(99,102,241,0.2); border: 2px solid #6366f1; animation: pulse-dot 2s infinite; }
+        .step-dot.pending { background: rgba(255,255,255,0.04); border: 2px solid rgba(255,255,255,0.1); }
+        @keyframes pulse-dot { 0%,100% { box-shadow: 0 0 0 0 rgba(99,102,241,0.4); } 50% { box-shadow: 0 0 0 8px rgba(99,102,241,0); } }
+
+        /* Form inputs */
+        .form-label { display: block; font-size: 13px; font-weight: 500; color: #94a3b8; margin-bottom: 6px; }
+        .form-input {
+            width: 100%; background: rgba(15,23,42,0.8); border: 1px solid rgba(16,185,129,0.2);
+            border-radius: 10px; padding: 10px 14px; color: #f8fafc; font-size: 14px;
+            transition: border-color 0.2s; outline: none; box-sizing: border-box;
+        }
+        .form-input:focus { border-color: #10b981; }
+
+        /* Purpose cards */
+        .purpose-card { cursor: pointer; border: 2px solid rgba(255,255,255,0.07); border-radius: 12px; padding: 14px; text-align: center; transition: all 0.2s; background: rgba(15,23,42,0.5); }
+        .purpose-card:hover { border-color: rgba(16,185,129,0.4); }
+        .purpose-card input:checked + .purpose-inner { color: #10b981; }
+        .purpose-card:has(input:checked) { border-color: #10b981; background: rgba(16,185,129,0.08); }
+
+        /* Credit request card */
+        .credit-card { background: rgba(30,41,59,0.6); border: 1px solid rgba(255,255,255,0.06); border-radius: 16px; padding: 20px 24px; }
+        .credit-card:hover { border-color: rgba(16,185,129,0.2); }
+
+        /* Status badges */
+        .badge-pending  { background: rgba(245,158,11,0.15); color: #fbbf24; border: 1px solid rgba(245,158,11,0.3); }
+        .badge-review   { background: rgba(99,102,241,0.15); color: #818cf8; border: 1px solid rgba(99,102,241,0.3); }
+        .badge-approved { background: rgba(16,185,129,0.15); color: #34d399; border: 1px solid rgba(16,185,129,0.3); }
+        .badge-rejected { background: rgba(239,68,68,0.15); color: #f87171; border: 1px solid rgba(239,68,68,0.3); }
+
+        /* Modal */
+        .modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.75); display: none; align-items: center; justify-content: center; z-index: 100; backdrop-filter: blur(4px); }
+        .modal-backdrop.open { display: flex; }
+        .modal-box { background: #1e293b; border: 1px solid rgba(16,185,129,0.3); border-radius: 20px; padding: 32px; max-width: 600px; width: 95%; max-height: 90vh; overflow-y: auto; }
+
+        @keyframes fadeUp { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
+        .credit-card { animation: fadeUp 0.3s ease both; }
+    </style>
+</head>
+<body>
+
+<nav>
+    <div style="display: flex; align-items: center; gap: 15px;">
+        <a href="javascript:history.back()" style="text-decoration:none; font-size:22px; color:#64748b; transition:color 0.2s;" onmouseover="this.style.color='#fff'" onmouseout="this.style.color='#64748b'" title="Retour">⬅</a>
+        <a href="/dashboard" class="brand" style="text-decoration:none;">API Bank</a>
+    </div>
+    <div class="nav-links">
+        <a href="/dashboard">Tableau de Bord</a>
+        <a href="/bills">💡 Factures</a>
+        <a href="/beneficiaries">Bénéficiaires</a>
+        <a href="/journal">Journal</a>
+        <a href="/support">📩 Support</a>
+        {% if is_admin %}<a href="/admin/dashboard" style="color:#fbbf24;">⚡ Admin</a>{% endif %}
+        <a href="/settings">Paramètres</a>
+        <a href="/logout" class="text-red-400">Déconnexion</a>
+    </div>
+</nav>
+
+<div class="max-w-6xl mx-auto px-4 py-10">
+
+    <!-- Header -->
+    <div class="flex items-center justify-between mb-8">
+        <div>
+            <h1 class="text-3xl font-extrabold text-white tracking-tight flex items-center gap-3">
+                <div class="p-2.5 bg-emerald-500/20 rounded-xl">
+                    <svg class="w-7 h-7 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                </div>
+                Demande de Crédit
+            </h1>
+            <p class="text-slate-400 mt-1 ml-1">Compte **** **** **** {{ account.account_number[-4:] }}</p>
+        </div>
+        <button onclick="openApplyModal()"
+            class="bg-gradient-to-r from-emerald-600 to-teal-600 hover:opacity-90 text-white font-bold px-5 py-3 rounded-xl flex items-center gap-2 shadow-lg shadow-emerald-500/20 transition-all">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+        </button>
+    </div>
+
+    <!-- Flash Messages -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+    <div class="mb-6 space-y-3">
+        {% for category, message in messages %}
+        <div class="px-4 py-3 rounded-xl flex items-center gap-3 {{ 'bg-emerald-500/10 border border-emerald-500/20 text-emerald-400' if category == 'success' else 'bg-red-500/10 border border-red-500/20 text-red-400' }}">
+            {{ message }}
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+    {% endwith %}
+
+    {% if credits %}
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+
+        <!-- Left: List of credit requests -->
+        <div class="lg:col-span-2 space-y-4">
+            <h2 class="text-lg font-bold text-white mb-4">Mes demandes</h2>
+            {% for c in credits %}
+            <div class="credit-card" style="animation-delay: {{ loop.index0 * 0.07 }}s">
+                <div class="flex items-start justify-between gap-4">
+                    <div class="flex items-center gap-4">
+                        <div class="w-12 h-12 rounded-xl flex items-center justify-center text-2xl
+                            {% if c.status == 'approved' %}bg-emerald-500/20
+                            {% elif c.status == 'rejected' %}bg-red-500/20
+                            {% elif c.status == 'review' %}bg-indigo-500/20
+                            {% else %}bg-amber-500/20{% endif %}">
+                            {% if c.purpose == 'immobilier' %}🏠
+                            {% elif c.purpose == 'auto' %}🚗
+                            {% elif c.purpose == 'consommation' %}🛍️
+                            {% elif c.purpose == 'education' %}🎓
+                            {% elif c.purpose == 'travaux' %}🔨
+                            {% else %}💰{% endif %}
+                        </div>
+                        <div>
+                            <div class="font-bold text-white text-base">{{ c.purpose_label }}</div>
+                            <div class="text-sm text-slate-400 mt-0.5">Ref: <span class="font-mono text-xs">{{ c.id }}</span></div>
+                            <div class="text-xs text-slate-500 mt-1">Déposée le {{ c.created_at }}</div>
+                        </div>
+                    </div>
+                    <div class="text-right flex-shrink-0">
+                        <div class="text-xl font-extrabold text-white font-mono">{{ "%.0f"|format(c.amount) }} <span class="text-sm font-normal text-slate-500">TND</span></div>
+                        <div class="text-xs text-slate-400 mt-1">{{ c.duration }} mois · {{ c.monthly_payment }} TND/mois</div>
+                        <div class="mt-2">
+                            <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold
+                                {% if c.status == 'approved' %}badge-approved
+                                {% elif c.status == 'rejected' %}badge-rejected
+                                {% elif c.status == 'review' %}badge-review
+                                {% else %}badge-pending{% endif %}">
+                                {% if c.status == 'pending' %}⏳ En attente
+                                {% elif c.status == 'review' %}🔍 En cours d'étude
+                                {% elif c.status == 'approved' %}✅ Approuvé
+                                {% elif c.status == 'rejected' %}❌ Refusé
+                                {% endif %}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Progress timeline -->
+                <div class="mt-5 flex items-center gap-0">
+                    {% set steps = [('Déposée', 'pending'), ('En étude', 'review'), ('Décision', 'approved')] %}
+                    {% set status_order = {'pending': 0, 'review': 1, 'approved': 2, 'rejected': 2} %}
+                    {% set current_step = status_order.get(c.status, 0) %}
+                    {% for step_label, step_key in steps %}
+                    <div class="flex flex-col items-center" style="flex: 1;">
+                        <div class="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold
+                            {% if loop.index0 < current_step %}bg-emerald-500/20 border-2 border-emerald-500 text-emerald-400
+                            {% elif loop.index0 == current_step %}bg-indigo-500/20 border-2 border-indigo-400 text-indigo-400
+                            {% else %}bg-slate-800 border-2 border-slate-700 text-slate-600{% endif %}">
+                            {% if loop.index0 < current_step %}✓
+                            {% elif loop.index0 == current_step %}●
+                            {% else %}{{ loop.index }}{% endif %}
+                        </div>
+                        <div class="text-xs mt-1.5
+                            {% if loop.index0 <= current_step %}text-slate-300{% else %}text-slate-600{% endif %}">
+                            {% if loop.index0 == 2 and c.status == 'rejected' %}❌ Refusé
+                            {% else %}{{ step_label }}{% endif %}
+                        </div>
+                    </div>
+                    {% if not loop.last %}
+                    <div class="flex-1 h-0.5 mx-1 mb-5
+                        {% if loop.index0 < current_step %}bg-emerald-500/60{% else %}bg-slate-700{% endif %}">
+                    </div>
+                    {% endif %}
+                    {% endfor %}
+                </div>
+
+                {% if c.note %}
+                <div class="mt-4 bg-slate-900/60 rounded-xl p-3 text-xs text-slate-400 border border-slate-700/50">
+                    💬 {{ c.note }}
+                </div>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+
+        <!-- Right: Summary -->
+        <div class="space-y-4">
+            <div class="bg-slate-800/50 border border-slate-700/50 rounded-2xl p-5">
+                <h3 class="font-bold text-white mb-4">Résumé</h3>
+                <div class="space-y-3">
+                    <div class="flex justify-between text-sm">
+                        <span class="text-slate-400">Total demandé</span>
+                        <span class="font-bold text-white font-mono">{{ credits | sum(attribute='amount') | round(0) | int }} TND</span>
+                    </div>
+                    <div class="flex justify-between text-sm">
+                        <span class="text-slate-400">Approuvés</span>
+                        <span class="text-emerald-400 font-bold">{{ credits | selectattr('status', 'eq', 'approved') | list | length }}</span>
+                    </div>
+                    <div class="flex justify-between text-sm">
+                        <span class="text-slate-400">En cours</span>
+                        <span class="text-indigo-400 font-bold">{{ credits | selectattr('status', 'in', ['pending', 'review']) | list | length }}</span>
+                    </div>
+                    <div class="flex justify-between text-sm">
+                        <span class="text-slate-400">Refusés</span>
+                        <span class="text-red-400 font-bold">{{ credits | selectattr('status', 'eq', 'rejected') | list | length }}</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Info box -->
+            <div class="bg-emerald-500/5 border border-emerald-500/20 rounded-2xl p-5">
+                <h4 class="font-bold text-emerald-400 mb-3 text-sm">ℹ️ Délais de traitement</h4>
+                <ul class="space-y-2 text-xs text-slate-400">
+                    <li>• <strong class="text-slate-300">Consommation :</strong> 24-48h</li>
+                    <li>• <strong class="text-slate-300">Auto :</strong> 2-3 jours ouvrés</li>
+                    <li>• <strong class="text-slate-300">Immobilier :</strong> 5-10 jours ouvrés</li>
+                    <li>• <strong class="text-slate-300">Éducation :</strong> 3-5 jours ouvrés</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    {% else %}
+    <!-- Empty state -->
+    <div class="text-center py-20">
+        <div class="text-7xl mb-5">🏦</div>
+        <h2 class="text-2xl font-bold text-white mb-2">Aucune demande de crédit</h2>
+        <p class="text-slate-400 mb-8 max-w-md mx-auto">Faites une demande de prêt en quelques minutes. Notre équipe étudie chaque dossier avec soin.</p>
+        <button onclick="openApplyModal()"
+            class="bg-gradient-to-r from-emerald-600 to-teal-600 hover:opacity-90 text-white font-bold px-8 py-3.5 rounded-xl transition-all shadow-lg shadow-emerald-500/20">
+            📋 Déposer une demande
+        </button>
+    </div>
+    {% endif %}
+</div>
+
+<!-- ============ APPLY MODAL ============ -->
+<div id="apply-modal" class="modal-backdrop">
+    <div class="modal-box">
+        <div class="flex items-center justify-between mb-6">
+            <div>
+                <h2 class="text-xl font-bold text-white">📋 Nouvelle demande de crédit</h2>
+                <p class="text-sm text-slate-400 mt-1">Remplissez le formulaire. Réponse sous 24-48h.</p>
+            </div>
+            <button onclick="closeApplyModal()" class="text-slate-500 hover:text-white transition-colors text-2xl">✕</button>
+        </div>
+
+        <form action="/submit_credit_request" method="POST" class="space-y-5">
+            <input type="hidden" name="account_number" value="{{ account.account_number }}">
+
+            <!-- Purpose -->
+            <div>
+                <label class="form-label">Objet du crédit</label>
+                <div class="grid grid-cols-3 gap-3">
+                    {% for val, emoji, label in [('immobilier','🏠','Immobilier'),('auto','🚗','Auto'),('consommation','🛍️','Consommation'),('education','🎓','Éducation'),('travaux','🔨','Travaux'),('autre','💰','Autre')] %}
+                    <label class="purpose-card">
+                        <input type="radio" name="purpose" value="{{ val }}" required class="sr-only" {% if val == 'consommation' %}checked{% endif %}>
+                        <div class="purpose-inner">
+                            <div class="text-2xl mb-1">{{ emoji }}</div>
+                            <div class="text-xs font-semibold text-slate-300">{{ label }}</div>
+                        </div>
+                    </label>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="form-label">Montant souhaité (TND)</label>
+                    <input type="number" name="amount" required min="500" max="500000" step="100" placeholder="Ex: 25000"
+                        class="form-input font-mono" id="sim-amount" oninput="updateSimulation()">
+                </div>
+                <div>
+                    <label class="form-label">Durée (mois)</label>
+                    <select name="duration" required class="form-input" id="sim-duration" onchange="updateSimulation()">
+                        <option value="12">12 mois (1 an)</option>
+                        <option value="24">24 mois (2 ans)</option>
+                        <option value="36" selected>36 mois (3 ans)</option>
+                        <option value="48">48 mois (4 ans)</option>
+                        <option value="60">60 mois (5 ans)</option>
+                        <option value="84">84 mois (7 ans)</option>
+                        <option value="120">120 mois (10 ans)</option>
+                        <option value="180">180 mois (15 ans)</option>
+                        <option value="240">240 mois (20 ans)</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Live simulation -->
+            <div class="bg-slate-900/80 border border-slate-700 rounded-xl p-4" id="sim-result">
+                <div class="flex justify-between items-center">
+                    <div class="text-center flex-1">
+                        <div class="text-xs text-slate-500 mb-1">Mensualité estimée</div>
+                        <div class="text-2xl font-extrabold text-emerald-400 font-mono" id="sim-monthly">— TND</div>
+                    </div>
+                    <div class="w-px h-10 bg-slate-700"></div>
+                    <div class="text-center flex-1">
+                        <div class="text-xs text-slate-500 mb-1">Coût total</div>
+                        <div class="text-lg font-bold text-white font-mono" id="sim-total">— TND</div>
+                    </div>
+                    <div class="w-px h-10 bg-slate-700"></div>
+                    <div class="text-center flex-1">
+                        <div class="text-xs text-slate-500 mb-1">Intérêts</div>
+                        <div class="text-lg font-bold text-amber-400 font-mono" id="sim-interest">— TND</div>
+                    </div>
+                </div>
+                <p class="text-xs text-slate-600 text-center mt-2">Taux indicatif : 7.5% annuel</p>
+            </div>
+
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="form-label">Revenu mensuel net (TND)</label>
+                    <input type="number" name="monthly_income" required min="400" step="50" placeholder="Ex: 2500"
+                        class="form-input font-mono">
+                </div>
+                <div>
+                    <label class="form-label">Charges mensuelles (TND)</label>
+                    <input type="number" name="monthly_charges" required min="0" step="50" placeholder="Ex: 800"
+                        class="form-input font-mono" value="0">
+                </div>
+            </div>
+
+            <div>
+                <label class="form-label">Description du projet (optionnel)</label>
+                <textarea name="description" rows="2" maxlength="300" placeholder="Décrivez brièvement votre projet…"
+                    class="form-input resize-none"></textarea>
+            </div>
+
+            <div class="bg-amber-500/10 border border-amber-500/20 rounded-xl p-3 text-xs text-amber-300 flex gap-2">
+                <span class="flex-shrink-0">⚠️</span>
+                En soumettant cette demande, vous autorisez API Bank à consulter votre historique de transactions pour évaluer votre dossier. Cette simulation est indicative.
+            </div>
+
+            <div class="flex gap-3 pt-2">
+                <button type="button" onclick="closeApplyModal()" class="flex-1 bg-slate-700 hover:bg-slate-600 text-white font-semibold py-3 rounded-xl transition-colors">Annuler</button>
+                <button type="submit" class="flex-1 bg-gradient-to-r from-emerald-600 to-teal-600 hover:opacity-90 text-white font-bold py-3 rounded-xl transition-all shadow-lg shadow-emerald-500/20">
+                    📤 Soumettre la demande
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    function openApplyModal()  { document.getElementById('apply-modal').classList.add('open'); }
+    function closeApplyModal() { document.getElementById('apply-modal').classList.remove('open'); }
+
+    document.getElementById('apply-modal').addEventListener('click', function(e) {
+        if (e.target === this) closeApplyModal();
+    });
+
+    function updateSimulation() {
+        const P = parseFloat(document.getElementById('sim-amount').value) || 0;
+        const n = parseInt(document.getElementById('sim-duration').value) || 36;
+        const r = 0.075 / 12;
+
+        if (P <= 0) {
+            document.getElementById('sim-monthly').textContent = '— TND';
+            document.getElementById('sim-total').textContent = '— TND';
+            document.getElementById('sim-interest').textContent = '— TND';
+            return;
+        }
+
+        const M = r > 0 ? P * (r * Math.pow(1+r, n)) / (Math.pow(1+r, n) - 1) : P / n;
+        const total = M * n;
+        const interest = total - P;
+
+        const fmt = v => v.toLocaleString('fr-FR', {minimumFractionDigits:2, maximumFractionDigits:2}) + ' TND';
+        document.getElementById('sim-monthly').textContent = fmt(M);
+        document.getElementById('sim-total').textContent = fmt(total);
+        document.getElementById('sim-interest').textContent = fmt(interest);
+    }
+
+    // Auto-dismiss flashes
+    setTimeout(() => {
+        document.querySelectorAll('[class*="bg-emerald-500/10"], [class*="bg-red-500/10"]').forEach(el => {
+            if (el.textContent.trim()) {
+                el.style.transition = 'opacity 0.5s';
+                el.style.opacity = '0';
+                setTimeout(() => el.remove(), 500);
+            }
+        });
+    }, 5000);
+</script>
+
+<script src="{{ url_for('static', filename='chatbot.js') }}"></script>
+<script src="{{ url_for('static', filename='inactivity.js') }}"></script>
+</body>
+</html>

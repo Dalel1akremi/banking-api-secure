@@ -1258,5 +1258,124 @@ def cancel_scheduled_payment(payment_id):
     flash("Paiement programmé annulé.", "success")
     return redirect(f"/account/{account_number}/scheduled-payments")
 
+
+# ==========================================
+# CREDIT REQUESTS
+# ==========================================
+
+CREDITS_FILE = Path(__file__).parent / "credit_requests.json"
+
+PURPOSE_LABELS = {
+    'immobilier': 'Crédit Immobilier',
+    'auto':       'Crédit Auto',
+    'consommation': 'Crédit Consommation',
+    'education':  'Crédit Éducation',
+    'travaux':    'Crédit Travaux',
+    'autre':      'Crédit Personnel'
+}
+
+def load_credits():
+    if CREDITS_FILE.exists():
+        try:
+            return json.loads(CREDITS_FILE.read_text(encoding='utf-8'))
+        except:
+            return []
+    return []
+
+def save_credits(credits):
+    CREDITS_FILE.write_text(json.dumps(credits, ensure_ascii=False, indent=2), encoding='utf-8')
+
+def simulate_status(created_at: str, purpose: str) -> str:
+    """Simulate status progression based on time elapsed."""
+    try:
+        created = datetime.strptime(created_at, '%Y-%m-%d').date()
+        days = (date.today() - created).days
+        review_days = {'immobilier': 5, 'auto': 2, 'consommation': 1, 'education': 3, 'travaux': 2, 'autre': 1}
+        approve_days = {k: v * 2 + 1 for k, v in review_days.items()}
+        rd = review_days.get(purpose, 2)
+        ad = approve_days.get(purpose, 5)
+        if days >= ad:
+            return 'approved'
+        elif days >= rd:
+            return 'review'
+        else:
+            return 'pending'
+    except:
+        return 'pending'
+
+def calc_monthly_payment(amount: float, duration: int, rate_annual: float = 0.075) -> str:
+    r = rate_annual / 12
+    if r > 0 and duration > 0:
+        M = amount * (r * (1 + r) ** duration) / ((1 + r) ** duration - 1)
+    else:
+        M = amount / duration if duration > 0 else 0
+    return f"{M:.2f}"
+
+@app.route("/account/<account_number>/credit-request")
+def credit_request(account_number):
+    if "token" not in session: return redirect("/")
+    acc_res = requests.get(f"{BASE_API_URL}/accounts/{account_number}", headers=get_headers())
+    if acc_res.status_code != 200: return redirect("/dashboard")
+    account = acc_res.json()
+
+    all_credits = load_credits()
+    my_credits = [c for c in all_credits if c.get("account_number") == account_number]
+
+    # Simulate status progression
+    for c in my_credits:
+        if c.get("status") not in ("approved", "rejected"):
+            c["status"] = simulate_status(c["created_at"], c.get("purpose", "autre"))
+
+    save_credits(all_credits)
+    my_credits.sort(key=lambda c: c.get("created_at", ""), reverse=True)
+
+    return render_template("credit_request.html", account=account, credits=my_credits)
+
+@app.route("/submit_credit_request", methods=["POST"])
+@limiter.limit("3 per minute")
+def submit_credit_request():
+    if "token" not in session: return redirect("/")
+    account_number   = request.form.get("account_number")
+    purpose          = request.form.get("purpose", "autre")
+    amount           = float(request.form.get("amount", 0))
+    duration         = int(request.form.get("duration", 36))
+    monthly_income   = float(request.form.get("monthly_income", 0))
+    monthly_charges  = float(request.form.get("monthly_charges", 0))
+    description      = request.form.get("description", "").strip()
+
+    if amount < 500 or monthly_income < 400:
+        flash("Données invalides. Montant minimum 500 TND, revenu minimum 400 TND.", "error")
+        return redirect(f"/account/{account_number}/credit-request")
+
+    # Basic eligibility: monthly payment ≤ 40% of net income after charges
+    monthly_pay = float(calc_monthly_payment(amount, duration))
+    net_income = monthly_income - monthly_charges
+    if monthly_pay > net_income * 0.40:
+        flash(f"Taux d'endettement trop élevé. Mensualité estimée : {monthly_pay:.2f} TND dépasse 40% de votre revenu disponible ({net_income * 0.40:.2f} TND).", "error")
+        return redirect(f"/account/{account_number}/credit-request")
+
+    credit = {
+        "id":              str(uuid.uuid4())[:10].upper(),
+        "account_number":  account_number,
+        "purpose":         purpose,
+        "purpose_label":   PURPOSE_LABELS.get(purpose, "Crédit Personnel"),
+        "amount":          amount,
+        "duration":        duration,
+        "monthly_payment": calc_monthly_payment(amount, duration),
+        "monthly_income":  monthly_income,
+        "monthly_charges": monthly_charges,
+        "description":     description,
+        "status":          "pending",
+        "note":            "Votre dossier a été reçu et sera étudié prochainement.",
+        "created_at":      date.today().strftime("%Y-%m-%d")
+    }
+
+    credits = load_credits()
+    credits.append(credit)
+    save_credits(credits)
+
+    flash(f"Demande de crédit de {amount:.0f} TND soumise avec succès ! Référence : {credit['id']}", "success")
+    return redirect(f"/account/{account_number}/credit-request")
+
 if __name__ == "__main__":
     app.run(port=5000, debug=True)
