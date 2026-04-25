@@ -25,3 +25,5 @@
 {"timestamp": "2026-04-24T22:38:04.419712Z", "user_id": "69ebdc7ed9445df8e0df2bb0", "account_number": "4777710662", "action_type": "DEPOSIT", "status": "SUCCESS", "details": {"amount": 10000.0}}
 {"timestamp": "2026-04-24T22:46:02.266315Z", "user_id": "69ebdc7ed9445df8e0df2bb0", "account_number": "4777710662", "action_type": "WITHDRAW", "status": "SUCCESS", "details": {"amount": 200.0}}
 {"timestamp": "2026-04-24T23:38:43.362743Z", "user_id": "69ebdc7ed9445df8e0df2bb0", "account_number": "4777710662", "action_type": "BILL_PAYMENT", "status": "SUCCESS", "details": {"amount": 85.499, "provider": "Tunisie Telecom", "category": "phone"}}
+{"timestamp": "2026-04-25T00:37:39.418828Z", "user_id": "69ebdc7ed9445df8e0df2bb0", "account_number": "4777710662", "action_type": "TRANSFER_OUT", "status": "SUCCESS", "details": {"amount": 0.01, "to_account": "8567836065"}}
+{"timestamp": "2026-04-25T00:37:39.421423Z", "user_id": "69e95444c01742443e027693", "account_number": "8567836065", "action_type": "TRANSFER_IN", "status": "SUCCESS", "details": {"amount": 0.01, "from_account": "4777710662"}}

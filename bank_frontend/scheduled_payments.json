@@ -1,0 +1,15 @@
+[
+  {
+    "id": "9dec1e39",
+    "account_number": "4777710662",
+    "to_account": "8567836065",
+    "amount": 100.0,
+    "frequency": "monthly",
+    "next_date": "2026-04-25",
+    "label": "Loyer",
+    "pin": "6670",
+    "otp_code": "862074",
+    "status": "active",
+    "created_at": "2026-04-25"
+  }
+]

@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="fr">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Paiements Programmés - API Bank</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            background-color: #0f172a;
+            color: #f8fafc;
+            font-family: 'Inter', sans-serif;
+            margin: 0;
+            padding: 0;
+        }
+
+        nav {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px 30px;
+            background: rgba(30, 41, 59, 0.8);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .nav-links a {
+            color: #cbd5e1;
+            text-decoration: none;
+            margin-left: 20px;
+            font-size: 14px;
+            font-weight: 500;
+            transition: color 0.2s;
+        }
+
+        .nav-links a:hover {
+            color: #fff;
+        }
+
+        .brand {
+            font-size: 20px;
+            font-weight: 800;
+            color: #fff;
+        }
+
+        .freq-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 3px 10px;
+            border-radius: 99px;
+            font-size: 11px;
+            font-weight: 700;
+        }
+
+        .freq-once {
+            background: rgba(148, 163, 184, .15);
+            color: #94a3b8;
+        }
+
+        .freq-weekly {
+            background: rgba(59, 130, 246, .15);
+            color: #60a5fa;
+        }
+
+        .freq-monthly {
+            background: rgba(99, 102, 241, .15);
+            color: #818cf8;
+        }
+
+        .freq-quarterly {
+            background: rgba(168, 85, 247, .15);
+            color: #c084fc;
+        }
+
+        .status-active {
+            background: rgba(16, 185, 129, .15);
+            color: #34d399;
+        }
+
+        .status-paused {
+            background: rgba(245, 158, 11, .15);
+            color: #fbbf24;
+        }
+
+        .status-done {
+            background: rgba(100, 116, 139, .15);
+            color: #94a3b8;
+        }
+
+        .payment-card {
+            background: rgba(30, 41, 59, 0.6);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            border-radius: 16px;
+            padding: 18px 20px;
+            transition: border-color 0.2s, transform 0.15s;
+        }
+
+        .payment-card:hover {
+            border-color: rgba(99, 102, 241, 0.3);
+            transform: translateY(-1px);
+        }
+
+        /* Timeline bar */
+        .timeline-bar {
+            height: 4px;
+            border-radius: 2px;
+            background: rgba(255, 255, 255, 0.06);
+            margin-top: 10px;
+            overflow: hidden;
+        }
+
+        .timeline-fill {
+            height: 100%;
+            border-radius: 2px;
+            background: linear-gradient(90deg, #6366f1, #8b5cf6);
+            transition: width 0.5s;
+        }
+
+        /* Form */
+        .form-label {
+            display: block;
+            font-size: 13px;
+            font-weight: 500;
+            color: #94a3b8;
+            margin-bottom: 6px;
+        }
+
+        .form-input {
+            width: 100%;
+            background: rgba(15, 23, 42, 0.8);
+            border: 1px solid rgba(99, 102, 241, 0.2);
+            border-radius: 10px;
+            padding: 10px 14px;
+            color: #f8fafc;
+            font-size: 14px;
+            transition: border-color 0.2s;
+            outline: none;
+        }
+
+        .form-input:focus {
+            border-color: #6366f1;
+        }
+
+        /* Modal */
+        .modal-backdrop {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.75);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+            backdrop-filter: blur(4px);
+        }
+
+        .modal-backdrop.open {
+            display: flex;
+        }
+
+        .modal-box {
+            background: #1e293b;
+            border: 1px solid rgba(99, 102, 241, 0.3);
+            border-radius: 20px;
+            padding: 32px;
+            max-width: 440px;
+            width: 90%;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .payment-card {
+            animation: fadeIn 0.3s ease both;
+        }
+    </style>
+</head>
+
+<body>
+
+    <nav>
+        <div style="display: flex; align-items: center; gap: 15px;">
+            <a href="javascript:history.back()"
+                style="text-decoration:none; font-size:22px; color:#64748b; transition:color 0.2s;"
+                onmouseover="this.style.color='#fff'" onmouseout="this.style.color='#64748b'" title="Retour">⬅</a>
+            <a href="/dashboard" class="brand" style="text-decoration:none;">API Bank</a>
+        </div>
+        <div class="nav-links">
+            <a href="/dashboard">Tableau de Bord</a>
+            <a href="/bills">💡 Factures</a>
+            <a href="/beneficiaries">Bénéficiaires</a>
+            <a href="/journal">Journal</a>
+            <a href="/support">📩 Support</a>
+            {% if is_admin %}<a href="/admin/dashboard" style="color:#fbbf24;">⚡ Admin</a>{% endif %}
+            <a href="/settings">Paramètres</a>
+            <a href="/logout" class="text-red-400">Déconnexion</a>
+        </div>
+    </nav>
+
+    <div class="max-w-6xl mx-auto px-4 py-10">
+
+        <!-- Header -->
+        <div class="flex items-center justify-between mb-8">
+            <div>
+                <h1 class="text-3xl font-extrabold text-white tracking-tight flex items-center gap-3">
+                    <div class="p-2.5 bg-violet-500/20 rounded-xl"><svg class="w-7 h-7 text-violet-400" fill="none"
+                            stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                        </svg></div>
+                    Paiements Programmés
+                </h1>
+                <p class="text-slate-400 mt-1 ml-1">Compte **** **** **** {{ account.account_number[-4:] }}</p>
+            </div>
+            <button onclick="openAddModal()"
+                class="bg-gradient-to-r from-violet-600 to-indigo-600 hover:opacity-90 text-white font-bold px-5 py-3 rounded-xl flex items-center gap-2 shadow-lg shadow-violet-500/20 transition-all">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                </svg>
+            </button>
+        </div>
+
+        <!-- Flash Messages -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+        <div class="mb-6 space-y-3">
+            {% for category, message in messages %}
+            <div
+                class="px-4 py-3 rounded-xl flex items-center gap-3 {{ 'bg-emerald-500/10 border border-emerald-500/20 text-emerald-400' if category == 'success' else 'bg-red-500/10 border border-red-500/20 text-red-400' }}">
+                {{ message }}
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+        {% endwith %}
+
+        <!-- Stats row -->
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+            <div class="bg-slate-800/50 border border-slate-700/50 rounded-2xl p-4 text-center">
+                <div class="text-3xl font-extrabold text-white">{{ payments | selectattr('status', 'eq', 'active') |
+                    list | length }}</div>
+                <div class="text-xs text-slate-400 mt-1">Actifs</div>
+            </div>
+            <div class="bg-slate-800/50 border border-slate-700/50 rounded-2xl p-4 text-center">
+                <div class="text-3xl font-extrabold text-violet-400">
+                    {{ payments | selectattr('status', 'eq', 'active') | sum(attribute='amount') | round(2) }} TND
+                </div>
+                <div class="text-xs text-slate-400 mt-1">Total mensuel</div>
+            </div>
+            <div class="bg-slate-800/50 border border-slate-700/50 rounded-2xl p-4 text-center">
+                <div class="text-3xl font-extrabold text-amber-400">{{ payments | selectattr('status', 'eq', 'paused') |
+                    list | length }}</div>
+                <div class="text-xs text-slate-400 mt-1">En pause</div>
+            </div>
+            <div class="bg-slate-800/50 border border-slate-700/50 rounded-2xl p-4 text-center">
+                <div class="text-3xl font-extrabold text-slate-400">{{ payments | selectattr('status', 'eq', 'done') |
+                    list | length }}</div>
+                <div class="text-xs text-slate-400 mt-1">Terminés</div>
+            </div>
+        </div>
+
+        <!-- Payments List -->
+        {% if payments %}
+        <div class="space-y-4">
+            {% for p in payments %}
+            <div class="payment-card" style="animation-delay: {{ loop.index0 * 0.05 }}s">
+                <div class="flex items-start justify-between gap-4">
+                    <!-- Left: icon + info -->
+                    <div class="flex items-center gap-4 flex-1 min-w-0">
+                        <div
+                            class="w-12 h-12 rounded-xl flex-shrink-0 flex items-center justify-center text-xl
+                        {% if p.frequency == 'monthly' %}bg-indigo-500/20{% elif p.frequency == 'weekly' %}bg-blue-500/20{% elif p.frequency == 'quarterly' %}bg-purple-500/20{% else %}bg-slate-700{% endif %}">
+                            {% if p.frequency == 'monthly' %}📅
+                            {% elif p.frequency == 'weekly' %}📆
+                            {% elif p.frequency == 'quarterly' %}🗓️
+                            {% else %}📌{% endif %}
+                        </div>
+                        <div class="min-w-0">
+                            <div class="font-bold text-white text-base truncate">{{ p.label }}</div>
+                            <div class="text-sm text-slate-400 font-mono mt-0.5">→ **** {{ p.to_account[-4:] }}</div>
+                            <div class="flex items-center gap-2 mt-2 flex-wrap">
+                                <span class="freq-badge freq-{{ p.frequency }}">
+                                    {% if p.frequency == 'once' %}📌 Unique
+                                    {% elif p.frequency == 'weekly' %}📆 Hebdo
+                                    {% elif p.frequency == 'monthly' %}📅 Mensuel
+                                    {% elif p.frequency == 'quarterly' %}🗓️ Trimestriel
+                                    {% endif %}
+                                </span>
+                                <span class="freq-badge status-{{ p.status }}">
+                                    {% if p.status == 'active' %}● Actif
+                                    {% elif p.status == 'paused' %}⏸ En pause
+                                    {% else %}✓ Terminé{% endif %}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Right: amount + next date + actions -->
+                    <div class="flex flex-col items-end gap-2 flex-shrink-0">
+                        <div class="text-2xl font-extrabold text-white font-mono">{{ "%.2f"|format(p.amount) }} <span
+                                class="text-sm text-slate-500 font-normal">TND</span></div>
+                        <div class="text-xs text-slate-400">Prochain : <span class="text-violet-400 font-medium">{{
+                                p.next_date }}</span></div>
+                        <div class="flex gap-2 mt-1">
+                            {% if p.status == 'active' %}
+                            <form action="/pause_scheduled_payment/{{ p.id }}" method="POST" style="display:inline;">
+                                <input type="hidden" name="account_number" value="{{ account.account_number }}">
+                                <button type="submit"
+                                    class="text-xs bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/20 px-3 py-1.5 rounded-lg transition-colors">⏸
+                                    Pause</button>
+                            </form>
+                            {% elif p.status == 'paused' %}
+                            <form action="/resume_scheduled_payment/{{ p.id }}" method="POST" style="display:inline;">
+                                <input type="hidden" name="account_number" value="{{ account.account_number }}">
+                                <button type="submit"
+                                    class="text-xs bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/20 px-3 py-1.5 rounded-lg transition-colors">▶
+                                    Reprendre</button>
+                            </form>
+                            {% endif %}
+                            {% if p.status != 'done' %}
+                            <form action="/cancel_scheduled_payment/{{ p.id }}" method="POST" style="display:inline;"
+                                onsubmit="return confirm('Annuler ce prélèvement ?')">
+                                <input type="hidden" name="account_number" value="{{ account.account_number }}">
+                                <button type="submit"
+                                    class="text-xs bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 px-3 py-1.5 rounded-lg transition-colors">✕
+                                    Annuler</button>
+                            </form>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Progress bar (days until next payment) -->
+                {% if p.status == 'active' %}
+                <div class="timeline-bar mt-4">
+                    <div class="timeline-fill" style="width: {{ p.progress_pct }}%"></div>
+                </div>
+                <div class="flex justify-between text-xs text-slate-600 mt-1">
+                    <span>Dernier paiement</span>
+                    <span class="text-slate-500">{{ p.days_remaining }} jour(s) restant(s)</span>
+                    <span>Prochain</span>
+                </div>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="text-center py-20 text-slate-500">
+            <div class="text-6xl mb-4">📅</div>
+            <p class="text-lg font-medium text-slate-400">Aucun paiement programmé</p>
+            <p class="text-sm mt-1">Cliquez sur "Nouveau prélèvement" pour en créer un.</p>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- ============ ADD MODAL ============ -->
+    <div id="add-modal" class="modal-backdrop">
+        <div class="modal-box" style="max-width: 520px;">
+            <h2 class="text-xl font-bold text-white mb-1">📅 Nouveau paiement programmé</h2>
+            <p class="text-sm text-slate-400 mb-6">Configurez un virement automatique récurrent ou unique.</p>
+
+            <form action="/add_scheduled_payment" method="POST" class="space-y-4">
+                <input type="hidden" name="account_number" value="{{ account.account_number }}">
+
+                <div>
+                    <label class="form-label">Compte destinataire</label>
+                    <input type="text" name="to_account" required placeholder="Numéro de compte (10 chiffres)"
+                        class="form-input font-mono">
+                </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="form-label">Montant (TND)</label>
+                        <input type="number" name="amount" required min="1" step="0.01" placeholder="0.00"
+                            class="form-input font-mono">
+                    </div>
+                    <div>
+                        <label class="form-label">Fréquence</label>
+                        <select name="frequency" required class="form-input">
+                            <option value="once">📌 Unique</option>
+                            <option value="weekly">📆 Hebdomadaire</option>
+                            <option value="monthly" selected>📅 Mensuel</option>
+                            <option value="quarterly">🗓️ Trimestriel</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="form-label">Date du 1er paiement</label>
+                        <input type="date" name="start_date" required class="form-input" id="start-date-input">
+                    </div>
+                    <div>
+                        <label class="form-label">Motif / Libellé</label>
+                        <input type="text" name="label" required placeholder="Ex: Loyer, Abonnement…" class="form-input"
+                            maxlength="40">
+                    </div>
+                </div>
+
+                <hr class="border-slate-700 my-2">
+                <p class="text-xs text-amber-400 flex items-center gap-2">
+                    <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    La première exécution se fera à la date choisie. La validation par PIN & OTP sera requise.
+                </p>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="form-label">Code PIN</label>
+                        <input type="password" name="pin" required pattern="\d{4}" maxlength="4" placeholder="••••"
+                            class="form-input text-center tracking-widest">
+                    </div>
+                    <div>
+                        <label class="form-label">Code OTP</label>
+                        <div class="flex gap-2">
+                            <input type="text" name="otp_code" required maxlength="6" placeholder="000000"
+                                class="form-input text-center tracking-widest" style="flex:1;">
+                            <button type="button" onclick="requestOTP(this)"
+                                class="bg-slate-700 hover:bg-slate-600 text-white px-3 py-2 rounded-lg text-xs transition-colors whitespace-nowrap">OTP</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flex gap-3 pt-2">
+                    <button type="button" onclick="closeAddModal()"
+                        class="flex-1 bg-slate-700 hover:bg-slate-600 text-white font-semibold py-3 rounded-xl transition-colors">Annuler</button>
+                    <button type="submit"
+                        class="flex-1 bg-gradient-to-r from-violet-600 to-indigo-600 hover:opacity-90 text-white font-bold py-3 rounded-xl transition-all">✅
+                        Programmer</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        // Set min date to today
+        document.getElementById('start-date-input').min = new Date().toISOString().split('T')[0];
+        document.getElementById('start-date-input').value = new Date().toISOString().split('T')[0];
+
+        function openAddModal() { document.getElementById('add-modal').classList.add('open'); }
+        function closeAddModal() { document.getElementById('add-modal').classList.remove('open'); }
+
+        document.getElementById('add-modal').addEventListener('click', function (e) {
+            if (e.target === this) closeAddModal();
+        });
+
+        async function requestOTP(btn) {
+            btn.disabled = true; btn.textContent = '…';
+            try {
+                const res = await fetch('/request_auth_otp', { method: 'POST' });
+                const d = await res.json();
+                alert(res.ok ? (d.message || 'Code envoyé !') : (d.detail || 'Erreur'));
+            } catch { alert('Erreur réseau'); }
+            btn.textContent = 'OTP'; btn.disabled = false;
+        }
+
+        // Auto-dismiss flashes
+        setTimeout(() => {
+            document.querySelectorAll('.alert').forEach(el => {
+                el.style.transition = 'opacity 0.5s';
+                el.style.opacity = '0';
+                setTimeout(() => el.remove(), 500);
+            });
+        }, 4000);
+    </script>
+
+    <script src="{{ url_for('static', filename='chatbot.js') }}"></script>
+    <script src="{{ url_for('static', filename='inactivity.js') }}"></script>
+</body>
+
+</html>

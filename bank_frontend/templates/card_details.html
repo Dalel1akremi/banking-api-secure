@@ -268,11 +268,11 @@
                 {% set is_fail = act.status == 'FAILURE' %}
                 <div class="activity-item">
                     <div class="activity-icon {{ 'failure' if is_fail else 'success' }}">
-                        {% if act.action_type == 'WITHDRAW' %}💸
-                        {% elif act.action_type == 'PAYMENT' %}🛒
+                        {% if act.action_type == 'Retrait' %}💸
+                        {% elif act.action_type == 'Paiement' %}🛒
                         {% elif act.action_type == 'PIN_VERIFICATION' %}🔐
-                        {% elif act.action_type == 'CARD_STATUS_CHANGE' %}🔄
-                        {% elif act.action_type == 'CARD_RENEWAL' %}✨
+                        {% elif act.action_type == 'Changement de statut de la carte' %}🔄
+                        {% elif act.action_type == 'Renouvellement de la carte' %}✨
                         {% else %}📋{% endif %}
                     </div>
                     <div style="flex:1; min-width:0;">

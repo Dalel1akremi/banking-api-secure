@@ -1065,5 +1065,198 @@ def process_qr_payment():
 
     return redirect(f"/account/{from_account}/qr-payment")
 
+
+# ==========================================
+# SCHEDULED / AUTOMATIC PAYMENTS
+# ==========================================
+
+import json, uuid
+from datetime import datetime, date, timedelta
+from pathlib import Path
+
+SCHEDULED_FILE = Path(__file__).parent / "scheduled_payments.json"
+
+def load_scheduled():
+    if SCHEDULED_FILE.exists():
+        try:
+            return json.loads(SCHEDULED_FILE.read_text(encoding="utf-8"))
+        except:
+            return []
+    return []
+
+def save_scheduled(payments):
+    SCHEDULED_FILE.write_text(json.dumps(payments, ensure_ascii=False, indent=2), encoding="utf-8")
+
+def compute_next_date(current_next: str, frequency: str) -> str:
+    """Advance next_date by one period."""
+    try:
+        d = datetime.strptime(current_next, "%Y-%m-%d").date()
+        if frequency == "weekly":
+            d += timedelta(weeks=1)
+        elif frequency == "monthly":
+            month = d.month + 1
+            year  = d.year + (month - 1) // 12
+            month = ((month - 1) % 12) + 1
+            day   = min(d.day, [31,28+int((year%4==0 and year%100!=0) or year%400==0),31,30,31,30,31,31,30,31,30,31][month-1])
+            d = date(year, month, day)
+        elif frequency == "quarterly":
+            month = d.month + 3
+            year  = d.year + (month - 1) // 12
+            month = ((month - 1) % 12) + 1
+            d = date(year, month, d.day)
+    except:
+        pass
+    return d.strftime("%Y-%m-%d")
+
+def enrich_payment(p: dict) -> dict:
+    """Add progress_pct and days_remaining for display."""
+    try:
+        nd = datetime.strptime(p["next_date"], "%Y-%m-%d").date()
+        today = date.today()
+        days_remaining = max(0, (nd - today).days)
+
+        freq_days = {"once": 1, "weekly": 7, "monthly": 30, "quarterly": 90}
+        total = freq_days.get(p["frequency"], 30)
+        elapsed = total - days_remaining
+        p["progress_pct"] = min(100, max(5, round(elapsed / total * 100)))
+        p["days_remaining"] = days_remaining
+    except:
+        p["progress_pct"] = 50
+        p["days_remaining"] = 0
+    return p
+
+def execute_due_payments(account_number: str, headers: dict):
+    """Check and execute payments that are due today or overdue."""
+    payments = load_scheduled()
+    today = date.today().strftime("%Y-%m-%d")
+    changed = False
+    for p in payments:
+        if p.get("account_number") != account_number: continue
+        if p.get("status") != "active": continue
+        if p.get("next_date", "9999") <= today:
+            # Execute via transfer
+            res = requests.post(f"{BASE_API_URL}/accounts/transfer", json={
+                "from_account": p["account_number"],
+                "to_account":   p["to_account"],
+                "amount":       p["amount"],
+                "pin":          p.get("pin", ""),
+                "otp_code":     p.get("otp_code", "0000")
+            }, headers=headers)
+            if res.status_code == 200:
+                if p["frequency"] == "once":
+                    p["status"] = "done"
+                else:
+                    p["next_date"] = compute_next_date(p["next_date"], p["frequency"])
+                changed = True
+    if changed:
+        save_scheduled(payments)
+
+@app.route("/account/<account_number>/scheduled-payments")
+def scheduled_payments(account_number):
+    if "token" not in session: return redirect("/")
+    acc_res = requests.get(f"{BASE_API_URL}/accounts/{account_number}", headers=get_headers())
+    if acc_res.status_code != 200: return redirect("/dashboard")
+    account = acc_res.json()
+
+    # Execute any due payments silently
+    execute_due_payments(account_number, get_headers())
+
+    all_payments = load_scheduled()
+    my_payments = [enrich_payment(p) for p in all_payments if p.get("account_number") == account_number]
+    # Sort: active first, then paused, then done
+    order = {"active": 0, "paused": 1, "done": 2}
+    my_payments.sort(key=lambda p: (order.get(p.get("status", "done"), 3), p.get("next_date", "")))
+
+    return render_template("scheduled_payments.html", account=account, payments=my_payments)
+
+@app.route("/add_scheduled_payment", methods=["POST"])
+@limiter.limit("5 per minute")
+def add_scheduled_payment():
+    if "token" not in session: return redirect("/")
+    account_number = request.form.get("account_number")
+    to_account     = request.form.get("to_account", "").strip()
+    amount         = float(request.form.get("amount", 0))
+    frequency      = request.form.get("frequency", "monthly")
+    start_date     = request.form.get("start_date", date.today().strftime("%Y-%m-%d"))
+    label          = request.form.get("label", "Paiement programmé")
+    pin            = request.form.get("pin", "")
+    otp_code       = request.form.get("otp_code", "")
+
+    if not to_account or amount <= 0:
+        flash("Données invalides.", "error")
+        return redirect(f"/account/{account_number}/scheduled-payments")
+
+    # Verify via a dummy transfer-check (OTP validation)
+    verify_res = requests.post(f"{BASE_API_URL}/accounts/transfer", json={
+        "from_account": account_number,
+        "to_account":   to_account,
+        "amount":       0.01,
+        "pin":          pin,
+        "otp_code":     otp_code
+    }, headers=get_headers())
+
+    # Accept if token valid (200 = OK, or we allow programming on 4xx account issues but not auth issues)
+    if verify_res.status_code == 401:
+        flash("Authentification invalide (PIN ou OTP incorrect).", "error")
+        return redirect(f"/account/{account_number}/scheduled-payments")
+
+    new_payment = {
+        "id":             str(uuid.uuid4())[:8],
+        "account_number": account_number,
+        "to_account":     to_account,
+        "amount":         amount,
+        "frequency":      frequency,
+        "next_date":      start_date,
+        "label":          label,
+        "pin":            pin,
+        "otp_code":       otp_code,
+        "status":         "active",
+        "created_at":     date.today().strftime("%Y-%m-%d")
+    }
+
+    payments = load_scheduled()
+    payments.append(new_payment)
+    save_scheduled(payments)
+
+    freq_labels = {"once": "unique", "weekly": "hebdomadaire", "monthly": "mensuel", "quarterly": "trimestriel"}
+    flash(f"Paiement {freq_labels.get(frequency, frequency)} de {amount:.2f} TND programmé avec succès !", "success")
+    return redirect(f"/account/{account_number}/scheduled-payments")
+
+@app.route("/pause_scheduled_payment/<payment_id>", methods=["POST"])
+def pause_scheduled_payment(payment_id):
+    if "token" not in session: return redirect("/")
+    account_number = request.form.get("account_number")
+    payments = load_scheduled()
+    for p in payments:
+        if p["id"] == payment_id and p["account_number"] == account_number:
+            p["status"] = "paused"
+            break
+    save_scheduled(payments)
+    flash("Paiement mis en pause.", "success")
+    return redirect(f"/account/{account_number}/scheduled-payments")
+
+@app.route("/resume_scheduled_payment/<payment_id>", methods=["POST"])
+def resume_scheduled_payment(payment_id):
+    if "token" not in session: return redirect("/")
+    account_number = request.form.get("account_number")
+    payments = load_scheduled()
+    for p in payments:
+        if p["id"] == payment_id and p["account_number"] == account_number:
+            p["status"] = "active"
+            break
+    save_scheduled(payments)
+    flash("Paiement repris.", "success")
+    return redirect(f"/account/{account_number}/scheduled-payments")
+
+@app.route("/cancel_scheduled_payment/<payment_id>", methods=["POST"])
+def cancel_scheduled_payment(payment_id):
+    if "token" not in session: return redirect("/")
+    account_number = request.form.get("account_number")
+    payments = load_scheduled()
+    payments = [p for p in payments if not (p["id"] == payment_id and p["account_number"] == account_number)]
+    save_scheduled(payments)
+    flash("Paiement programmé annulé.", "success")
+    return redirect(f"/account/{account_number}/scheduled-payments")
+
 if __name__ == "__main__":
     app.run(port=5000, debug=True)

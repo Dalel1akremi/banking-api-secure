@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="fr">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -14,6 +15,7 @@
             perspective: 1000px;
             margin-bottom: 24px;
         }
+
         .visa-card {
             width: 100%;
             aspect-ratio: 1.586;
@@ -23,46 +25,63 @@
             box-sizing: border-box;
             position: relative;
             overflow: hidden;
-            box-shadow: 0 20px 60px rgba(0,0,0,.6), inset 0 1px 0 rgba(255,255,255,.07);
-            transition: transform .6s cubic-bezier(.4,0,.2,1), box-shadow .4s;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, .6), inset 0 1px 0 rgba(255, 255, 255, .07);
+            transition: transform .6s cubic-bezier(.4, 0, .2, 1), box-shadow .4s;
             transform-style: preserve-3d;
             cursor: default;
         }
+
         .visa-card:hover {
             transform: rotateY(-4deg) rotateX(3deg) translateY(-4px);
-            box-shadow: 0 30px 80px rgba(0,0,0,.7);
+            box-shadow: 0 30px 80px rgba(0, 0, 0, .7);
         }
 
         /* 💎 PRIME CARD STYLE */
         .visa-card.prime {
             background: linear-gradient(135deg, #000000 0%, #1a1a1a 40%, #2b2b2b 100%) !important;
             border: 1px solid rgba(224, 170, 62, 0.4);
-            box-shadow: 0 20px 60px rgba(0,0,0,.8), 0 0 25px rgba(224, 170, 62, 0.15);
+            box-shadow: 0 20px 60px rgba(0, 0, 0, .8), 0 0 25px rgba(224, 170, 62, 0.15);
         }
+
         .visa-card.prime::before {
             background: radial-gradient(ellipse at 80% 20%, rgba(224, 170, 62, .15) 0%, transparent 55%) !important;
         }
-        .visa-card.prime .deco-circle.c1 { background: #e0aa3e !important; }
-        .visa-card.prime .deco-circle.c2 { background: #c5a059 !important; }
-        
+
+        .visa-card.prime .deco-circle.c1 {
+            background: #e0aa3e !important;
+        }
+
+        .visa-card.prime .deco-circle.c2 {
+            background: #c5a059 !important;
+        }
+
         .prime-badge {
-            position: absolute; bottom: 85px; right: 26px;
-            font-size: 9px; font-weight: 900; color: #e0aa3e;
-            letter-spacing: 2px; text-transform: uppercase;
-            border: 1px solid #e0aa3e; padding: 3px 10px; border-radius: 4px;
-            background: rgba(0,0,0,0.4);
+            position: absolute;
+            bottom: 85px;
+            right: 26px;
+            font-size: 9px;
+            font-weight: 900;
+            color: #e0aa3e;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            border: 1px solid #e0aa3e;
+            padding: 3px 10px;
+            border-radius: 4px;
+            background: rgba(0, 0, 0, 0.4);
             backdrop-filter: blur(2px);
         }
+
         /* Background holographic glow */
         .visa-card::before {
             content: '';
             position: absolute;
             inset: 0;
             background:
-                radial-gradient(ellipse at 80% 20%, rgba(99,102,241,.35) 0%, transparent 55%),
-                radial-gradient(ellipse at 20% 85%, rgba(139,92,246,.2) 0%, transparent 50%);
+                radial-gradient(ellipse at 80% 20%, rgba(99, 102, 241, .35) 0%, transparent 55%),
+                radial-gradient(ellipse at 20% 85%, rgba(139, 92, 246, .2) 0%, transparent 50%);
             pointer-events: none;
         }
+
         /* Decorative circles */
         .visa-card .deco-circle {
             position: absolute;
@@ -70,384 +89,624 @@
             opacity: .08;
             pointer-events: none;
         }
-        .visa-card .deco-circle.c1 { width:200px; height:200px; background:#6366f1; top:-60px; right:-40px; }
-        .visa-card .deco-circle.c2 { width:140px; height:140px; background:#a78bfa; bottom:-40px; left:-30px; }
+
+        .visa-card .deco-circle.c1 {
+            width: 200px;
+            height: 200px;
+            background: #6366f1;
+            top: -60px;
+            right: -40px;
+        }
+
+        .visa-card .deco-circle.c2 {
+            width: 140px;
+            height: 140px;
+            background: #a78bfa;
+            bottom: -40px;
+            left: -30px;
+        }
 
         .visa-card .card-logo {
-            display: flex; justify-content: space-between; align-items: center;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
             margin-bottom: 22px;
         }
+
         .visa-card .bank-name {
-            font-size: 15px; font-weight: 800; letter-spacing: .1em;
-            color: rgba(255,255,255,.9); text-transform: uppercase;
+            font-size: 15px;
+            font-weight: 800;
+            letter-spacing: .1em;
+            color: rgba(255, 255, 255, .9);
+            text-transform: uppercase;
         }
+
         .visa-word {
-            font-size: 26px; font-weight: 900; font-style: italic;
+            font-size: 26px;
+            font-weight: 900;
+            font-style: italic;
             background: linear-gradient(90deg, #d4af37, #f5e17a, #d4af37);
-            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
             letter-spacing: -.02em;
         }
+
         .card-chip {
-            width: 42px; height: 32px;
+            width: 42px;
+            height: 32px;
             background: linear-gradient(135deg, #d4af37 0%, #f5e17a 50%, #b8960c 100%);
-            border-radius: 6px; margin-bottom: 18px;
-            box-shadow: 0 2px 6px rgba(0,0,0,.4);
-            position: relative; overflow: hidden;
+            border-radius: 6px;
+            margin-bottom: 18px;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, .4);
+            position: relative;
+            overflow: hidden;
         }
+
         .card-chip::after {
             content: '';
             position: absolute;
-            top: 50%; left: 0; right: 0;
-            height: 1px; background: rgba(0,0,0,.25);
+            top: 50%;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background: rgba(0, 0, 0, .25);
         }
+
         .card-chip::before {
             content: '';
             position: absolute;
-            top: 0; bottom: 0; left: 50%;
-            width: 1px; background: rgba(0,0,0,.25);
+            top: 0;
+            bottom: 0;
+            left: 50%;
+            width: 1px;
+            background: rgba(0, 0, 0, .25);
         }
+
         .card-number {
-            font-size: 18px; letter-spacing: 3px; font-weight: 700;
-            color: rgba(255,255,255,.92); margin-bottom: 20px;
+            font-size: 18px;
+            letter-spacing: 3px;
+            font-weight: 700;
+            color: rgba(255, 255, 255, .92);
+            margin-bottom: 20px;
             font-family: 'Courier New', monospace;
-            text-shadow: 0 1px 3px rgba(0,0,0,.4);
+            text-shadow: 0 1px 3px rgba(0, 0, 0, .4);
         }
-        .card-number .hidden-cvv { filter: blur(5px); transition: filter .3s; }
-        .card-number .hidden-cvv.revealed { filter: blur(0); }
+
+        .card-number .hidden-cvv {
+            filter: blur(5px);
+            transition: filter .3s;
+        }
+
+        .card-number .hidden-cvv.revealed {
+            filter: blur(0);
+        }
 
         .card-footer {
-            display: flex; justify-content: space-between; align-items: flex-end;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
         }
-        .card-label { font-size: 9px; letter-spacing: .12em; text-transform: uppercase; color: rgba(255,255,255,.45); margin-bottom: 3px; }
-        .card-value { font-size: 14px; font-weight: 600; color: rgba(255,255,255,.88); letter-spacing: .05em; }
+
+        .card-label {
+            font-size: 9px;
+            letter-spacing: .12em;
+            text-transform: uppercase;
+            color: rgba(255, 255, 255, .45);
+            margin-bottom: 3px;
+        }
+
+        .card-value {
+            font-size: 14px;
+            font-weight: 600;
+            color: rgba(255, 255, 255, .88);
+            letter-spacing: .05em;
+        }
 
         .cvv-reveal-btn {
-            background: none; border: 1px solid rgba(255,255,255,.18);
-            color: rgba(255,255,255,.7); padding: 5px 12px; border-radius: 8px;
-            cursor: pointer; font-size: 12px; transition: all .2s;
-            display: flex; align-items: center; gap: 5px;
+            background: none;
+            border: 1px solid rgba(255, 255, 255, .18);
+            color: rgba(255, 255, 255, .7);
+            padding: 5px 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: all .2s;
+            display: flex;
+            align-items: center;
+            gap: 5px;
         }
-        .cvv-reveal-btn:hover { background: rgba(255,255,255,.1); color: #fff; }
+
+        .cvv-reveal-btn:hover {
+            background: rgba(255, 255, 255, .1);
+            color: #fff;
+        }
 
         /* PCI-DSS Notice */
         .pci-notice {
-            font-size: 11px; color: var(--text-muted);
-            background: rgba(248,113,113,.06);
-            border: 1px solid rgba(248,113,113,.15);
-            border-radius: 8px; padding: 10px 14px;
+            font-size: 11px;
+            color: var(--text-muted);
+            background: rgba(248, 113, 113, .06);
+            border: 1px solid rgba(248, 113, 113, .15);
+            border-radius: 8px;
+            padding: 10px 14px;
             margin-bottom: 20px;
-            display: flex; align-items: center; gap: 8px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
         }
 
         /* ══════════════════════════════════════
            CARD ACTIVITY LOG
         ══════════════════════════════════════ */
-        .card-activity-feed { max-height: 280px; overflow-y: auto; }
-        .card-activity-feed::-webkit-scrollbar { width: 4px; }
-        .card-activity-feed::-webkit-scrollbar-track { background: transparent; }
-        .card-activity-feed::-webkit-scrollbar-thumb { background: var(--card-border); border-radius: 4px; }
+        .card-activity-feed {
+            max-height: 280px;
+            overflow-y: auto;
+        }
+
+        .card-activity-feed::-webkit-scrollbar {
+            width: 4px;
+        }
+
+        .card-activity-feed::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .card-activity-feed::-webkit-scrollbar-thumb {
+            background: var(--card-border);
+            border-radius: 4px;
+        }
 
         .activity-item {
-            display: flex; align-items: center; gap: 12px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
             padding: 11px 0;
             border-bottom: 1px solid var(--card-border);
         }
-        .activity-item:last-child { border-bottom: none; }
+
+        .activity-item:last-child {
+            border-bottom: none;
+        }
+
         .activity-icon {
-            width: 32px; height: 32px; border-radius: 50%;
-            display: flex; align-items: center; justify-content: center;
-            font-size: 14px; flex-shrink: 0;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            flex-shrink: 0;
         }
-        .activity-icon.success { background: rgba(52,211,153,.12); color: #34d399; }
-        .activity-icon.failure { background: rgba(248,113,113,.12); color: #f87171; }
-        .act-type { font-size: 12px; font-weight: 600; color: var(--text-main); text-transform: uppercase; letter-spacing: .04em; }
-        .act-detail { font-size: 11px; color: var(--text-muted); margin-top: 1px; }
-        .act-time { font-size: 10px; color: var(--text-muted); white-space: nowrap; margin-left: auto; }
+
+        .activity-icon.success {
+            background: rgba(52, 211, 153, .12);
+            color: #34d399;
+        }
+
+        .activity-icon.failure {
+            background: rgba(248, 113, 113, .12);
+            color: #f87171;
+        }
+
+        .act-type {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-main);
+            text-transform: uppercase;
+            letter-spacing: .04em;
+        }
+
+        .act-detail {
+            font-size: 11px;
+            color: var(--text-muted);
+            margin-top: 1px;
+        }
+
+        .act-time {
+            font-size: 10px;
+            color: var(--text-muted);
+            white-space: nowrap;
+            margin-left: auto;
+        }
+
         .act-badge {
-            font-size: 10px; font-weight: 700; padding: 2px 7px;
-            border-radius: 20px; text-transform: uppercase; letter-spacing: .05em;
+            font-size: 10px;
+            font-weight: 700;
+            padding: 2px 7px;
+            border-radius: 20px;
+            text-transform: uppercase;
+            letter-spacing: .05em;
         }
-        .act-badge.success { background: rgba(52,211,153,.15); color: #34d399; }
-        .act-badge.failure { background: rgba(248,113,113,.15); color: #f87171; }
+
+        .act-badge.success {
+            background: rgba(52, 211, 153, .15);
+            color: #34d399;
+        }
+
+        .act-badge.failure {
+            background: rgba(248, 113, 113, .15);
+            color: #f87171;
+        }
 
         /* ══════════════════════════════════════
            BALANCE PANEL
         ══════════════════════════════════════ */
         .balance-panel {
-            background: linear-gradient(135deg, rgba(99,102,241,.12), rgba(139,92,246,.08));
-            border: 1px solid rgba(99,102,241,.25);
-            border-radius: 14px; padding: 20px 24px;
-            text-align: center; margin-bottom: 20px;
+            background: linear-gradient(135deg, rgba(99, 102, 241, .12), rgba(139, 92, 246, .08));
+            border: 1px solid rgba(99, 102, 241, .25);
+            border-radius: 14px;
+            padding: 20px 24px;
+            text-align: center;
+            margin-bottom: 20px;
         }
-        .balance-panel .balance-label { font-size: 12px; color: var(--text-muted); text-transform: uppercase; letter-spacing: .06em; margin-bottom: 6px; }
-        .balance-panel .balance-amount { font-size: 38px; font-weight: 900; color: #a5b4fc; }
+
+        .balance-panel .balance-label {
+            font-size: 12px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: .06em;
+            margin-bottom: 6px;
+        }
+
+        .balance-panel .balance-amount {
+            font-size: 38px;
+            font-weight: 900;
+            color: #a5b4fc;
+        }
 
         /* Card Status Badge */
         .card-status-badge {
-            position: absolute; top: 20px; right: 20px;
-            padding: 4px 12px; border-radius: 20px;
-            font-size: 10px; font-weight: 800; text-transform: uppercase;
-            letter-spacing: .05em; z-index: 10;
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 10px;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: .05em;
+            z-index: 10;
         }
-        .card-status-badge.active { background: rgba(52,211,153,.2); color: #34d399; border: 1px solid rgba(52,211,153,.3); }
-        .card-status-badge.deactivated { background: rgba(248,113,113,.2); color: #f87171; border: 1px solid rgba(248,113,113,.3); }
-        .card-status-badge.expired { background: rgba(245,158,11,.2); color: #f59e0b; border: 1px solid rgba(245,158,11,.3); }
+
+        .card-status-badge.active {
+            background: rgba(52, 211, 153, .2);
+            color: #34d399;
+            border: 1px solid rgba(52, 211, 153, .3);
+        }
+
+        .card-status-badge.deactivated {
+            background: rgba(248, 113, 113, .2);
+            color: #f87171;
+            border: 1px solid rgba(248, 113, 113, .3);
+        }
+
+        .card-status-badge.expired {
+            background: rgba(245, 158, 11, .2);
+            color: #f59e0b;
+            border: 1px solid rgba(245, 158, 11, .3);
+        }
 
         /* Danger Zone */
         .danger-zone {
-            margin-top: 30px; padding: 20px;
-            border: 1px dashed rgba(248,113,113,.3);
-            border-radius: 12px; background: rgba(248,113,113,.03);
+            margin-top: 30px;
+            padding: 20px;
+            border: 1px dashed rgba(248, 113, 113, .3);
+            border-radius: 12px;
+            background: rgba(248, 113, 113, .03);
         }
-        .danger-zone h3 { color: #f87171; font-size: 16px; margin-bottom: 10px; }
-        .danger-zone p { font-size: 13px; color: var(--text-muted); margin-bottom: 15px; }
+
+        .danger-zone h3 {
+            color: #f87171;
+            font-size: 16px;
+            margin-bottom: 10px;
+        }
+
+        .danger-zone p {
+            font-size: 13px;
+            color: var(--text-muted);
+            margin-bottom: 15px;
+        }
 
         /* Modal Overlay */
         .modal-overlay {
-            position: fixed; inset: 0; background: rgba(0,0,0,.8);
-            display: none; align-items: center; justify-content: center;
-            z-index: 1000; backdrop-filter: blur(4px);
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, .8);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            backdrop-filter: blur(4px);
         }
-        .modal-overlay.active { display: flex; }
+
+        .modal-overlay.active {
+            display: flex;
+        }
+
         .modal-content {
-            background: #1e293b; width: 100%; max-width: 400px;
-            padding: 30px; border-radius: 16px; border: 1px solid var(--card-border);
-            box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5);
+            background: #1e293b;
+            width: 100%;
+            max-width: 400px;
+            padding: 30px;
+            border-radius: 16px;
+            border: 1px solid var(--card-border);
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
         }
     </style>
 </head>
+
 <body>
 
-<nav>
-    <div style="display: flex; align-items: center; gap: 15px;">
-        <a href="javascript:history.back()" style="text-decoration: none; font-size: 22px; color: var(--text-muted); margin-right: 5px; transition: color 0.2s;" onmouseover="this.style.color='#fff'" onmouseout="this.style.color='var(--text-muted)'" title="Retour">⬅</a>
-        <a href="/dashboard" class="brand" style="text-decoration: none;">API Bank</a>
-    </div>
-    <div class="nav-links">
-        <a href="/dashboard">Tableau de Bord</a>
-        <a href="/credit_simulation">🧮 Simulation</a>
-        <a href="/bills">💡 Factures</a>
-        <a href="/beneficiaries">Bénéficiaires</a>
-        <a href="/journal">Journal</a>
-        <a href="/support">📩 Support</a>
-        {% if is_admin %}
-        <a href="/admin/dashboard" style="color: #fbbf24;">⚡ Admin</a>
-        {% endif %}
-        <a href="/settings">Paramètres</a>
-        <a href="/logout" class="text-danger">Déconnexion</a>
-    </div>
-</nav>
-
-<div class="page-container">
-    <div class="page-header flex-between">
-        <div>
-            <h1>Détails du Compte</h1>
-            <p>Numéro : <strong>**** **** **** {{ account.account_number[-4:] }}</strong></p>
+    <nav>
+        <div style="display: flex; align-items: center; gap: 15px;">
+            <a href="javascript:history.back()"
+                style="text-decoration: none; font-size: 22px; color: var(--text-muted); margin-right: 5px; transition: color 0.2s;"
+                onmouseover="this.style.color='#fff'" onmouseout="this.style.color='var(--text-muted)'"
+                title="Retour">⬅</a>
+            <a href="/dashboard" class="brand" style="text-decoration: none;">API Bank</a>
         </div>
-        <div>
-            <div style="display:flex; gap:10px; justify-content: flex-end;">
-                <a href="/account/{{ account.account_number }}/rib" class="btn" style="width:auto; padding:12px 20px; background:rgba(99,102,241,.15); border:1px solid rgba(99,102,241,.3); color:#a5b4fc; display:flex; align-items:center; gap:8px; text-decoration:none;">
-                    📄 Mon RIB
-                </a>
-                <a href="/account/{{ account.account_number }}/card" class="btn" style="width: auto; padding: 12px 24px; background: linear-gradient(135deg, #6366f1, #8b5cf6); border:none; display: flex; align-items: center; gap: 10px;">
-                    <span>💳</span> Ma Carte Visa
-                </a>
+        <div class="nav-links">
+            <a href="/dashboard">Tableau de Bord</a>
+            <a href="/credit_simulation">🧮 Simulation</a>
+            <a href="/bills">💡 Factures</a>
+            <a href="/beneficiaries">Bénéficiaires</a>
+            <a href="/journal">Journal</a>
+            <a href="/support">📩 Support</a>
+            {% if is_admin %}
+            <a href="/admin/dashboard" style="color: #fbbf24;">⚡ Admin</a>
+            {% endif %}
+            <a href="/settings">Paramètres</a>
+            <a href="/logout" class="text-danger">Déconnexion</a>
+        </div>
+    </nav>
+
+    <div class="page-container">
+        <div class="page-header flex-between">
+            <div>
+                <h1>Détails du Compte</h1>
+                <p>Numéro : <strong>**** **** **** {{ account.account_number[-4:] }}</strong></p>
             </div>
-            
-            <div style="display:flex; gap:10px; margin-top:10px; justify-content: flex-end;">
-                <a href="/account/{{ account.account_number }}/analytics" class="btn" style="width:auto; padding:12px 20px; background:rgba(16,185,129,.15); border:1px solid rgba(16,185,129,.3); color:#34d399; display:flex; align-items:center; gap:8px; text-decoration:none;">
-                    📊 Analytiques
-                </a>
-                <a href="/account/{{ account.account_number }}/services" class="btn" style="width:auto; padding:12px 20px; background:rgba(236,72,153,.15); border:1px solid rgba(236,72,153,.3); color:#f472b6; display:flex; align-items:center; gap:8px; text-decoration:none;">
-                    ⚙️ Services
-                </a>
-                <a href="/account/{{ account.account_number }}/qr-payment" class="btn" style="width:auto; padding:12px 20px; background:rgba(99,102,241,.15); border:1px solid rgba(99,102,241,.3); color:#818cf8; display:flex; align-items:center; gap:8px; text-decoration:none;">
-                    📲 Paiement QR
-                </a>
+            <div>
+                <div style="display:flex; gap:10px; justify-content: flex-end;">
+                    <a href="/account/{{ account.account_number }}/rib" class="btn"
+                        style="width:auto; padding:12px 20px; background:rgba(99,102,241,.15); border:1px solid rgba(99,102,241,.3); color:#a5b4fc; display:flex; align-items:center; gap:8px; text-decoration:none;">
+                        📄 Mon RIB
+                    </a>
+                    <a href="/account/{{ account.account_number }}/card" class="btn"
+                        style="width: auto; padding: 12px 24px; background: linear-gradient(135deg, #6366f1, #8b5cf6); border:none; display: flex; align-items: center; gap: 10px;">
+                        <span>💳</span> Ma Carte Visa
+                    </a>
+                </div>
+
+                <div style="display:flex; gap:10px; margin-top:10px; justify-content: flex-end;">
+                    <a href="/account/{{ account.account_number }}/analytics" class="btn"
+                        style="width:auto; padding:12px 20px; background:rgba(16,185,129,.15); border:1px solid rgba(16,185,129,.3); color:#34d399; display:flex; align-items:center; gap:8px; text-decoration:none;">
+                        📊 Analytiques
+                    </a>
+                    <a href="/account/{{ account.account_number }}/services" class="btn"
+                        style="width:auto; padding:12px 20px; background:rgba(236,72,153,.15); border:1px solid rgba(236,72,153,.3); color:#f472b6; display:flex; align-items:center; gap:8px; text-decoration:none;">
+                        ⚙️ Services
+                    </a>
+                    <a href="/account/{{ account.account_number }}/qr-payment" class="btn"
+                        style="width:auto; padding:12px 20px; background:rgba(99,102,241,.15); border:1px solid rgba(99,102,241,.3); color:#818cf8; display:flex; align-items:center; gap:8px; text-decoration:none;">
+                        📲 Paiement QR
+                    </a>
+                    <a href="/account/{{ account.account_number }}/scheduled-payments" class="btn"
+                        style="width:auto; padding:12px 20px; background:rgba(139,92,246,.15); border:1px solid rgba(139,92,246,.3); color:#c084fc; display:flex; align-items:center; gap:8px; text-decoration:none;">
+                        📅 Prélèvements
+                    </a>
+                </div>
             </div>
         </div>
-    </div>
 
-    {% with messages = get_flashed_messages(with_categories=true) %}
-      {% if messages %}
+        {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
         <div id="flash-container">
-        {% for category, message in messages %}
-          {% if category == 'success' %}
-          <div class="alert alert-success">{{ message }}</div>
-          {% else %}
-          <div class="alert alert-error">{{ message }}</div>
-          {% endif %}
-        {% endfor %}
+            {% for category, message in messages %}
+            {% if category == 'success' %}
+            <div class="alert alert-success">{{ message }}</div>
+            {% else %}
+            <div class="alert alert-error">{{ message }}</div>
+            {% endif %}
+            {% endfor %}
         </div>
-      {% endif %}
-    {% endwith %}
+        {% endif %}
+        {% endwith %}
 
-    <!-- ── Layout principal 2 colonnes ── -->
-    <div style="display: grid; grid-template-columns: 1fr 400px; gap: 24px; align-items: start;" id="main-grid-layout">
+        <!-- ── Layout principal 2 colonnes ── -->
+        <div style="display: grid; grid-template-columns: 1fr 400px; gap: 24px; align-items: start;"
+            id="main-grid-layout">
 
-        <!-- ── COLONNE GAUCHE : Historique ── -->
-        <div>
-            <div class="panel">
-                <div class="flex-between" style="margin-bottom: 20px;">
-                    <h2>📊 Historique des Transactions</h2>
-                    <span style="color: var(--success); font-size: 22px; font-weight: 800;">{{ "%.2f" | format(account.balance | float) }} DT</span>
-                </div>
+            <!-- ── COLONNE GAUCHE : Historique ── -->
+            <div>
+                <div class="panel">
+                    <div class="flex-between" style="margin-bottom: 20px;">
+                        <h2>📊 Historique des Transactions</h2>
+                        <span style="color: var(--success); font-size: 22px; font-weight: 800;">{{ "%.2f" |
+                            format(account.balance | float) }} DT</span>
+                    </div>
 
-                <div class="table-container">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Type</th>
-                                <th>Montant</th>
-                                <th>Détails</th>
-                                <th>Date</th>
-                                <th>Reçu</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for tx in transactions %}
-                            <tr>
-                                <td><span class="badge {{ tx.type }}">{{ tx.type | tx_type_fr }}</span></td>
-                                <td>
-                                    {% if tx.type == "deposit" or (tx.type == "transfer" and tx.to_account == account.account_number) %}
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Type</th>
+                                    <th>Montant</th>
+                                    <th>Détails</th>
+                                    <th>Date</th>
+                                    <th>Reçu</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for tx in transactions %}
+                                <tr>
+                                    <td><span class="badge {{ tx.type }}">{{ tx.type | tx_type_fr }}</span></td>
+                                    <td>
+                                        {% if tx.type == "deposit" or (tx.type == "transfer" and tx.to_account ==
+                                        account.account_number) %}
                                         <span class="text-success">+{{ "%.2f" | format(tx.amount | float) }} DT</span>
-                                    {% else %}
-                                        <span class="text-danger">-{{ "%.2f" | format(tx.amount | float) }} DT</span>
-                                    {% endif %}
-                                </td>
-                                <td>
-                                    {% if tx.type == "transfer" %}
-                                        {% if tx.to_account == account.account_number %}
-                                            Reçu de ****{{ tx.from_account[-4:] }}
                                         {% else %}
-                                            Envoyé à ****{{ tx.to_account[-4:] }}
+                                        <span class="text-danger">-{{ "%.2f" | format(tx.amount | float) }} DT</span>
                                         {% endif %}
-                                    {% elif tx.type in ["payment", "bill_payment"] %}
+                                    </td>
+                                    <td>
+                                        {% if tx.type == "transfer" %}
+                                        {% if tx.to_account == account.account_number %}
+                                        Reçu de ****{{ tx.from_account[-4:] }}
+                                        {% else %}
+                                        Envoyé à ****{{ tx.to_account[-4:] }}
+                                        {% endif %}
+                                        {% elif tx.type in ["payment", "bill_payment"] %}
                                         {{ tx.merchant or tx.provider or '' }}
-                                    {% elif tx.type == "service_fee" %}
+                                        {% elif tx.type == "service_fee" %}
                                         {{ tx.description or 'Frais de service' }}
-                                    {% else %}
+                                        {% else %}
                                         —
-                                    {% endif %}
-                                </td>
-                                <td style="font-size: 13px; color: var(--text-muted);">
-                                    {{ tx.timestamp[:10] if tx.timestamp is string else '—' }}
-                                </td>
-                                <td>
-                                    <a href="/account/{{ account.account_number }}/receipt/{{ loop.index0 }}"
-                                       class="btn-receipt"
-                                       style="display:inline-flex; align-items:center; gap:6px; font-size:12px; color:#fff; text-decoration:none; background: #6366f1; padding:6px 12px; border-radius:6px; font-weight: 600; transition: background 0.2s;">
-                                        📥 PDF
-                                    </a>
-                                </td>
-                            </tr>
-                            {% else %}
-                            <tr>
-                                <td colspan="4" style="text-align: center; color: var(--text-muted); padding: 30px 0;">
-                                    Aucune transaction pour le moment.
-                                </td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
+                                        {% endif %}
+                                    </td>
+                                    <td style="font-size: 13px; color: var(--text-muted);">
+                                        {{ tx.timestamp[:10] if tx.timestamp is string else '—' }}
+                                    </td>
+                                    <td>
+                                        <a href="/account/{{ account.account_number }}/receipt/{{ loop.index0 }}"
+                                            class="btn-receipt"
+                                            style="display:inline-flex; align-items:center; gap:6px; font-size:12px; color:#fff; text-decoration:none; background: #6366f1; padding:6px 12px; border-radius:6px; font-weight: 600; transition: background 0.2s;">
+                                            📥 PDF
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% else %}
+                                <tr>
+                                    <td colspan="4"
+                                        style="text-align: center; color: var(--text-muted); padding: 30px 0;">
+                                        Aucune transaction pour le moment.
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
-        </div>
 
-        <!-- ── COLONNE DROITE : Opérations + Activité Carte ── -->
-        <div id="right-column-container">
-            <!-- ── ONGLETS OPÉRATIONS ── -->
-            <div class="tabs" style="margin-top: 0;">
-                <button class="tab-btn active" onclick="showTab(event, 'tab-deposit')" id="btn-deposit">Dépôt</button>
-                <button class="tab-btn" onclick="showTab(event, 'tab-withdraw')" id="btn-withdraw">Retrait</button>
-                <button class="tab-btn" onclick="showTab(event, 'tab-transfer')" id="btn-transfer">Transfert</button>
-            </div>
+            <!-- ── COLONNE DROITE : Opérations + Activité Carte ── -->
+            <div id="right-column-container">
+                <!-- ── ONGLETS OPÉRATIONS ── -->
+                <div class="tabs" style="margin-top: 0;">
+                    <button class="tab-btn active" onclick="showTab(event, 'tab-deposit')"
+                        id="btn-deposit">Dépôt</button>
+                    <button class="tab-btn" onclick="showTab(event, 'tab-withdraw')" id="btn-withdraw">Retrait</button>
+                    <button class="tab-btn" onclick="showTab(event, 'tab-transfer')"
+                        id="btn-transfer">Transfert</button>
+                </div>
 
-            <div id="tab-deposit" class="panel tab-content active" style="margin-top: 0; border-radius: 0 0 14px 14px;">
-                <h3 style="margin-bottom: 20px;">💰 Dépôt</h3>
-                <form method="POST" action="/deposit">
-                    <input type="hidden" name="account_number" value="{{ account.account_number }}">
-                    <div class="input-group">
-                        <label>Montant (DT)</label>
-                        <input type="number" step="0.01" name="amount" required placeholder="Ex: 500">
-                    </div>
-                    <div class="input-group">
-                        <label>🔐 Code Confidentiel (PIN)</label>
-                        <input type="password" name="pin" required maxlength="4" pattern="\d{4}" placeholder="••••" inputmode="numeric" style="letter-spacing:8px; font-size:1.2rem;">
-                    </div>
-                    <div class="input-group">
-                        <label>✉️ Code OTP</label>
-                        <div style="display: flex; gap: 10px;">
-                            <input type="text" name="otp_code" required maxlength="6" pattern="\d{6}" placeholder="123456" inputmode="numeric" style="flex: 1; letter-spacing:4px; font-size:1.2rem;">
-                            <button type="button" class="btn btn-secondary request-otp-btn" style="width: auto;">Demander OTP</button>
+                <div id="tab-deposit" class="panel tab-content active"
+                    style="margin-top: 0; border-radius: 0 0 14px 14px;">
+                    <h3 style="margin-bottom: 20px;">💰 Dépôt</h3>
+                    <form method="POST" action="/deposit">
+                        <input type="hidden" name="account_number" value="{{ account.account_number }}">
+                        <div class="input-group">
+                            <label>Montant (DT)</label>
+                            <input type="number" step="0.01" name="amount" required placeholder="Ex: 500">
                         </div>
-                    </div>
-                    <button type="submit" class="btn" id="submit-deposit">Effectuer un dépôt</button>
-                </form>
-            </div>
+                        <div class="input-group">
+                            <label>🔐 Code Confidentiel (PIN)</label>
+                            <input type="password" name="pin" required maxlength="4" pattern="\d{4}" placeholder="••••"
+                                inputmode="numeric" style="letter-spacing:8px; font-size:1.2rem;">
+                        </div>
+                        <div class="input-group">
+                            <label>✉️ Code OTP</label>
+                            <div style="display: flex; gap: 10px;">
+                                <input type="text" name="otp_code" required maxlength="6" pattern="\d{6}"
+                                    placeholder="123456" inputmode="numeric"
+                                    style="flex: 1; letter-spacing:4px; font-size:1.2rem;">
+                                <button type="button" class="btn btn-secondary request-otp-btn"
+                                    style="width: auto;">Demander OTP</button>
+                            </div>
+                        </div>
+                        <button type="submit" class="btn" id="submit-deposit">Effectuer un dépôt</button>
+                    </form>
+                </div>
 
-            <div id="tab-withdraw" class="panel tab-content" style="margin-top: 0; border-radius: 0 0 14px 14px;">
-                <h3 style="margin-bottom: 20px;">💸 Retrait</h3>
-                <form method="POST" action="/withdraw">
-                    <input type="hidden" name="account_number" value="{{ account.account_number }}">
-                    <div class="input-group">
-                        <label>Montant (DT)</label>
-                        <input type="number" step="0.01" name="amount" required placeholder="Ex: 200">
-                    </div>
-                    <div class="input-group" style="background: rgba(0,0,0,0.2); padding: 10px; border-radius: 8px; margin-bottom: 15px;">
-                        <label style="margin-bottom: 8px;">🛠️ Options de simulation</label>
-                        <div style="display: flex; gap: 15px; font-size: 13px; color: var(--text-main);">
-                            <label style="display:flex; align-items:center; gap:5px; margin:0;"><input type="checkbox" name="is_foreign"> À l'étranger</label>
-                            <label style="display:flex; align-items:center; gap:5px; margin:0;"><input type="checkbox" name="is_contactless"> Sans contact</label>
+                <div id="tab-withdraw" class="panel tab-content" style="margin-top: 0; border-radius: 0 0 14px 14px;">
+                    <h3 style="margin-bottom: 20px;">💸 Retrait</h3>
+                    <form method="POST" action="/withdraw">
+                        <input type="hidden" name="account_number" value="{{ account.account_number }}">
+                        <div class="input-group">
+                            <label>Montant (DT)</label>
+                            <input type="number" step="0.01" name="amount" required placeholder="Ex: 200">
                         </div>
-                    </div>
-                    <div class="input-group">
-                        <label>🔐 Code Confidentiel (PIN)</label>
-                        <input type="password" name="pin" required maxlength="4" pattern="\d{4}" placeholder="••••" inputmode="numeric" style="letter-spacing:8px; font-size:1.2rem;">
-                    </div>
-                    <div class="input-group">
-                        <label>✉️ Code OTP</label>
-                        <div style="display: flex; gap: 10px;">
-                            <input type="text" name="otp_code" required maxlength="6" pattern="\d{6}" placeholder="123456" inputmode="numeric" style="flex: 1; letter-spacing:4px; font-size:1.2rem;">
-                            <button type="button" class="btn btn-secondary request-otp-btn" style="width: auto;">Demander OTP</button>
+                        <div class="input-group"
+                            style="background: rgba(0,0,0,0.2); padding: 10px; border-radius: 8px; margin-bottom: 15px;">
+                            <label style="margin-bottom: 8px;">🛠️ Options de simulation</label>
+                            <div style="display: flex; gap: 15px; font-size: 13px; color: var(--text-main);">
+                                <label style="display:flex; align-items:center; gap:5px; margin:0;"><input
+                                        type="checkbox" name="is_foreign"> À l'étranger</label>
+                                <label style="display:flex; align-items:center; gap:5px; margin:0;"><input
+                                        type="checkbox" name="is_contactless"> Sans contact</label>
+                            </div>
                         </div>
-                    </div>
-                    <button type="submit" class="btn btn-secondary" id="submit-withdraw">Effectuer un retrait</button>
-                </form>
-            </div>
+                        <div class="input-group">
+                            <label>🔐 Code Confidentiel (PIN)</label>
+                            <input type="password" name="pin" required maxlength="4" pattern="\d{4}" placeholder="••••"
+                                inputmode="numeric" style="letter-spacing:8px; font-size:1.2rem;">
+                        </div>
+                        <div class="input-group">
+                            <label>✉️ Code OTP</label>
+                            <div style="display: flex; gap: 10px;">
+                                <input type="text" name="otp_code" required maxlength="6" pattern="\d{6}"
+                                    placeholder="123456" inputmode="numeric"
+                                    style="flex: 1; letter-spacing:4px; font-size:1.2rem;">
+                                <button type="button" class="btn btn-secondary request-otp-btn"
+                                    style="width: auto;">Demander OTP</button>
+                            </div>
+                        </div>
+                        <button type="submit" class="btn btn-secondary" id="submit-withdraw">Effectuer un
+                            retrait</button>
+                    </form>
+                </div>
 
-            <div id="tab-transfer" class="panel tab-content" style="margin-top: 0; border-radius: 0 0 14px 14px;">
-                <h3 style="margin-bottom: 20px;">🔁 Transfert</h3>
-                <form method="POST" action="/process_transfer">
-                    <input type="hidden" name="from_account" value="{{ account.account_number }}">
-                    <div class="input-group">
-                        <label>Compte Destinataire</label>
-                        <select name="to_account" required style="width: 100%; padding: 12px 15px; background: rgba(0, 0, 0, 0.2); border: 1px solid var(--card-border); border-radius: 8px; color: var(--text-main); font-size: 16px; outline: none;">
-                            <option value="" disabled selected>-- Choisir un bénéficiaire --</option>
-                            {% for b in beneficiaries %}
-                                <option value="{{ b.account_number }}">{{ b.alias }} (****{{ b.account_number[-4:] }})</option>
-                            {% endfor %}
-                        </select>
-                        <p style="font-size: 11px; margin-top: 5px;"><a href="/beneficiaries" style="color: var(--primary);">+ Ajouter un bénéficiaire</a></p>
-                    </div>
-                    <div class="input-group">
-                        <label>Montant (DT)</label>
-                        <input type="number" step="0.01" name="amount" required placeholder="Ex: 150">
-                    </div>
-                    <div class="input-group">
-                        <label>🔐 Code Confidentiel (PIN)</label>
-                        <input type="password" name="pin" required maxlength="4" pattern="\d{4}" placeholder="••••" inputmode="numeric" style="letter-spacing:8px; font-size:1.2rem;">
-                    </div>
-                    <div class="input-group">
-                        <label>✉️ Code OTP</label>
-                        <div style="display: flex; gap: 10px;">
-                            <input type="text" name="otp_code" required maxlength="6" pattern="\d{6}" placeholder="123456" inputmode="numeric" style="flex: 1; letter-spacing:4px; font-size:1.2rem;">
-                            <button type="button" class="btn btn-secondary request-otp-btn" style="width: auto;">Demander OTP</button>
+                <div id="tab-transfer" class="panel tab-content" style="margin-top: 0; border-radius: 0 0 14px 14px;">
+                    <h3 style="margin-bottom: 20px;">🔁 Transfert</h3>
+                    <form method="POST" action="/process_transfer">
+                        <input type="hidden" name="from_account" value="{{ account.account_number }}">
+                        <div class="input-group">
+                            <label>Compte Destinataire</label>
+                            <select name="to_account" required
+                                style="width: 100%; padding: 12px 15px; background: rgba(0, 0, 0, 0.2); border: 1px solid var(--card-border); border-radius: 8px; color: var(--text-main); font-size: 16px; outline: none;">
+                                <option value="" disabled selected>-- Choisir un bénéficiaire --</option>
+                                {% for b in beneficiaries %}
+                                <option value="{{ b.account_number }}">{{ b.alias }} (****{{ b.account_number[-4:] }})
+                                </option>
+                                {% endfor %}
+                            </select>
+                            <p style="font-size: 11px; margin-top: 5px;"><a href="/beneficiaries"
+                                    style="color: var(--primary);">+ Ajouter un bénéficiaire</a></p>
                         </div>
-                    </div>
-                    <button type="submit" class="btn" style="background:var(--gradient); border:none;" id="submit-transfer">Envoyer les fonds</button>
-                </form>
-            </div>
+                        <div class="input-group">
+                            <label>Montant (DT)</label>
+                            <input type="number" step="0.01" name="amount" required placeholder="Ex: 150">
+                        </div>
+                        <div class="input-group">
+                            <label>🔐 Code Confidentiel (PIN)</label>
+                            <input type="password" name="pin" required maxlength="4" pattern="\d{4}" placeholder="••••"
+                                inputmode="numeric" style="letter-spacing:8px; font-size:1.2rem;">
+                        </div>
+                        <div class="input-group">
+                            <label>✉️ Code OTP</label>
+                            <div style="display: flex; gap: 10px;">
+                                <input type="text" name="otp_code" required maxlength="6" pattern="\d{6}"
+                                    placeholder="123456" inputmode="numeric"
+                                    style="flex: 1; letter-spacing:4px; font-size:1.2rem;">
+                                <button type="button" class="btn btn-secondary request-otp-btn"
+                                    style="width: auto;">Demander OTP</button>
+                            </div>
+                        </div>
+                        <button type="submit" class="btn" style="background:var(--gradient); border:none;"
+                            id="submit-transfer">Envoyer les fonds</button>
+                    </form>
+                </div>
 
             </div>
 
@@ -455,15 +714,19 @@
             <div class="panel" style="padding: 20px; margin-top: 24px;">
                 <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:14px;">
                     <h3 style="margin:0; font-size:14px;">🛡️ Activité Récente de la Carte</h3>
-                    <span style="font-size:10px; color:var(--text-muted); background: rgba(99,102,241,.1); padding:3px 8px; border-radius:20px;">LOG CARTE</span>
+                    <span
+                        style="font-size:10px; color:var(--text-muted); background: rgba(99,102,241,.1); padding:3px 8px; border-radius:20px;">LOG
+                        CARTE</span>
                 </div>
 
                 {% if card_activities %}
                 <div class="card-activity-feed" style="max-height: 400px; overflow-y: auto;">
                     {% for act in card_activities %}
                     {% set is_fail = act.status == 'FAILURE' %}
-                    <div class="activity-item" style="display: flex; align-items: center; gap: 12px; padding: 11px 0; border-bottom: 1px solid var(--card-border);">
-                        <div class="activity-icon {{ 'failure' if is_fail else 'success' }}" style="width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 14px; flex-shrink: 0; {{ 'background: rgba(248,113,113,0.12); color: #f87171;' if is_fail else 'background: rgba(52,211,153,0.12); color: #34d399;' }}">
+                    <div class="activity-item"
+                        style="display: flex; align-items: center; gap: 12px; padding: 11px 0; border-bottom: 1px solid var(--card-border);">
+                        <div class="activity-icon {{ 'failure' if is_fail else 'success' }}"
+                            style="width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 14px; flex-shrink: 0; {{ 'background: rgba(248,113,113,0.12); color: #f87171;' if is_fail else 'background: rgba(52,211,153,0.12); color: #34d399;' }}">
                             {% if act.action_type == 'WITHDRAW' %}💸
                             {% elif act.action_type == 'PAYMENT' %}🛒
                             {% elif act.action_type == 'PIN_VERIFICATION' %}🔐
@@ -472,90 +735,96 @@
                             {% else %}📋{% endif %}
                         </div>
                         <div style="flex:1; min-width:0;">
-                             <div style="font-size:12px; font-weight:600; color:var(--text-main);">{{ act.action_type.replace('_', ' ') }}</div>
-                             <div style="font-size:11px; color:var(--text-muted);">
-                                 {% if act.details %}
-                                   {% if act.details.amount is defined %}{{ "%.2f" | format(act.details.amount | float) }} DT{% endif %}
-                                   {% if act.details.merchant is defined %} · {{ act.details.merchant }}{% endif %}
-                                 {% endif %}
-                             </div>
+                            <div style="font-size:12px; font-weight:600; color:var(--text-main);">{{
+                                act.action_type.replace('_', ' ') }}</div>
+                            <div style="font-size:11px; color:var(--text-muted);">
+                                {% if act.details %}
+                                {% if act.details.amount is defined %}{{ "%.2f" | format(act.details.amount | float) }}
+                                DT{% endif %}
+                                {% if act.details.merchant is defined %} · {{ act.details.merchant }}{% endif %}
+                                {% endif %}
+                            </div>
                         </div>
                         <div style="text-align:right;">
-                            <span style="font-size:10px; color:{{ '#f87171' if is_fail else '#34d399' }}; font-weight:700;">{{ 'ÉCHEC' if is_fail else 'OK' }}</span>
+                            <span
+                                style="font-size:10px; color:{{ '#f87171' if is_fail else '#34d399' }}; font-weight:700;">{{
+                                'ÉCHEC' if is_fail else 'OK' }}</span>
                             <div style="font-size:9px; color:var(--text-muted);">{{ act.timestamp[:10] }}</div>
                         </div>
                     </div>
                     {% endfor %}
                 </div>
                 {% else %}
-                <p style="text-align:center; padding:40px; color:var(--text-muted); font-size: 12px;">Aucune activité enregistrée.</p>
+                <p style="text-align:center; padding:40px; color:var(--text-muted); font-size: 12px;">Aucune activité
+                    enregistrée.</p>
                 {% endif %}
             </div>
         </div>
 
     </div>
-</div>
+    </div>
 
-<script>
-    // ─── Flash messages auto-dismiss ───
-    setTimeout(() => {
-        document.querySelectorAll('.alert').forEach(flash => {
-            flash.style.transition = 'opacity 0.5s ease';
-            flash.style.opacity = '0';
-            setTimeout(() => flash.remove(), 500);
-        });
-    }, 4000);
-
-    // ─── Tab switching ───
-    function showTab(event, tabId) {
-        document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
-        document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
-        document.getElementById(tabId).classList.add('active');
-        event.currentTarget.classList.add('active');
-    }
-
-    function openModal(id) { document.getElementById(id).classList.add('active'); }
-    function closeModal(id) { document.getElementById(id).classList.remove('active'); }
-    
-    // Close on click outside
-    window.onclick = function(event) {
-        if (event.target.classList.contains('modal-overlay')) {
-            event.target.classList.remove('active');
-        }
-    }
-
-    // ─── OTP Buttons Event Binding ───
-    function bindOTPButtons() {
-        document.querySelectorAll('.request-otp-btn').forEach(btn => {
-            // Avoid duplicate listeners if this is called multiple times
-            if (btn.getAttribute('data-bound')) return;
-            btn.setAttribute('data-bound', 'true');
-
-            btn.addEventListener('click', async (e) => {
-                e.preventDefault();
-                btn.disabled = true;
-                const originalText = btn.innerText;
-                btn.innerText = "...";
-                try {
-                    const res = await fetch("/request_auth_otp", { method: "POST" });
-                    const data = await res.json();
-                    alert(res.ok ? (data.message || "Code envoyé !") : (data.detail || "Erreur lors de l'envoi"));
-                } catch(err) {
-                    alert("Erreur réseau");
-                }
-                btn.innerText = originalText;
-                btn.disabled = false;
+    <script>
+        // ─── Flash messages auto-dismiss ───
+        setTimeout(() => {
+            document.querySelectorAll('.alert').forEach(flash => {
+                flash.style.transition = 'opacity 0.5s ease';
+                flash.style.opacity = '0';
+                setTimeout(() => flash.remove(), 500);
             });
-        });
-    }
+        }, 4000);
 
-    // Initialize
-    document.addEventListener('DOMContentLoaded', bindOTPButtons);
-    // Also call it immediately just in case
-    bindOTPButtons();
-</script>
+        // ─── Tab switching ───
+        function showTab(event, tabId) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+            document.getElementById(tabId).classList.add('active');
+            event.currentTarget.classList.add('active');
+        }
 
-<script src="{{ url_for('static', filename='chatbot.js') }}"></script>
-<script src="{{ url_for('static', filename='inactivity.js') }}"></script>
+        function openModal(id) { document.getElementById(id).classList.add('active'); }
+        function closeModal(id) { document.getElementById(id).classList.remove('active'); }
+
+        // Close on click outside
+        window.onclick = function (event) {
+            if (event.target.classList.contains('modal-overlay')) {
+                event.target.classList.remove('active');
+            }
+        }
+
+        // ─── OTP Buttons Event Binding ───
+        function bindOTPButtons() {
+            document.querySelectorAll('.request-otp-btn').forEach(btn => {
+                // Avoid duplicate listeners if this is called multiple times
+                if (btn.getAttribute('data-bound')) return;
+                btn.setAttribute('data-bound', 'true');
+
+                btn.addEventListener('click', async (e) => {
+                    e.preventDefault();
+                    btn.disabled = true;
+                    const originalText = btn.innerText;
+                    btn.innerText = "...";
+                    try {
+                        const res = await fetch("/request_auth_otp", { method: "POST" });
+                        const data = await res.json();
+                        alert(res.ok ? (data.message || "Code envoyé !") : (data.detail || "Erreur lors de l'envoi"));
+                    } catch (err) {
+                        alert("Erreur réseau");
+                    }
+                    btn.innerText = originalText;
+                    btn.disabled = false;
+                });
+            });
+        }
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', bindOTPButtons);
+        // Also call it immediately just in case
+        bindOTPButtons();
+    </script>
+
+    <script src="{{ url_for('static', filename='chatbot.js') }}"></script>
+    <script src="{{ url_for('static', filename='inactivity.js') }}"></script>
 </body>
+
 </html>
