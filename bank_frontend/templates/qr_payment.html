@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Paiement QR Code - API Bank</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
+    <style>
+        body { background-color: #0f172a; color: #f8fafc; font-family: 'Inter', sans-serif; margin: 0; padding: 0; }
+        nav { display: flex; justify-content: space-between; align-items: center; padding: 15px 30px; background: rgba(30, 41, 59, 0.8); backdrop-filter: blur(10px); border-bottom: 1px solid rgba(255, 255, 255, 0.05); }
+        .nav-links a { color: #cbd5e1; text-decoration: none; margin-left: 20px; font-size: 14px; font-weight: 500; transition: color 0.2s; }
+        .nav-links a:hover { color: #fff; }
+        .brand { font-size: 20px; font-weight: 800; color: #fff; }
+
+        .tab-btn {
+            flex: 1; padding: 14px 20px; border: none; cursor: pointer;
+            font-weight: 700; font-size: 15px; transition: all 0.2s;
+            background: transparent; color: #64748b;
+        }
+        .tab-btn.active {
+            color: #fff; border-bottom: 3px solid #6366f1;
+        }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+
+        /* QR code container */
+        #qrcode-receive { display: flex; justify-content: center; }
+        #qrcode-receive canvas, #qrcode-receive img {
+            border-radius: 16px;
+            padding: 16px;
+            background: white;
+            box-shadow: 0 0 40px rgba(99, 102, 241, 0.3);
+        }
+
+        /* Camera */
+        #camera-preview {
+            width: 100%; max-width: 380px; height: 280px;
+            object-fit: cover; border-radius: 16px;
+            border: 2px solid rgba(99,102,241,0.4);
+        }
+        #scan-canvas { display: none; }
+        .scan-overlay {
+            position: relative; display: inline-block;
+        }
+        .scan-corners::before, .scan-corners::after,
+        .scan-corners > span::before, .scan-corners > span::after {
+            content: ''; position: absolute; width: 24px; height: 24px;
+            border-color: #6366f1; border-style: solid;
+        }
+        .scan-corners::before { top: 8px; left: 8px; border-width: 3px 0 0 3px; border-radius: 4px 0 0 0; }
+        .scan-corners::after  { top: 8px; right: 8px; border-width: 3px 3px 0 0; border-radius: 0 4px 0 0; }
+        .scan-corners > span::before { bottom: 8px; left: 8px; border-width: 0 0 3px 3px; border-radius: 0 0 0 4px; }
+        .scan-corners > span::after  { bottom: 8px; right: 8px; border-width: 0 3px 3px 0; border-radius: 0 0 4px 0; }
+
+        /* Pulse animation for scanning */
+        @keyframes pulse-scan {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(99, 102, 241, 0.4); }
+            50% { box-shadow: 0 0 0 12px rgba(99, 102, 241, 0); }
+        }
+        #camera-preview.scanning { animation: pulse-scan 1.5s infinite; }
+
+        /* Amount input custom styling */
+        .amount-input {
+            background: rgba(15, 23, 42, 0.8);
+            border: 2px solid rgba(99, 102, 241, 0.3);
+            border-radius: 12px; padding: 12px 16px;
+            color: white; font-size: 1.5rem; font-weight: 700;
+            font-family: 'Courier New', monospace; width: 100%; text-align: center;
+            transition: border-color 0.2s;
+        }
+        .amount-input:focus { outline: none; border-color: #6366f1; }
+
+        /* Confirmation modal */
+        .modal-backdrop {
+            position: fixed; inset: 0; background: rgba(0,0,0,0.7);
+            display: none; align-items: center; justify-content: center;
+            z-index: 100; backdrop-filter: blur(4px);
+        }
+        .modal-backdrop.open { display: flex; }
+        .modal-box {
+            background: #1e293b; border: 1px solid rgba(99,102,241,0.3);
+            border-radius: 20px; padding: 32px; max-width: 440px; width: 90%;
+        }
+    </style>
+</head>
+<body>
+
+<nav>
+    <div style="display: flex; align-items: center; gap: 15px;">
+        <a href="javascript:history.back()" style="text-decoration: none; font-size: 22px; color: #64748b; margin-right: 5px; transition: color 0.2s;" onmouseover="this.style.color='#fff'" onmouseout="this.style.color='#64748b'" title="Retour">⬅</a>
+        <a href="/dashboard" class="brand" style="text-decoration: none;">API Bank</a>
+    </div>
+    <div class="nav-links">
+        <a href="/dashboard">Tableau de Bord</a>
+        <a href="/bills">💡 Factures</a>
+        <a href="/beneficiaries">Bénéficiaires</a>
+        <a href="/journal">Journal</a>
+        <a href="/support">📩 Support</a>
+        {% if is_admin %}<a href="/admin/dashboard" style="color: #fbbf24;">⚡ Admin</a>{% endif %}
+        <a href="/settings">Paramètres</a>
+        <a href="/logout" class="text-red-400">Déconnexion</a>
+    </div>
+</nav>
+
+<div class="max-w-3xl mx-auto px-4 py-10">
+
+    <!-- Header -->
+    <div class="text-center mb-8">
+        <div class="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-indigo-500/20 mb-4">
+            <svg class="w-9 h-9 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"/>
+            </svg>
+        </div>
+        <h1 class="text-3xl font-extrabold text-white tracking-tight">Paiement QR Code</h1>
+        <p class="text-slate-400 mt-2">Compte **** **** **** {{ account.account_number[-4:] }}</p>
+    </div>
+
+    <!-- Flash Messages -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+    <div class="mb-6 space-y-3">
+        {% for category, message in messages %}
+        <div class="px-4 py-3 rounded-xl flex items-center gap-3 {{ 'bg-emerald-500/10 border border-emerald-500/20 text-emerald-400' if category == 'success' else 'bg-red-500/10 border border-red-500/20 text-red-400' }}">
+            {{ message }}
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+    {% endwith %}
+
+    <!-- Tabs -->
+    <div class="bg-slate-800/50 border border-slate-700/50 rounded-2xl overflow-hidden shadow-2xl">
+        <div class="flex border-b border-slate-700/50">
+            <button class="tab-btn active" onclick="switchTab('receive', this)" id="tab-receive-btn">
+                📲 Recevoir un paiement
+            </button>
+            <button class="tab-btn" onclick="switchTab('send', this)" id="tab-send-btn">
+                📷 Payer par QR
+            </button>
+        </div>
+
+        <!-- ===================== TAB RECEIVE ===================== -->
+        <div id="tab-receive" class="tab-content active p-8">
+            <p class="text-slate-400 text-sm text-center mb-6">
+                Générez votre QR code personnel. Partagez-le pour recevoir un virement instantané.
+            </p>
+
+            <!-- Amount (optional) -->
+            <div class="mb-6">
+                <label class="block text-sm font-medium text-slate-300 mb-2 text-center">Montant à recevoir (optionnel)</label>
+                <input type="number" id="receive_amount" placeholder="0.00" step="0.01" min="0"
+                    class="amount-input"
+                    oninput="generateQR()">
+                <p class="text-xs text-slate-500 text-center mt-1">Laissez vide pour un montant libre</p>
+            </div>
+
+            <!-- Label (optional) -->
+            <div class="mb-8">
+                <label class="block text-sm font-medium text-slate-300 mb-2 text-center">Motif (optionnel)</label>
+                <input type="text" id="receive_label" placeholder="Ex: Remboursement restaurant" maxlength="50"
+                    class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white text-center placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    oninput="generateQR()">
+            </div>
+
+            <!-- QR Code Display -->
+            <div class="flex flex-col items-center gap-4">
+                <div id="qrcode-receive"></div>
+                <p class="text-sm text-slate-400 mt-2">📍 Compte : <span class="font-mono text-indigo-400">**** {{ account.account_number[-4:] }}</span></p>
+                <button onclick="downloadQR()" class="mt-2 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold px-6 py-2.5 rounded-xl transition-colors flex items-center gap-2 text-sm">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                    Télécharger le QR
+                </button>
+            </div>
+        </div>
+
+        <!-- ===================== TAB SEND / SCAN ===================== -->
+        <div id="tab-send" class="tab-content p-8">
+            <p class="text-slate-400 text-sm text-center mb-6">
+                Scannez le QR code du destinataire avec votre caméra, ou collez les données manuellement.
+            </p>
+
+            <!-- Camera section -->
+            <div class="flex flex-col items-center gap-4 mb-8">
+                <div class="scan-overlay">
+                    <div class="scan-corners"><span></span></div>
+                    <video id="camera-preview" autoplay muted playsinline></video>
+                    <canvas id="scan-canvas"></canvas>
+                </div>
+                <div class="flex gap-3">
+                    <button id="start-camera-btn" onclick="startCamera()"
+                        class="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold px-5 py-2.5 rounded-xl transition-colors text-sm flex items-center gap-2">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                        Activer la caméra
+                    </button>
+                    <button id="stop-camera-btn" onclick="stopCamera()" style="display:none"
+                        class="bg-slate-700 hover:bg-slate-600 text-white font-semibold px-5 py-2.5 rounded-xl transition-colors text-sm">
+                        Arrêter
+                    </button>
+                </div>
+                <p id="scan-status" class="text-xs text-slate-500">Caméra inactive</p>
+            </div>
+
+            <!-- Divider -->
+            <div class="flex items-center gap-4 mb-6">
+                <div class="flex-1 h-px bg-slate-700"></div>
+                <span class="text-slate-500 text-sm font-medium">ou saisie manuelle</span>
+                <div class="flex-1 h-px bg-slate-700"></div>
+            </div>
+
+            <!-- Manual QR data input -->
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-slate-300 mb-2">Compte destinataire</label>
+                    <input type="text" id="manual_account" placeholder="Numéro de compte (10 chiffres)"
+                        class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white font-mono placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-slate-300 mb-2">Montant (TND)</label>
+                        <input type="number" id="manual_amount" placeholder="0.00" step="0.01" min="0.01"
+                            class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white font-mono placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-300 mb-2">Motif</label>
+                        <input type="text" id="manual_label" placeholder="Paiement QR"
+                            class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                    </div>
+                </div>
+                <button onclick="openConfirmModal()"
+                    class="w-full bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white font-bold py-3.5 rounded-xl transition-all shadow-lg shadow-indigo-500/20 flex items-center justify-center gap-2 text-base">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                    Préparer le paiement
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Security note -->
+    <div class="mt-6 flex items-start gap-3 text-xs text-slate-500 bg-slate-800/30 border border-slate-700/30 rounded-xl p-4">
+        <span class="text-indigo-400 text-base flex-shrink-0">🔒</span>
+        <span>Tous les paiements QR sont sécurisés par votre PIN et un code OTP. Ne partagez votre QR avec un montant qu'avec des personnes de confiance.</span>
+    </div>
+</div>
+
+<!-- ===================== CONFIRMATION MODAL ===================== -->
+<div id="confirm-modal" class="modal-backdrop">
+    <div class="modal-box">
+        <h2 class="text-xl font-bold text-white mb-2">🔐 Confirmer le paiement QR</h2>
+        <p class="text-slate-400 text-sm mb-6">Vérifiez les informations avant de valider.</p>
+
+        <div class="bg-slate-900 rounded-xl p-4 mb-6 space-y-3 border border-slate-700">
+            <div class="flex justify-between">
+                <span class="text-slate-400 text-sm">De</span>
+                <span class="font-mono text-sm text-white">**** {{ account.account_number[-4:] }}</span>
+            </div>
+            <div class="flex justify-between">
+                <span class="text-slate-400 text-sm">Vers</span>
+                <span id="confirm-to" class="font-mono text-sm text-indigo-400">—</span>
+            </div>
+            <div class="flex justify-between">
+                <span class="text-slate-400 text-sm">Montant</span>
+                <span id="confirm-amount" class="font-bold text-lg text-emerald-400">0.00 TND</span>
+            </div>
+            <div class="flex justify-between">
+                <span class="text-slate-400 text-sm">Motif</span>
+                <span id="confirm-label" class="text-sm text-white">—</span>
+            </div>
+        </div>
+
+        <form action="/process_qr_payment" method="POST" id="qr-payment-form">
+            <input type="hidden" name="from_account" value="{{ account.account_number }}">
+            <input type="hidden" name="to_account" id="form-to-account">
+            <input type="hidden" name="amount" id="form-amount">
+            <input type="hidden" name="label" id="form-label">
+
+            <div class="space-y-3 mb-5">
+                <div>
+                    <label class="block text-sm font-medium text-slate-300 mb-1">Code PIN (4 chiffres)</label>
+                    <input type="password" name="pin" required pattern="\d{4}" maxlength="4"
+                        placeholder="••••"
+                        class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white text-center tracking-widest placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-slate-300 mb-1">Code OTP</label>
+                    <div class="flex gap-2">
+                        <input type="text" name="otp_code" required maxlength="6" placeholder="000000"
+                            class="flex-1 bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white text-center tracking-widest placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                        <button type="button" onclick="requestOTP(this)"
+                            class="bg-slate-700 hover:bg-slate-600 text-white px-4 py-2 rounded-xl text-sm transition-colors whitespace-nowrap">
+                            Demander OTP
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex gap-3">
+                <button type="button" onclick="closeConfirmModal()"
+                    class="flex-1 bg-slate-700 hover:bg-slate-600 text-white font-semibold py-3 rounded-xl transition-colors">
+                    Annuler
+                </button>
+                <button type="submit"
+                    class="flex-1 bg-gradient-to-r from-indigo-600 to-violet-600 hover:opacity-90 text-white font-bold py-3 rounded-xl transition-all">
+                    ✅ Payer
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    const ACCOUNT_NUMBER = "{{ account.account_number }}";
+    let qrInstance = null;
+    let cameraStream = null;
+    let scanInterval = null;
+
+    // ============================================================
+    // TAB SWITCHING
+    // ============================================================
+    function switchTab(tab, btn) {
+        document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+        document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+        document.getElementById('tab-' + tab).classList.add('active');
+        btn.classList.add('active');
+    }
+
+    // ============================================================
+    // QR CODE GENERATION (Receive tab)
+    // ============================================================
+    function generateQR() {
+        const amount = parseFloat(document.getElementById('receive_amount').value) || 0;
+        const label = document.getElementById('receive_label').value || 'Paiement API Bank';
+
+        const qrData = JSON.stringify({
+            v: 1,
+            account: ACCOUNT_NUMBER,
+            amount: amount > 0 ? amount : null,
+            label: label
+        });
+
+        const container = document.getElementById('qrcode-receive');
+        container.innerHTML = '';
+
+        qrInstance = new QRCode(container, {
+            text: qrData,
+            width: 220,
+            height: 220,
+            colorDark: '#1e1b4b',
+            colorLight: '#ffffff',
+            correctLevel: QRCode.CorrectLevel.H
+        });
+    }
+
+    function downloadQR() {
+        const canvas = document.querySelector('#qrcode-receive canvas');
+        if (!canvas) { alert('Génération en cours…'); return; }
+        const link = document.createElement('a');
+        link.download = `QR_APIBank_${ACCOUNT_NUMBER.slice(-4)}.png`;
+        link.href = canvas.toDataURL('image/png');
+        link.click();
+    }
+
+    // ============================================================
+    // CAMERA / QR SCAN (Send tab)
+    // ============================================================
+    async function startCamera() {
+        try {
+            cameraStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+            const video = document.getElementById('camera-preview');
+            video.srcObject = cameraStream;
+            video.classList.add('scanning');
+            document.getElementById('start-camera-btn').style.display = 'none';
+            document.getElementById('stop-camera-btn').style.display = 'inline-flex';
+            document.getElementById('scan-status').textContent = '🔍 Recherche d\'un QR code…';
+            scanInterval = setInterval(scanFrame, 400);
+        } catch (err) {
+            document.getElementById('scan-status').textContent = '❌ Accès caméra refusé. Utilisez la saisie manuelle.';
+        }
+    }
+
+    function stopCamera() {
+        if (cameraStream) { cameraStream.getTracks().forEach(t => t.stop()); cameraStream = null; }
+        clearInterval(scanInterval);
+        const video = document.getElementById('camera-preview');
+        video.srcObject = null;
+        video.classList.remove('scanning');
+        document.getElementById('start-camera-btn').style.display = 'inline-flex';
+        document.getElementById('stop-camera-btn').style.display = 'none';
+        document.getElementById('scan-status').textContent = 'Caméra inactive';
+    }
+
+    function scanFrame() {
+        const video = document.getElementById('camera-preview');
+        if (!video.readyState === video.HAVE_ENOUGH_DATA) return;
+        const canvas = document.getElementById('scan-canvas');
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const code = jsQR(imageData.data, canvas.width, canvas.height);
+        if (code) {
+            stopCamera();
+            try {
+                const data = JSON.parse(code.data);
+                if (data.v === 1 && data.account) {
+                    document.getElementById('manual_account').value = data.account;
+                    document.getElementById('manual_amount').value = data.amount || '';
+                    document.getElementById('manual_label').value = data.label || 'Paiement QR';
+                    document.getElementById('scan-status').textContent = '✅ QR scanné avec succès !';
+                    switchTab('send', document.getElementById('tab-send-btn'));
+                } else {
+                    alert('QR non reconnu. Format incompatible.');
+                }
+            } catch {
+                alert('QR invalide ou non-bancaire.');
+            }
+        }
+    }
+
+    // ============================================================
+    // CONFIRMATION MODAL
+    // ============================================================
+    function openConfirmModal() {
+        const toAccount = document.getElementById('manual_account').value.trim();
+        const amount = parseFloat(document.getElementById('manual_amount').value);
+        const label = document.getElementById('manual_label').value.trim() || 'Paiement QR';
+
+        if (!toAccount || toAccount.length < 8) { alert('Veuillez entrer un numéro de compte valide.'); return; }
+        if (!amount || amount <= 0) { alert('Veuillez entrer un montant valide.'); return; }
+
+        document.getElementById('confirm-to').textContent = '**** ' + toAccount.slice(-4);
+        document.getElementById('confirm-amount').textContent = amount.toFixed(2) + ' TND';
+        document.getElementById('confirm-label').textContent = label;
+
+        document.getElementById('form-to-account').value = toAccount;
+        document.getElementById('form-amount').value = amount;
+        document.getElementById('form-label').value = label;
+
+        document.getElementById('confirm-modal').classList.add('open');
+    }
+
+    function closeConfirmModal() {
+        document.getElementById('confirm-modal').classList.remove('open');
+    }
+
+    async function requestOTP(btn) {
+        btn.disabled = true; btn.textContent = '…';
+        try {
+            const res = await fetch('/request_auth_otp', { method: 'POST' });
+            const d = await res.json();
+            alert(res.ok ? (d.message || 'Code envoyé !') : (d.detail || 'Erreur'));
+        } catch { alert('Erreur réseau'); }
+        btn.textContent = 'Demander OTP'; btn.disabled = false;
+    }
+
+    // Close modal on backdrop click
+    document.getElementById('confirm-modal').addEventListener('click', function(e) {
+        if (e.target === this) closeConfirmModal();
+    });
+
+    // Auto-generate QR on load
+    window.addEventListener('load', generateQR);
+</script>
+
+<script src="{{ url_for('static', filename='chatbot.js') }}"></script>
+<script src="{{ url_for('static', filename='inactivity.js') }}"></script>
+</body>
+</html>

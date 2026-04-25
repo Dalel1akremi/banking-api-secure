@@ -1022,5 +1022,48 @@ def request_checkbook():
         
     return redirect(f"/account/{account_number}/services")
 
+
+# ==========================================
+# QR CODE PAYMENT
+# ==========================================
+
+@app.route("/account/<account_number>/qr-payment")
+def qr_payment(account_number):
+    if "token" not in session: return redirect("/")
+    acc_res = requests.get(f"{BASE_API_URL}/accounts/{account_number}", headers=get_headers())
+    if acc_res.status_code != 200:
+        return redirect("/dashboard")
+    account = acc_res.json()
+    return render_template("qr_payment.html", account=account)
+
+@app.route("/process_qr_payment", methods=["POST"])
+@limiter.limit("10 per minute")
+def process_qr_payment():
+    if "token" not in session: return redirect("/")
+    from_account = request.form.get("from_account")
+    to_account   = request.form.get("to_account")
+    amount       = float(request.form.get("amount", 0))
+    pin          = request.form.get("pin", "")
+    otp_code     = request.form.get("otp_code", "")
+
+    res = requests.post(f"{BASE_API_URL}/accounts/transfer", json={
+        "from_account": from_account,
+        "to_account":   to_account,
+        "amount":       amount,
+        "pin":          pin,
+        "otp_code":     otp_code
+    }, headers=get_headers())
+
+    if res.status_code == 200:
+        flash(f"Paiement QR de {amount:.2f} TND effectué avec succès !", "success")
+    else:
+        try:
+            detail = res.json().get("detail", "Erreur lors du paiement QR")
+        except:
+            detail = f"Erreur serveur ({res.status_code})"
+        flash(detail, "error")
+
+    return redirect(f"/account/{from_account}/qr-payment")
+
 if __name__ == "__main__":
     app.run(port=5000, debug=True)
