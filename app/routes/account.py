@@ -105,6 +105,20 @@ class BillPayment(BaseModel):
     pin: str = Field(..., pattern=r"^\d{4}$")
     otp_code: str
 
+class PhoneRecharge(BaseModel):
+    account_number: str = Field(..., pattern=r"^\d{10}$")
+    phone_number: str = Field(..., pattern=r"^\d{8}$")
+    operator: str = Field(..., pattern=r"^(Ooredoo|Orange|Tunisie Telecom)$")
+    amount: float = Field(..., gt=0, le=500)
+    pin: str = Field(..., pattern=r"^\d{4}$")
+    otp_code: str
+
+class CheckbookRequest(BaseModel):
+    account_number: str = Field(..., pattern=r"^\d{10}$")
+    type: str = Field(..., pattern=r"^(25|50)$")
+    pin: str = Field(..., pattern=r"^\d{4}$")
+    otp_code: str
+
 # ==============================
 # 🔐 PIN VERIFICATION HELPER
 # ==============================
@@ -1104,3 +1118,193 @@ def bill_payment(request: Request, data: BillPayment, user=Depends(verify_token)
         "amount": data.amount, "provider": data.provider, "category": data.category
     })
     return {"message": f"Facture {data.provider} payée avec succès."}
+
+# ==============================
+# 📈 ANALYTICS
+# ==============================
+
+@router.get("/analytics/{account_number}")
+def get_analytics(account_number: str, user=Depends(verify_token)):
+    acc = accounts_collection.find_one({
+        "account_number": account_number,
+        "owner_id": str(user["id"])
+    })
+    if not acc:
+        raise HTTPException(status_code=404, detail="Compte introuvable")
+
+    # Get all transactions for this account
+    transactions = list(transactions_collection.find(
+        {
+            "$or": [
+                {"account_number": account_number},
+                {"from_account": account_number},
+                {"to_account": account_number}
+            ]
+        }
+    ).sort("timestamp", 1)) # chronological order
+
+    # 1. Categories for Expenses (Pie Chart)
+    categories = {
+        "Retraits": 0.0,
+        "Paiements": 0.0,
+        "Factures": 0.0,
+        "Transferts": 0.0,
+        "Frais": 0.0,
+        "Recharges": 0.0
+    }
+
+    # 2. History (Bar Chart) - Last 6 months
+    # Format: {"YYYY-MM": {"income": 0.0, "expense": 0.0}}
+    history_data = {}
+    
+    # Initialize last 6 months to 0
+    now = datetime.utcnow()
+    for i in range(5, -1, -1):
+        month_date = now - relativedelta(months=i)
+        month_key = month_date.strftime("%Y-%m")
+        history_data[month_key] = {"income": 0.0, "expense": 0.0}
+
+    for tx in transactions:
+        tx_type = tx.get("type")
+        amount = tx.get("amount", 0.0)
+        ts = tx.get("timestamp")
+        
+        # Safe check for timestamp
+        if not ts: continue
+        month_key = ts.strftime("%Y-%m")
+
+        is_income = False
+        is_expense = False
+
+        if tx_type == "deposit":
+            is_income = True
+        elif tx_type == "withdraw":
+            is_expense = True
+            categories["Retraits"] += amount
+        elif tx_type == "payment":
+            is_expense = True
+            categories["Paiements"] += amount
+        elif tx_type == "bill_payment":
+            is_expense = True
+            categories["Factures"] += amount
+        elif tx_type == "service_fee":
+            is_expense = True
+            categories["Frais"] += amount
+        elif tx_type == "phone_recharge":
+            is_expense = True
+            categories["Recharges"] += amount
+        elif tx_type == "transfer":
+            if tx.get("to_account") == account_number:
+                is_income = True
+            elif tx.get("from_account") == account_number:
+                is_expense = True
+                categories["Transferts"] += amount
+
+        # Add to history if within the last 6 months
+        if month_key in history_data:
+            if is_income:
+                history_data[month_key]["income"] += amount
+            elif is_expense:
+                history_data[month_key]["expense"] += amount
+
+    # Format history for frontend
+    history_labels = list(history_data.keys())
+    history_income = [history_data[k]["income"] for k in history_labels]
+    history_expense = [history_data[k]["expense"] for k in history_labels]
+
+    return {
+        "categories": {
+            "labels": list(categories.keys()),
+            "data": list(categories.values())
+        },
+        "history": {
+            "labels": history_labels,
+            "income": history_income,
+            "expense": history_expense
+        }
+    }
+
+# ==============================
+# 📱 PHONE RECHARGE
+# ==============================
+
+@router.post("/phone-recharge")
+@limiter.limit("10/minute")
+def phone_recharge(request: Request, data: PhoneRecharge, user=Depends(verify_token)):
+    acc = verify_pin(data.account_number, str(user["id"]), data.pin)
+    verify_auth_otp(user["sub"], data.otp_code)
+
+    if acc["balance"] < data.amount:
+        raise HTTPException(status_code=400, detail="Solde insuffisant")
+
+    result = accounts_collection.update_one(
+        {"account_number": data.account_number, "owner_id": str(user["id"]), "balance": {"$gte": data.amount}},
+        {"$inc": {"balance": -data.amount}}
+    )
+    if result.matched_count == 0:
+        raise HTTPException(status_code=400, detail="Solde insuffisant ou compte introuvable")
+
+    save_transaction({
+        "type": "phone_recharge",
+        "account_number": data.account_number,
+        "phone_number": data.phone_number,
+        "operator": data.operator,
+        "amount": data.amount,
+        "owner_id": str(user["id"])
+    })
+    
+    log_activity(str(user["id"]), data.account_number, "PHONE_RECHARGE", "SUCCESS", {
+        "amount": data.amount, "phone": data.phone_number, "operator": data.operator
+    })
+    
+    return {"message": f"Recharge de {data.amount} DT vers {data.phone_number} effectuée avec succès."}
+
+# ==============================
+# 📓 CHECKBOOK REQUEST
+# ==============================
+
+@router.post("/checkbook-request")
+@limiter.limit("3/minute")
+def checkbook_request(request: Request, data: CheckbookRequest, user=Depends(verify_token)):
+    acc = verify_pin(data.account_number, str(user["id"]), data.pin)
+    verify_auth_otp(user["sub"], data.otp_code)
+
+    # Coût éventuel du chéquier
+    fee = 5.0 if data.type == "50" else 2.5
+    
+    # Prélèvement des frais (optionnel mais réaliste)
+    if acc["balance"] < fee:
+        raise HTTPException(status_code=400, detail=f"Solde insuffisant pour les frais d'émission ({fee} DT)")
+
+    result = accounts_collection.update_one(
+        {"account_number": data.account_number, "owner_id": str(user["id"]), "balance": {"$gte": fee}},
+        {"$inc": {"balance": -fee}}
+    )
+    
+    if result.matched_count == 0:
+         raise HTTPException(status_code=400, detail="Solde insuffisant")
+         
+    save_transaction({
+        "type": "service_fee",
+        "description": f"Frais chéquier {data.type} pages",
+        "account_number": data.account_number,
+        "amount": fee,
+        "owner_id": str(user["id"])
+    })
+
+    # Save request in db.checkbook_requests (assuming app.db exposes client.bank_db)
+    from app.db import client
+    db = client.get_database("bank_db") if hasattr(client, "get_database") else client.bank_db
+    db.checkbook_requests.insert_one({
+        "account_number": data.account_number,
+        "owner_id": str(user["id"]),
+        "type": data.type,
+        "status": "pending",
+        "timestamp": datetime.utcnow()
+    })
+
+    log_activity(str(user["id"]), data.account_number, "CHECKBOOK_REQUEST", "SUCCESS", {
+        "type": data.type, "fee": fee
+    })
+    
+    return {"message": f"Demande de chéquier ({data.type} pages) enregistrée. Frais : {fee} DT."}

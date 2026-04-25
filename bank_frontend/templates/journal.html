@@ -84,10 +84,11 @@
 
 <nav>
     <div style="display: flex; align-items: center; gap: 15px;">
+        <a href="javascript:history.back()" style="text-decoration: none; font-size: 22px; color: var(--text-muted); margin-right: 5px; transition: color 0.2s;" onmouseover="this.style.color='#fff'" onmouseout="this.style.color='var(--text-muted)'" title="Retour">⬅</a>
         <a href="/dashboard" class="brand" style="text-decoration: none;">API Bank</a>
     </div>
     <div class="nav-links">
-        <a href="/dashboard">Dashboard</a>
+        <a href="/dashboard">Tableau de Bord</a>
         <a href="/bills">💡 Factures</a>
         <a href="/beneficiaries">Bénéficiaires</a>
         <a href="/journal">Journal</a>
@@ -174,7 +175,7 @@
         {% if activities %}
             {% for act in activities %}
             {% set is_fail = act.status == 'FAILURE' %}
-            <div class="log-row" data-type="{{ act.action_type }}" data-status="{{ act.status }}">
+            <div class="log-row" data-type="{{ act.action_type | action_fr }}" data-status="{{ act.status | status_fr }}">
                 <div class="log-icon {{ 'failure' if is_fail else 'success' }}">
                     {% if act.action_type == 'DEPOSIT' %}&#128176;
                     {% elif act.action_type == 'WITHDRAW' %}&#128184;

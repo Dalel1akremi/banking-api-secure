@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simulation de Crédit - API Bank</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { background-color: #0f172a; color: #f8fafc; font-family: 'Inter', sans-serif; margin: 0; padding: 0; }
+        nav { display: flex; justify-content: space-between; align-items: center; padding: 15px 30px; background: rgba(30, 41, 59, 0.8); backdrop-filter: blur(10px); border-bottom: 1px solid rgba(255, 255, 255, 0.05); }
+        .nav-links a { color: #cbd5e1; text-decoration: none; margin-left: 20px; font-size: 14px; font-weight: 500; transition: color 0.2s; }
+        .nav-links a:hover { color: #fff; }
+        .brand { font-size: 20px; font-weight: 800; color: #fff; }
+    </style>
+</head>
+<body>
+
+<nav>
+    <div style="display: flex; align-items: center; gap: 15px;">
+        <a href="javascript:history.back()" style="text-decoration: none; font-size: 22px; color: var(--text-muted); margin-right: 5px; transition: color 0.2s;" onmouseover="this.style.color='#fff'" onmouseout="this.style.color='var(--text-muted)'" title="Retour">⬅</a>
+        <a href="/dashboard" class="brand" style="text-decoration: none;">API Bank</a>
+    </div>
+    <div class="nav-links">
+        <a href="/dashboard">Tableau de Bord</a>
+        <a href="/credit_simulation">🧮 Simulation</a>
+        <a href="/bills">💡 Factures</a>
+        <a href="/beneficiaries">Bénéficiaires</a>
+        <a href="/journal">Journal</a>
+        <a href="/support">📩 Support</a>
+        {% if is_admin %}
+        <a href="/admin/dashboard" style="color: #fbbf24;">⚡ Admin</a>
+        {% endif %}
+        <a href="/settings">Paramètres</a>
+        <a href="/logout" class="text-red-400">Déconnexion</a>
+    </div>
+</nav>
+
+<div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    
+    <div class="text-center mb-10">
+        <h1 class="text-3xl font-extrabold text-white tracking-tight">Simulation de Crédit</h1>
+        <p class="text-slate-400 mt-3 max-w-2xl mx-auto">Planifiez vos projets avec notre simulateur. Calculez instantanément vos mensualités et le coût total de votre prêt.</p>
+    </div>
+
+    <div class="bg-slate-800/50 border border-slate-700/50 rounded-2xl p-8 shadow-2xl backdrop-blur-sm relative overflow-hidden">
+        <div class="absolute top-0 right-0 w-64 h-64 bg-indigo-500/10 rounded-full blur-3xl -mr-20 -mt-20"></div>
+        <div class="absolute bottom-0 left-0 w-64 h-64 bg-blue-500/10 rounded-full blur-3xl -ml-20 -mb-20"></div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-12 relative z-10">
+            <div>
+                <h2 class="text-xl font-bold text-white mb-6 border-b border-slate-700 pb-3">Paramètres du prêt</h2>
+                
+                <div class="space-y-6">
+                    <div>
+                        <label class="block text-sm font-medium text-slate-300 mb-2">Montant emprunté (TND)</label>
+                        <input type="number" id="sim_amount" value="10000" min="1000" step="500" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all font-mono text-lg">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-slate-300 mb-2">Taux d'intérêt annuel (%)</label>
+                        <input type="number" id="sim_rate" value="5.5" min="0.1" step="0.1" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all font-mono text-lg">
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-slate-300 mb-2">Durée (Mois)</label>
+                        <input type="number" id="sim_duration" value="36" min="6" max="360" step="1" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all font-mono text-lg">
+                        <div class="mt-2 text-xs text-slate-400 flex justify-between">
+                            <span>Ex: 12 = 1 an</span>
+                            <span>36 = 3 ans</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-slate-900/80 rounded-xl p-6 border border-slate-700 flex flex-col justify-center text-center">
+                <h3 class="text-lg font-medium text-slate-400 mb-2">Votre Mensualité Estimée</h3>
+                <div class="text-5xl font-extrabold text-indigo-400 tracking-tight mb-8 font-mono" id="sim_mensualite">
+                    0.00 <span class="text-xl text-slate-500">TND</span>
+                </div>
+
+                <div class="space-y-4 border-t border-slate-800 pt-6">
+                    <div class="flex justify-between items-center">
+                        <span class="text-slate-400">Total des intérêts</span>
+                        <span class="text-white font-mono" id="sim_total_interets">0.00 TND</span>
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <span class="text-slate-400">Coût Total du Crédit</span>
+                        <span class="text-emerald-400 font-bold font-mono" id="sim_cout_total">0.00 TND</span>
+                    </div>
+                </div>
+                
+                <div class="mt-8 text-xs text-slate-500 text-left bg-slate-800/50 p-3 rounded-lg border border-slate-700/50">
+                    <svg class="w-4 h-4 inline-block mr-1 text-yellow-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                    Cette simulation est donnée à titre indicatif et ne constitue pas une offre de prêt contractuelle.
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const amountInput = document.getElementById('sim_amount');
+        const rateInput = document.getElementById('sim_rate');
+        const durationInput = document.getElementById('sim_duration');
+        
+        const resMensualite = document.getElementById('sim_mensualite');
+        const resInterets = document.getElementById('sim_total_interets');
+        const resTotal = document.getElementById('sim_cout_total');
+
+        function calculate() {
+            let P = parseFloat(amountInput.value);
+            let r = parseFloat(rateInput.value) / 100 / 12;
+            let n = parseInt(durationInput.value);
+
+            if (isNaN(P) || P <= 0 || isNaN(r) || isNaN(n) || n <= 0) {
+                resMensualite.innerHTML = `0.00 <span class="text-xl text-slate-500">TND</span>`;
+                resInterets.textContent = '0.00 TND';
+                resTotal.textContent = '0.00 TND';
+                return;
+            }
+
+            let M = 0;
+            if (r > 0) {
+                M = P * (r * Math.pow(1 + r, n)) / (Math.pow(1 + r, n) - 1);
+            } else {
+                M = P / n;
+            }
+
+            let totalPaid = M * n;
+            let totalInterest = totalPaid - P;
+
+            resMensualite.innerHTML = `${M.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})} <span class="text-xl text-slate-500">TND</span>`;
+            resInterets.textContent = `${totalInterest.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})} TND`;
+            resTotal.textContent = `${totalPaid.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})} TND`;
+        }
+
+        amountInput.addEventListener('input', calculate);
+        rateInput.addEventListener('input', calculate);
+        durationInput.addEventListener('input', calculate);
+        calculate();
+    });
+</script>
+
+<script src="{{ url_for('static', filename='chatbot.js') }}"></script>
+<script src="{{ url_for('static', filename='inactivity.js') }}"></script>
+</body>
+</html>

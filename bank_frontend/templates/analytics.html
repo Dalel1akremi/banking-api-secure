@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Analyse des Finances - API Bank</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { background-color: #0f172a; color: #f8fafc; font-family: 'Inter', sans-serif; margin: 0; padding: 0; }
+        nav { display: flex; justify-content: space-between; align-items: center; padding: 15px 30px; background: rgba(30, 41, 59, 0.8); backdrop-filter: blur(10px); border-bottom: 1px solid rgba(255, 255, 255, 0.05); }
+        .nav-links a { color: #cbd5e1; text-decoration: none; margin-left: 20px; font-size: 14px; font-weight: 500; transition: color 0.2s; }
+        .nav-links a:hover { color: #fff; }
+        .brand { font-size: 20px; font-weight: 800; color: #fff; }
+    </style>
+</head>
+<body>
+
+<nav>
+    <div style="display: flex; align-items: center; gap: 15px;">
+        <a href="javascript:history.back()" style="text-decoration: none; font-size: 22px; color: var(--text-muted); margin-right: 5px; transition: color 0.2s;" onmouseover="this.style.color='#fff'" onmouseout="this.style.color='var(--text-muted)'" title="Retour">⬅</a>
+        <a href="/dashboard" class="brand" style="text-decoration: none;">API Bank</a>
+    </div>
+    <div class="nav-links">
+        <a href="/dashboard">Tableau de Bord</a>
+        <a href="/credit_simulation">🧮 Simulation</a>
+        <a href="/bills">💡 Factures</a>
+        <a href="/beneficiaries">Bénéficiaires</a>
+        <a href="/journal">Journal</a>
+        <a href="/support">📩 Support</a>
+        {% if is_admin %}
+        <a href="/admin/dashboard" style="color: #fbbf24;">⚡ Admin</a>
+        {% endif %}
+        <a href="/settings">Paramètres</a>
+        <a href="/logout" class="text-red-400">Déconnexion</a>
+    </div>
+</nav>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    
+    <div class="flex items-center justify-between mb-8">
+        <div>
+            <h1 class="text-3xl font-extrabold text-white tracking-tight">Analyse de vos Finances</h1>
+            <p class="text-slate-400 mt-2">Compte **** **** **** {{ account.account_number[-4:] }}</p>
+        </div>
+        <a href="/account/{{ account.account_number }}" class="bg-slate-700/50 hover:bg-slate-700 text-white px-4 py-2 rounded-xl text-sm font-medium transition-colors border border-slate-600/50 flex items-center gap-2">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
+            Retour au compte
+        </a>
+    </div>
+
+    <!-- Chart.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        
+        <!-- Dépenses par Catégorie -->
+        <div class="bg-slate-800/50 border border-slate-700/50 rounded-2xl p-6 shadow-xl backdrop-blur-sm relative overflow-hidden">
+            <div class="absolute top-0 right-0 w-32 h-32 bg-indigo-500/10 rounded-full blur-3xl -mr-10 -mt-10"></div>
+            <h2 class="text-xl font-bold text-white mb-6 flex items-center gap-2">
+                <svg class="w-5 h-5 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z"></path></svg>
+                Répartition des dépenses
+            </h2>
+            <div class="relative h-80 flex justify-center items-center">
+                <canvas id="categoryChart"></canvas>
+            </div>
+            <p class="text-center text-sm text-slate-400 mt-4">Toutes vos dépenses catégorisées.</p>
+        </div>
+
+        <!-- Historique Revenus / Dépenses -->
+        <div class="bg-slate-800/50 border border-slate-700/50 rounded-2xl p-6 shadow-xl backdrop-blur-sm relative overflow-hidden">
+             <div class="absolute top-0 right-0 w-32 h-32 bg-emerald-500/10 rounded-full blur-3xl -mr-10 -mt-10"></div>
+            <h2 class="text-xl font-bold text-white mb-6 flex items-center gap-2">
+                <svg class="w-5 h-5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z"></path></svg>
+                Évolution (6 derniers mois)
+            </h2>
+            <div class="relative h-80">
+                <canvas id="historyChart"></canvas>
+            </div>
+            <p class="text-center text-sm text-slate-400 mt-4">Comparatif mensuel de vos entrées et sorties.</p>
+        </div>
+
+    </div>
+
+</div>
+
+<script id="analytics-data" type="application/json">
+    {{ analytics | tojson | safe }}
+</script>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const analyticsData = JSON.parse(document.getElementById('analytics-data').textContent);
+        
+        Chart.defaults.color = '#94a3b8'; 
+        Chart.defaults.font.family = "'Inter', sans-serif";
+        
+        const ctxCategory = document.getElementById('categoryChart').getContext('2d');
+        const catLabels = analyticsData.categories.labels;
+        const catData = analyticsData.categories.data;
+        
+        const filteredLabels = [];
+        const filteredData = [];
+        const backgroundColors = ['#ef4444', '#14b8a6', '#8b5cf6', '#f59e0b', '#64748b', '#ec4899'];
+        const filteredColors = [];
+
+        for(let i=0; i<catData.length; i++) {
+            if (catData[i] > 0) {
+                filteredLabels.push(catLabels[i]);
+                filteredData.push(catData[i]);
+                filteredColors.push(backgroundColors[i % backgroundColors.length]);
+            }
+        }
+
+        if (filteredData.length === 0) {
+            filteredLabels.push("Aucune dépense");
+            filteredData.push(1);
+            filteredColors.push('#334155');
+        }
+
+        new Chart(ctxCategory, {
+            type: 'doughnut',
+            data: {
+                labels: filteredLabels,
+                datasets: [{
+                    data: filteredData,
+                    backgroundColor: filteredColors,
+                    borderWidth: 2,
+                    borderColor: '#1e293b',
+                    hoverOffset: 4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { position: 'bottom', labels: { padding: 20, usePointStyle: true } },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                let label = context.label || '';
+                                if (label !== "Aucune dépense") {
+                                    let value = context.parsed || 0;
+                                    return label + ': ' + value.toLocaleString() + ' TND';
+                                }
+                                return label;
+                            }
+                        }
+                    }
+                },
+                cutout: '70%'
+            }
+        });
+
+        const ctxHistory = document.getElementById('historyChart').getContext('2d');
+        
+        // Création de gradients pour un effet visuel premium
+        const gradientIncome = ctxHistory.createLinearGradient(0, 0, 0, 300);
+        gradientIncome.addColorStop(0, 'rgba(16, 185, 129, 0.4)');
+        gradientIncome.addColorStop(1, 'rgba(16, 185, 129, 0.0)');
+        
+        const gradientExpense = ctxHistory.createLinearGradient(0, 0, 0, 300);
+        gradientExpense.addColorStop(0, 'rgba(239, 68, 68, 0.4)');
+        gradientExpense.addColorStop(1, 'rgba(239, 68, 68, 0.0)');
+
+        new Chart(ctxHistory, {
+            type: 'line',
+            data: {
+                labels: analyticsData.history.labels,
+                datasets: [
+                    { 
+                        label: 'Revenus', 
+                        data: analyticsData.history.income, 
+                        borderColor: '#10b981', 
+                        backgroundColor: gradientIncome,
+                        borderWidth: 3,
+                        pointBackgroundColor: '#0f172a',
+                        pointBorderColor: '#10b981',
+                        pointBorderWidth: 2,
+                        pointRadius: 4,
+                        pointHoverRadius: 6,
+                        tension: 0.4,
+                        fill: true
+                    },
+                    { 
+                        label: 'Dépenses', 
+                        data: analyticsData.history.expense, 
+                        borderColor: '#ef4444', 
+                        backgroundColor: gradientExpense,
+                        borderWidth: 3,
+                        pointBackgroundColor: '#0f172a',
+                        pointBorderColor: '#ef4444',
+                        pointBorderWidth: 2,
+                        pointRadius: 4,
+                        pointHoverRadius: 6,
+                        tension: 0.4,
+                        fill: true
+                    }
+                ]
+            },
+            options: {
+                responsive: true, 
+                maintainAspectRatio: false,
+                interaction: {
+                    mode: 'index',
+                    intersect: false,
+                },
+                plugins: {
+                    legend: { 
+                        position: 'top',
+                        labels: {
+                            usePointStyle: true,
+                            padding: 20,
+                            font: { family: "'Inter', sans-serif", size: 13 }
+                        }
+                    },
+                    tooltip: {
+                        backgroundColor: 'rgba(15, 23, 42, 0.9)',
+                        titleColor: '#f8fafc',
+                        bodyColor: '#cbd5e1',
+                        borderColor: 'rgba(255,255,255,0.1)',
+                        borderWidth: 1,
+                        padding: 12,
+                        callbacks: {
+                            label: function(context) {
+                                let value = context.parsed.y || 0;
+                                return ' ' + context.dataset.label + ': ' + value.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) + ' TND';
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    y: { 
+                        beginAtZero: true, 
+                        grid: { color: 'rgba(255, 255, 255, 0.05)', drawBorder: false }, 
+                        ticks: { 
+                            font: { family: "'Inter', sans-serif" },
+                            callback: function(value) { return value + ' TND'; } 
+                        } 
+                    },
+                    x: { 
+                        grid: { display: false, drawBorder: false },
+                        ticks: { font: { family: "'Inter', sans-serif" } }
+                    }
+                }
+            }
+        });
+    });
+</script>
+
+<script src="{{ url_for('static', filename='chatbot.js') }}"></script>
+<script src="{{ url_for('static', filename='inactivity.js') }}"></script>
+</body>
+</html>

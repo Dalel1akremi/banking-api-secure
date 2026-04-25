@@ -1,10 +1,58 @@
-from flask import Flask, render_template, request, redirect, session, flash, Response
+from flask import Flask, render_template, request, redirect, session, flash, Response, send_file, url_for
 import requests
+from fpdf import FPDF
+from io import BytesIO
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 
 app = Flask(__name__)
 app.secret_key = "secretkey"
+
+@app.template_filter('tx_type_fr')
+def translate_tx_type(tx_type):
+    return {
+        'deposit': 'Depot',
+        'withdraw': 'Retrait',
+        'transfer': 'Virement',
+        'payment': 'Paiement',
+        'bill_payment': 'Facture',
+        'phone_recharge': 'Recharge',
+        'service_fee': 'Frais',
+        'checkbook_request': 'Chequier'
+    }.get(tx_type, str(tx_type).replace('_', ' ').title())
+
+@app.template_filter('status_fr')
+def translate_status(status):
+    mapping = {
+        'SUCCESS': 'Succes',
+        'FAILED': 'Echec',
+        'PENDING': 'En attente',
+        'UNREAD': 'Non lu',
+        'READ': 'Lu',
+        'RESOLVED': 'Resolu',
+        'LOCKED': 'Verrouille',
+        'ACTIVE': 'Actif'
+    }
+    return mapping.get(str(status).upper(), str(status).title())
+
+@app.template_filter('action_fr')
+def translate_action(action):
+    mapping = {
+        'LOGIN': 'Connexion',
+        'LOGOUT': 'Deconnexion',
+        'TRANSACTION': 'Transaction',
+        'ACCOUNT_DELETION': 'Suppression de compte',
+        'CARD_STATUS_CHANGE': 'Changement statut carte',
+        'ACCOUNT_LOCKED': 'Verrouillage de compte',
+        'TRANSFER': 'Virement',
+        'DEPOSIT': 'Depot',
+        'WITHDRAWAL': 'Retrait',
+        'PAYMENT': 'Paiement',
+        'BILL_PAYMENT': 'Paiement facture',
+        'PHONE_RECHARGE': 'Recharge telephonique',
+        'CHECKBOOK_REQUEST': 'Demande chequier'
+    }
+    return mapping.get(str(action).upper(), str(action).replace('_', ' ').title())
 
 limiter = Limiter(
     get_remote_address,
@@ -359,24 +407,61 @@ def settings():
     if request.method == "POST":
         current_password = request.form.get("current_password")
         otp_code = request.form.get("otp_code")
+        
         new_username = request.form.get("new_username")
         new_lastname = request.form.get("new_lastname")
         new_password = request.form.get("new_password")
+        new_email = request.form.get("new_email")
+        new_phone = request.form.get("new_phone")
         
-        payload = {
+        # 1. Update Security (Profile & Password)
+        payload_security = {
             "current_password": current_password,
             "otp_code": otp_code
         }
-        if new_username: payload["new_username"] = new_username
-        if new_lastname: payload["new_lastname"] = new_lastname
-        if new_password: payload["new_password"] = new_password
+        has_security_update = False
+        if new_username:
+            payload_security["new_username"] = new_username
+            has_security_update = True
+        if new_lastname:
+            payload_security["new_lastname"] = new_lastname
+            has_security_update = True
+        if new_password:
+            payload_security["new_password"] = new_password
+            has_security_update = True
         
-        res = requests.put(f"{BASE_API_URL}/users/me/security", json=payload, headers=get_headers())
-        if res.status_code == 200:
+        # 2. Update Contact (Email & Phone)
+        payload_contact = {
+            "current_password": current_password,
+            "otp_code": otp_code
+        }
+        has_contact_update = False
+        if new_email:
+            payload_contact["new_email"] = new_email
+            has_contact_update = True
+        if new_phone:
+            payload_contact["new_phone"] = new_phone
+            has_contact_update = True
+
+        success_msgs = []
+        err_msgs = []
+        
+        if has_security_update:
+            res_sec = requests.put(f"{BASE_API_URL}/users/me/security", json=payload_security, headers=get_headers())
+            if res_sec.status_code == 200: success_msgs.append("Profil mis à jour.")
+            else: err_msgs.append(res_sec.json().get("detail", "Erreur Profil"))
+                
+        if has_contact_update:
+            res_con = requests.put(f"{BASE_API_URL}/users/me/contact", json=payload_contact, headers=get_headers())
+            if res_con.status_code == 200: success_msgs.append("Contacts mis à jour.")
+            else: err_msgs.append(res_con.json().get("detail", "Erreur Contacts"))
+
+        if not has_security_update and not has_contact_update:
+            flash("Aucune modification demandée.", "info")
+        elif len(err_msgs) == 0:
             flash("Paramètres mis à jour avec succès !", "success")
         else:
-            detail = res.json().get("detail", "Erreur lors de la mise à jour")
-            flash(detail if isinstance(detail, str) else str(detail), "error")
+            flash(" / ".join(err_msgs), "error")
             
     # GET user details
     res = requests.get(f"{BASE_API_URL}/users/me", headers=get_headers())
@@ -456,38 +541,113 @@ def account_rib(account_number):
 @app.route("/account/<account_number>/rib/pdf")
 def download_rib_pdf(account_number):
     if "token" not in session: return redirect("/")
-    res = requests.get(f"{BASE_API_URL}/accounts/{account_number}/rib/pdf", headers=get_headers(), stream=True)
+    
+    res = requests.get(f"{BASE_API_URL}/accounts/{account_number}/rib", headers=get_headers())
     if res.status_code != 200:
-        flash("Erreur lors de la génération du RIB PDF.", "error")
+        flash("Erreur lors de la récupération des données du RIB.", "error")
         return redirect(f"/account/{account_number}/rib")
-    return Response(
-        res.content,
-        mimetype="application/pdf",
-        headers={"Content-Disposition": f'attachment; filename="RIB_{account_number}.pdf"'}
+        
+    rib = res.json()
+    
+    pdf = FPDF()
+    pdf.add_page()
+    
+    pdf.set_font("helvetica", size=18, style='B')
+    pdf.cell(0, 15, text="Relevé d'Identité Bancaire (RIB)", align='C', new_x="LMARGIN", new_y="NEXT")
+    pdf.ln(10)
+    
+    pdf.set_font("helvetica", size=12)
+    pdf.cell(0, 10, text=f"Titulaire : {rib.get('owner_name', 'N/A')}", new_x="LMARGIN", new_y="NEXT")
+    pdf.cell(0, 10, text=f"Banque : {rib.get('bank_name', 'API Bank')}", new_x="LMARGIN", new_y="NEXT")
+    pdf.cell(0, 10, text=f"Code Banque : {rib.get('bank_code', 'N/A')}", new_x="LMARGIN", new_y="NEXT")
+    pdf.cell(0, 10, text=f"Code Agence : {rib.get('branch_code', 'N/A')}", new_x="LMARGIN", new_y="NEXT")
+    pdf.cell(0, 10, text=f"Numéro de Compte : {rib.get('account_number', 'N/A')}", new_x="LMARGIN", new_y="NEXT")
+    pdf.cell(0, 10, text=f"Clé RIB : {rib.get('rib_key', 'N/A')}", new_x="LMARGIN", new_y="NEXT")
+    pdf.cell(0, 10, text=f"RIB Complet : {rib.get('rib', 'N/A')}", new_x="LMARGIN", new_y="NEXT")
+    
+    pdf.ln(5)
+    pdf.set_font("helvetica", size=14, style='B')
+    pdf.cell(0, 10, text=f"IBAN : {rib.get('iban', 'N/A')}", new_x="LMARGIN", new_y="NEXT")
+    
+    pdf.ln(20)
+    pdf.set_font("helvetica", size=10, style='I')
+    pdf.cell(0, 10, text="Ce document est généré électroniquement.", align='C', new_x="LMARGIN", new_y="NEXT")
+    
+    pdf_bytes = pdf.output()
+    
+    return send_file(
+        BytesIO(pdf_bytes),
+        mimetype='application/pdf',
+        as_attachment=True,
+        download_name=f"RIB_{account_number}.pdf"
     )
 
 # ==========================================
 # RECEIPT PDF
 # ==========================================
 
-@app.route("/account/<account_number>/receipt/<int:tx_index>")
-def download_receipt(account_number, tx_index):
+@app.route("/account/<account_number>/receipt/<int:index>")
+def download_receipt(account_number, index):
     if "token" not in session: return redirect("/")
-    # Appel de l'endpoint PDF du backend FastAPI
-    res = requests.get(
-        f"{BASE_API_URL}/accounts/receipt/{account_number}/{tx_index}", 
-        headers=get_headers(),
-        stream=True
-    )
     
-    if res.status_code != 200:
-        print(f"BACKEND ERROR: {res.status_code} - {res.text}") # Debug log
-        flash(f"Impossible de générer ce reçu (Erreur {res.status_code}).", "error")
+    headers = get_headers()
+    
+    # Check access to account
+    acc_res = requests.get(f"{BASE_API_URL}/accounts/{account_number}", headers=headers)
+    if acc_res.status_code != 200:
+        flash("Accès non autorisé", "error")
+        return redirect("/dashboard")
+
+    tx_res = requests.get(f"{BASE_API_URL}/accounts/transactions/{account_number}", headers=headers)
+    if tx_res.status_code != 200:
+        flash("Impossible de récupérer les transactions", "error")
         return redirect(f"/account/{account_number}")
-    return Response(
-        res.content,
-        mimetype="application/pdf",
-        headers={"Content-Disposition": f'attachment; filename="Recu_{account_number}_{tx_index}.pdf"'}
+        
+    transactions = tx_res.json().get("transactions", [])
+    if index < 0 or index >= len(transactions):
+        flash("Transaction introuvable", "error")
+        return redirect(f"/account/{account_number}")
+        
+    tx = transactions[index]
+    
+    pdf = FPDF()
+    pdf.add_page()
+    pdf.set_font("helvetica", size=16, style='B')
+    pdf.cell(0, 15, text="Reçu de Transaction - API Bank", align='C', new_x="LMARGIN", new_y="NEXT")
+    pdf.ln(10)
+    
+    pdf.set_font("helvetica", size=12)
+    pdf.cell(0, 10, text=f"Compte : **** **** **** {account_number[-4:]}", new_x="LMARGIN", new_y="NEXT")
+    pdf.cell(0, 10, text=f"Date : {tx.get('timestamp', 'N/A')[:19]}", new_x="LMARGIN", new_y="NEXT")
+    pdf.cell(0, 10, text=f"Type d'operation : {tx.get('type', 'N/A').replace('_', ' ').upper()}", new_x="LMARGIN", new_y="NEXT")
+    
+    amount = float(tx.get('amount', 0))
+    pdf.cell(0, 10, text=f"Montant : {amount:.2f} TND", new_x="LMARGIN", new_y="NEXT")
+    
+    if tx.get('type') == 'transfer':
+        if tx.get('from_account') == account_number:
+            pdf.cell(0, 10, text=f"Envoye a : {tx.get('to_account', 'N/A')}", new_x="LMARGIN", new_y="NEXT")
+        else:
+            pdf.cell(0, 10, text=f"Recu de : {tx.get('from_account', 'N/A')}", new_x="LMARGIN", new_y="NEXT")
+    elif tx.get('merchant'):
+        pdf.cell(0, 10, text=f"Commercant : {tx.get('merchant', 'N/A')}", new_x="LMARGIN", new_y="NEXT")
+    elif tx.get('provider'):
+        pdf.cell(0, 10, text=f"Fournisseur : {tx.get('provider', 'N/A')}", new_x="LMARGIN", new_y="NEXT")
+        
+    if tx.get('reference'):
+        pdf.cell(0, 10, text=f"Reference : {tx.get('reference', 'N/A')}", new_x="LMARGIN", new_y="NEXT")
+        
+    pdf.ln(20)
+    pdf.set_font("helvetica", size=10, style='I')
+    pdf.cell(0, 10, text="Ce document est genere electroniquement et sert de preuve de transaction.", align='C', new_x="LMARGIN", new_y="NEXT")
+    
+    pdf_bytes = pdf.output()
+    
+    return send_file(
+        BytesIO(pdf_bytes),
+        mimetype='application/pdf',
+        as_attachment=True,
+        download_name=f"recu_{tx.get('type', 'transaction')}_{tx.get('timestamp', '')[:10]}.pdf"
     )
 
 # ==========================================
@@ -771,6 +931,96 @@ def admin_resolve_message(msg_id):
     else:
         flash("Erreur lors de la résolution.", "error")
     return redirect("/admin/messages")
+
+# ==========================================
+# NEW FEATURES: Analytics, Simulation, Services
+# ==========================================
+
+@app.route("/account/<account_number>/analytics")
+def account_analytics(account_number):
+    if "token" not in session: return redirect("/")
+    
+    # Get account details
+    acc_res = requests.get(f"{BASE_API_URL}/accounts/{account_number}", headers=get_headers())
+    if acc_res.status_code != 200:
+        return redirect("/dashboard")
+    account = acc_res.json()
+    
+    # Get analytics data
+    analytics_res = requests.get(f"{BASE_API_URL}/accounts/analytics/{account_number}", headers=get_headers())
+    analytics = analytics_res.json() if analytics_res.status_code == 200 else {"categories": {}, "history": {}}
+
+    return render_template("analytics.html", account=account, analytics=analytics)
+
+@app.route("/credit_simulation")
+def credit_simulation():
+    if "token" not in session: return redirect("/")
+    return render_template("credit_simulation.html")
+
+@app.route("/account/<account_number>/services")
+def account_services(account_number):
+    if "token" not in session: return redirect("/")
+    
+    acc_res = requests.get(f"{BASE_API_URL}/accounts/{account_number}", headers=get_headers())
+    if acc_res.status_code != 200:
+        return redirect("/dashboard")
+    account = acc_res.json()
+    
+    return render_template("services.html", account=account)
+
+@app.route("/process_phone_recharge", methods=["POST"])
+@limiter.limit("5 per minute")
+def process_phone_recharge():
+    if "token" not in session: return redirect("/")
+    
+    account_number = request.form.get("account_number")
+    phone_number = request.form.get("phone_number")
+    operator = request.form.get("operator")
+    amount = float(request.form.get("amount", 0))
+    pin = request.form.get("pin")
+    otp_code = request.form.get("otp_code")
+    
+    res = requests.post(f"{BASE_API_URL}/accounts/phone-recharge", json={
+        "account_number": account_number,
+        "phone_number": phone_number,
+        "operator": operator,
+        "amount": amount,
+        "pin": pin,
+        "otp_code": otp_code
+    }, headers=get_headers())
+    
+    if res.status_code == 200:
+        flash(res.json().get("message", "Recharge effectuée."), "success")
+    else:
+        detail = res.json().get("detail", "Erreur lors de la recharge")
+        flash(detail, "error")
+        
+    return redirect(f"/account/{account_number}/services")
+
+@app.route("/request_checkbook", methods=["POST"])
+@limiter.limit("3 per minute")
+def request_checkbook():
+    if "token" not in session: return redirect("/")
+    
+    account_number = request.form.get("account_number")
+    type_pages = request.form.get("type")
+    pin = request.form.get("pin")
+    otp_code = request.form.get("otp_code")
+    
+    res = requests.post(f"{BASE_API_URL}/accounts/checkbook-request", json={
+        "account_number": account_number,
+        "type": type_pages,
+        "pin": pin,
+        "otp_code": otp_code
+    }, headers=get_headers())
+    
+    if res.status_code == 200:
+        flash(res.json().get("message", "Demande enregistrée."), "success")
+    else:
+        detail = res.json().get("detail", "Erreur lors de la demande")
+        flash(detail, "error")
+        
+    return redirect(f"/account/{account_number}/services")
 
 if __name__ == "__main__":
     app.run(port=5000, debug=True)

@@ -19,3 +19,9 @@
 {"timestamp": "2026-04-22T23:06:29.247947Z", "user_id": "69e95444c01742443e027693", "account_number": "8567836065", "action_type": "ACCOUNT_CREATION", "status": "SUCCESS", "details": {"message": "Compte et Carte Visa cr\u00e9\u00e9s"}}
 {"timestamp": "2026-04-24T21:11:54.254875Z", "user_id": "69ebdc7ed9445df8e0df2bb0", "account_number": "4777710662", "action_type": "ACCOUNT_CREATION", "status": "SUCCESS", "details": {"message": "Compte et Carte Visa cr\u00e9\u00e9s"}}
 {"timestamp": "2026-04-24T21:12:34.444163Z", "user_id": "69ebdc7ed9445df8e0df2bb0", "account_number": "4777710662", "action_type": "DEPOSIT", "status": "SUCCESS", "details": {"amount": 100000.0}}
+{"timestamp": "2026-04-24T22:34:54.012432Z", "user_id": "69ebdc7ed9445df8e0df2bb0", "account_number": "4777710662", "action_type": "PHONE_RECHARGE", "status": "SUCCESS", "details": {"amount": 5.0, "phone": "93162473", "operator": "Tunisie Telecom"}}
+{"timestamp": "2026-04-24T22:35:24.892334Z", "user_id": "69ebdc7ed9445df8e0df2bb0", "account_number": "4777710662", "action_type": "CHECKBOOK_REQUEST", "status": "SUCCESS", "details": {"type": "25", "fee": 2.5}}
+{"timestamp": "2026-04-24T22:36:14.529965Z", "user_id": "69ebdc7ed9445df8e0df2bb0", "account_number": "4777710662", "action_type": "WITHDRAW", "status": "SUCCESS", "details": {"amount": 199.99}}
+{"timestamp": "2026-04-24T22:38:04.419712Z", "user_id": "69ebdc7ed9445df8e0df2bb0", "account_number": "4777710662", "action_type": "DEPOSIT", "status": "SUCCESS", "details": {"amount": 10000.0}}
+{"timestamp": "2026-04-24T22:46:02.266315Z", "user_id": "69ebdc7ed9445df8e0df2bb0", "account_number": "4777710662", "action_type": "WITHDRAW", "status": "SUCCESS", "details": {"amount": 200.0}}
+{"timestamp": "2026-04-24T23:38:43.362743Z", "user_id": "69ebdc7ed9445df8e0df2bb0", "account_number": "4777710662", "action_type": "BILL_PAYMENT", "status": "SUCCESS", "details": {"amount": 85.499, "provider": "Tunisie Telecom", "category": "phone"}}

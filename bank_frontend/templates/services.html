@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Services Bancaires - API Bank</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { background-color: #0f172a; color: #f8fafc; font-family: 'Inter', sans-serif; margin: 0; padding: 0; }
+        nav { display: flex; justify-content: space-between; align-items: center; padding: 15px 30px; background: rgba(30, 41, 59, 0.8); backdrop-filter: blur(10px); border-bottom: 1px solid rgba(255, 255, 255, 0.05); }
+        .nav-links a { color: #cbd5e1; text-decoration: none; margin-left: 20px; font-size: 14px; font-weight: 500; transition: color 0.2s; }
+        .nav-links a:hover { color: #fff; }
+        .brand { font-size: 20px; font-weight: 800; color: #fff; }
+    </style>
+</head>
+<body>
+
+<nav>
+    <div style="display: flex; align-items: center; gap: 15px;">
+        <a href="javascript:history.back()" style="text-decoration: none; font-size: 22px; color: var(--text-muted); margin-right: 5px; transition: color 0.2s;" onmouseover="this.style.color='#fff'" onmouseout="this.style.color='var(--text-muted)'" title="Retour">⬅</a>
+        <a href="/dashboard" class="brand" style="text-decoration: none;">API Bank</a>
+    </div>
+    <div class="nav-links">
+        <a href="/dashboard">Tableau de Bord</a>
+        <a href="/credit_simulation">🧮 Simulation</a>
+        <a href="/bills">💡 Factures</a>
+        <a href="/beneficiaries">Bénéficiaires</a>
+        <a href="/journal">Journal</a>
+        <a href="/support">📩 Support</a>
+        {% if is_admin %}
+        <a href="/admin/dashboard" style="color: #fbbf24;">⚡ Admin</a>
+        {% endif %}
+        <a href="/settings">Paramètres</a>
+        <a href="/logout" class="text-red-400">Déconnexion</a>
+    </div>
+</nav>
+
+<div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    
+    <div class="flex items-center justify-between mb-10">
+        <div>
+            <h1 class="text-3xl font-extrabold text-white tracking-tight">Services Bancaires</h1>
+            <p class="text-slate-400 mt-2">Compte **** **** **** {{ account.account_number[-4:] }}</p>
+        </div>
+        <a href="/account/{{ account.account_number }}" class="bg-slate-700/50 hover:bg-slate-700 text-white px-4 py-2 rounded-xl text-sm font-medium transition-colors border border-slate-600/50 flex items-center gap-2">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
+            Retour au compte
+        </a>
+    </div>
+
+    <!-- Flash Messages (Tailwind formatted for this page) -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        <div class="mb-8 space-y-4">
+        {% for category, message in messages %}
+          {% if category == 'success' %}
+          <div class="bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 px-4 py-3 rounded-xl flex items-center gap-3">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+              {{ message }}
+          </div>
+          {% else %}
+          <div class="bg-red-500/10 border border-red-500/20 text-red-400 px-4 py-3 rounded-xl flex items-center gap-3">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+              {{ message }}
+          </div>
+          {% endif %}
+        {% endfor %}
+        </div>
+      {% endif %}
+    {% endwith %}
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+        
+        <!-- Recharge Téléphonique -->
+        <div class="bg-slate-800/50 border border-slate-700/50 rounded-2xl p-6 shadow-xl backdrop-blur-sm relative overflow-hidden group hover:border-pink-500/50 transition-all duration-300">
+            <div class="absolute top-0 right-0 w-32 h-32 bg-pink-500/10 rounded-full blur-3xl -mr-10 -mt-10 transition-transform group-hover:scale-150"></div>
+            
+            <h2 class="text-xl font-bold text-white mb-6 flex items-center gap-3">
+                <div class="p-2 bg-pink-500/20 rounded-lg text-pink-400">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"></path></svg>
+                </div>
+                Recharge Téléphonique
+            </h2>
+
+            <form action="/process_phone_recharge" method="POST" class="space-y-4 relative z-10">
+                <input type="hidden" name="account_number" value="{{ account.account_number }}">
+                
+                <div>
+                    <label class="block text-sm font-medium text-slate-300 mb-1">Opérateur</label>
+                    <select name="operator" required class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-pink-500 outline-none">
+                        <option value="Ooredoo">Ooredoo</option>
+                        <option value="Orange">Orange</option>
+                        <option value="Tunisie Telecom">Tunisie Telecom</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-slate-300 mb-1">Numéro de téléphone (8 chiffres)</label>
+                    <input type="text" name="phone_number" required pattern="\d{8}" placeholder="Ex: 22123456" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white placeholder-slate-500 focus:ring-2 focus:ring-pink-500 outline-none font-mono">
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-slate-300 mb-1">Montant de la recharge (TND)</label>
+                    <input type="number" name="amount" required min="1" max="500" step="1" placeholder="Montant" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white placeholder-slate-500 focus:ring-2 focus:ring-pink-500 outline-none font-mono">
+                </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-slate-300 mb-1">Code PIN (4 chiffres)</label>
+                        <input type="password" name="pin" required pattern="\d{4}" maxlength="4" placeholder="••••" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white text-center tracking-widest placeholder-slate-500 focus:ring-2 focus:ring-pink-500 outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-300 mb-1">Code OTP (2FA)</label>
+                        <div class="flex gap-2">
+                            <input type="text" name="otp_code" required maxlength="6" placeholder="000000" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white text-center tracking-widest placeholder-slate-500 focus:ring-2 focus:ring-pink-500 outline-none">
+                            <button type="button" class="request-otp-btn bg-slate-700 hover:bg-slate-600 text-white px-3 py-2 rounded-lg text-sm transition-colors whitespace-nowrap">Demander OTP</button>
+                        </div>
+                    </div>
+                </div>
+
+                <button type="submit" class="w-full mt-4 bg-pink-600 hover:bg-pink-700 text-white font-bold py-3 rounded-lg transition-colors flex justify-center items-center gap-2 shadow-lg shadow-pink-500/20">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                    Recharger Maintenant
+                </button>
+            </form>
+        </div>
+
+        <!-- Demande de Chéquier -->
+        <div class="bg-slate-800/50 border border-slate-700/50 rounded-2xl p-6 shadow-xl backdrop-blur-sm relative overflow-hidden group hover:border-amber-500/50 transition-all duration-300">
+            <div class="absolute top-0 left-0 w-32 h-32 bg-amber-500/10 rounded-full blur-3xl -ml-10 -mt-10 transition-transform group-hover:scale-150"></div>
+            
+            <h2 class="text-xl font-bold text-white mb-6 flex items-center gap-3">
+                <div class="p-2 bg-amber-500/20 rounded-lg text-amber-400">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                </div>
+                Demande de Chéquier
+            </h2>
+
+            <form action="/request_checkbook" method="POST" class="space-y-4 relative z-10">
+                <input type="hidden" name="account_number" value="{{ account.account_number }}">
+                
+                <div>
+                    <label class="block text-sm font-medium text-slate-300 mb-1">Type de chéquier</label>
+                    <div class="grid grid-cols-2 gap-4">
+                        <label class="flex flex-col items-center justify-center p-4 border border-slate-700 rounded-xl cursor-pointer hover:bg-slate-800 transition-colors bg-slate-900">
+                            <input type="radio" name="type" value="25" required class="sr-only peer">
+                            <div class="peer-checked:text-amber-400 text-slate-400 font-bold text-lg mb-1">25 Pages</div>
+                            <div class="text-xs text-slate-500">Frais d'émission: 2.5 DT</div>
+                            <div class="absolute inset-0 border-2 border-transparent peer-checked:border-amber-500 rounded-xl pointer-events-none"></div>
+                        </label>
+                        <label class="flex flex-col items-center justify-center p-4 border border-slate-700 rounded-xl cursor-pointer hover:bg-slate-800 transition-colors bg-slate-900 relative">
+                            <input type="radio" name="type" value="50" required class="sr-only peer">
+                            <div class="peer-checked:text-amber-400 text-slate-400 font-bold text-lg mb-1">50 Pages</div>
+                            <div class="text-xs text-slate-500">Frais d'émission: 5.0 DT</div>
+                            <div class="absolute inset-0 border-2 border-transparent peer-checked:border-amber-500 rounded-xl pointer-events-none"></div>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-4 pt-2">
+                    <div>
+                        <label class="block text-sm font-medium text-slate-300 mb-1">Code PIN (4 chiffres)</label>
+                        <input type="password" name="pin" required pattern="\d{4}" maxlength="4" placeholder="••••" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white text-center tracking-widest placeholder-slate-500 focus:ring-2 focus:ring-amber-500 outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-300 mb-1">Code OTP (2FA)</label>
+                        <div class="flex gap-2">
+                            <input type="text" name="otp_code" required maxlength="6" placeholder="000000" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white text-center tracking-widest placeholder-slate-500 focus:ring-2 focus:ring-amber-500 outline-none">
+                            <button type="button" class="request-otp-btn bg-slate-700 hover:bg-slate-600 text-white px-3 py-2 rounded-lg text-sm transition-colors whitespace-nowrap">Demander OTP</button>
+                        </div>
+                    </div>
+                </div>
+
+                <button type="submit" class="w-full mt-4 bg-amber-600 hover:bg-amber-700 text-white font-bold py-3 rounded-lg transition-colors flex justify-center items-center gap-2 shadow-lg shadow-amber-500/20">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path></svg>
+                    Confirmer la Demande
+                </button>
+            </form>
+        </div>
+
+    </div>
+</div>
+
+<script>
+    function bindOTPButtons() {
+        document.querySelectorAll('.request-otp-btn').forEach(btn => {
+            if (btn.getAttribute('data-bound')) return;
+            btn.setAttribute('data-bound', 'true');
+            btn.addEventListener('click', async (e) => {
+                e.preventDefault();
+                btn.disabled = true;
+                const originalText = btn.innerText;
+                btn.innerText = "...";
+                try {
+                    const res = await fetch("/request_auth_otp", { method: "POST" });
+                    const data = await res.json();
+                    alert(res.ok ? (data.message || "Code envoyé !") : (data.detail || "Erreur lors de l'envoi"));
+                } catch(err) {
+                    alert("Erreur réseau");
+                }
+                btn.innerText = originalText;
+                btn.disabled = false;
+            });
+        });
+    }
+    document.addEventListener('DOMContentLoaded', bindOTPButtons);
+    bindOTPButtons();
+</script>
+
+<script src="{{ url_for('static', filename='chatbot.js') }}"></script>
+<script src="{{ url_for('static', filename='inactivity.js') }}"></script>
+</body>
+</html>
