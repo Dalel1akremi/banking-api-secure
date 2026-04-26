@@ -35,26 +35,7 @@
 </head>
 <body>
 
-<nav>
-    <div style="display: flex; align-items: center; gap: 15px;">
-        <a href="javascript:history.back()" style="text-decoration: none; font-size: 22px; color: var(--text-muted); margin-right: 5px; transition: color 0.2s;" onmouseover="this.style.color='#fff'" onmouseout="this.style.color='var(--text-muted)'" title="Retour">⬅</a>
-        <a href="/dashboard" class="brand" style="text-decoration: none;">API Bank</a>
-    </div>
-    <div class="nav-links">
-        <a href="/dashboard">Tableau de Bord</a>
-        <a href="/credit_simulation">🧮 Simulation</a>
-        <a href="/bills">💡 Factures</a>
-        <a href="/agencies">📍 Localisation</a>
-        <a href="/beneficiaries">Bénéficiaires</a>
-        <a href="/journal">Journal</a>
-        <a href="/support">📩 Support</a>
-        {% if is_admin %}
-        <a href="/admin/dashboard" style="color: #fbbf24;">⚡ Admin</a>
-        {% endif %}
-        <a href="/settings">Paramètres</a>
-        <a href="/logout" class="text-danger">Déconnexion</a>
-    </div>
-</nav>
+{% include 'nav.html' %}
 
 <div class="page-container">
 

@@ -324,4 +324,108 @@ tr:hover { background: rgba(255,255,255,0.02); }
 .accounts-grid .account-card::before {
     display: none; /* Remove old top-stripe on dashboard cards */
 }
+
+/* ══════════════════════════════════════
+   NAVIGATION DROPDOWNS
+══════════════════════════════════════ */
+.nav-links {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+.nav-item {
+    position: relative;
+}
+.nav-link {
+    font-weight: 600;
+    color: var(--text-main);
+    padding: 10px 15px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+.nav-link:hover {
+    background: rgba(255, 255, 255, 0.05);
+}
+.dropdown-menu {
+    position: absolute;
+    top: 100%;
+    right: 0;
+    background: #1e293b;
+    border: 1px solid var(--card-border);
+    border-radius: 12px;
+    padding: 10px 0;
+    min-width: 220px;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(10px);
+    transition: all 0.2s ease;
+    z-index: 100;
+}
+.nav-item:hover .dropdown-menu {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+}
+.dropdown-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 20px;
+    color: var(--text-main);
+    font-size: 14px;
+    transition: background 0.2s;
+}
+.dropdown-item:hover {
+    background: rgba(99, 102, 241, 0.1);
+    color: #a5b4fc;
+}
+
+/* ══════════════════════════════════════
+   QUICK ACTIONS GRID
+══════════════════════════════════════ */
+.quick-actions-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+    gap: 12px;
+    margin: 20px 0 30px 0;
+}
+.quick-action-card {
+    background: linear-gradient(135deg, rgba(255,255,255,0.03), rgba(0,0,0,0.2));
+    border: 1px solid var(--card-border);
+    border-radius: 12px;
+    padding: 16px 12px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    text-align: center;
+    text-decoration: none;
+    color: var(--text-main);
+    transition: all 0.2s ease;
+}
+.quick-action-card:hover {
+    background: rgba(99, 102, 241, 0.08);
+    border-color: rgba(99, 102, 241, 0.3);
+    transform: translateY(-3px);
+}
+.quick-action-icon {
+    font-size: 24px;
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.quick-action-text {
+    font-size: 12px;
+    font-weight: 600;
+    line-height: 1.2;
+}
 

@@ -1,0 +1,41 @@
+<nav>
+    <div style="display: flex; align-items: center; gap: 15px;">
+        <a href="javascript:history.back()" style="text-decoration: none; font-size: 22px; color: var(--text-muted); margin-right: 5px; transition: color 0.2s;" onmouseover="this.style.color='#fff'" onmouseout="this.style.color='var(--text-muted)'" title="Retour">⬅</a>
+        <a href="/dashboard" class="brand" style="text-decoration: none;">API Bank</a>
+    </div>
+    <div class="nav-links">
+        <a href="/dashboard" class="nav-link" style="padding: 10px 0;">🏠 Tableau de Bord</a>
+
+        <div class="nav-item">
+            <div class="nav-link">🔄 Opérations ▾</div>
+            <div class="dropdown-menu">
+                <a href="/beneficiaries" class="dropdown-item">👥 Bénéficiaires</a>
+                <a href="/journal" class="dropdown-item">📋 Journal des Activités</a>
+                <a href="/bills" class="dropdown-item">💡 Factures</a>
+            </div>
+        </div>
+
+        <div class="nav-item">
+            <div class="nav-link">🛠️ Outils & Services ▾</div>
+            <div class="dropdown-menu">
+                <a href="/agencies" class="dropdown-item">📍 Agences & DAB</a>
+                <a href="/credit_simulation" class="dropdown-item">🧮 Simulation de Crédit</a>
+            </div>
+        </div>
+
+        <div class="nav-item">
+            <div class="nav-link" style="color: #a5b4fc;">
+                <span style="background: rgba(99,102,241,0.2); padding: 5px; border-radius: 50%;">👤</span> Profil
+            </div>
+            <div class="dropdown-menu">
+                <a href="/settings" class="dropdown-item">⚙️ Paramètres</a>
+                <a href="/support" class="dropdown-item">📩 Support Client</a>
+                {% if is_admin %}
+                <a href="/admin/dashboard" class="dropdown-item" style="color: #fbbf24;">⚡ Administration</a>
+                {% endif %}
+                <div style="height: 1px; background: var(--card-border); margin: 5px 0;"></div>
+                <a href="/logout" class="dropdown-item" style="color: #f87171;">🚪 Déconnexion</a>
+            </div>
+        </div>
+    </div>
+</nav>
