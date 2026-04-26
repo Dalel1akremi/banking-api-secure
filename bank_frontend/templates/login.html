@@ -36,6 +36,16 @@
             </div>
 
             <button type="submit" class="btn">Connexion Sécurisée</button>
+            
+            <div style="margin: 20px 0; display: flex; align-items: center; text-align: center; color: var(--text-muted); font-size: 12px;">
+                <hr style="flex: 1; border-color: var(--card-border);">
+                <span style="padding: 0 10px;">OU</span>
+                <hr style="flex: 1; border-color: var(--card-border);">
+            </div>
+            
+            <button type="button" class="btn btn-secondary" id="btn-login-biometric" style="background: rgba(0, 229, 255, 0.05);">
+                🔐 Connexion Biométrique
+            </button>
         </form>
 
         <p style="margin-top: 15px; font-size: 14px;">Êtes-vous nouveau ? <a href="/signup" style="color: var(--primary); text-decoration: none; font-weight: bold;">Créer un profil</a></p>
@@ -45,6 +55,55 @@
 </div>
 
 <script>
+    // Biometric Login
+    const btnLoginBio = document.getElementById('btn-login-biometric');
+    if (btnLoginBio) {
+        btnLoginBio.addEventListener('click', async () => {
+            const emailInput = document.querySelector('input[name="email"]').value;
+            if (!emailInput) {
+                alert("Veuillez d'abord saisir votre adresse e-mail pour utiliser la biométrie.");
+                return;
+            }
+            if (!window.PublicKeyCredential) {
+                alert("L'authentification biométrique n'est pas supportée sur ce navigateur.");
+                return;
+            }
+            try {
+                btnLoginBio.innerText = "⏳ En attente du scan...";
+                const challenge = new Uint8Array(32);
+                window.crypto.getRandomValues(challenge);
+
+                const publicKey = {
+                    challenge: challenge,
+                    rpId: "localhost",
+                    timeout: 60000,
+                    userVerification: "required"
+                };
+
+                const assertion = await navigator.credentials.get({ publicKey });
+                const credentialIdBase64 = btoa(String.fromCharCode(...new Uint8Array(assertion.rawId)));
+
+                const res = await fetch("/login_biometric", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ email: emailInput, credential_id: credentialIdBase64 })
+                });
+
+                if (res.ok) {
+                    window.location.href = "/dashboard";
+                } else {
+                    const data = await res.json();
+                    alert("❌ Erreur: " + (data.detail || "Échec de connexion"));
+                }
+            } catch (err) {
+                console.error(err);
+                alert("Authentification annulée ou échouée.");
+            } finally {
+                btnLoginBio.innerText = "🔐 Connexion Biométrique";
+            }
+        });
+    }
+
     // Nettoyer l'historique du chatbot à la déconnexion / retour au login
     localStorage.removeItem('cb_history');
     localStorage.removeItem('cb_open');

@@ -139,6 +139,22 @@ def verify_login():
         except:
             detail = "Erreur de validation"
         return render_template("verify_login.html", email=email, error=detail)
+@app.route("/login_biometric", methods=["POST"])
+@limiter.limit("5 per minute")
+def login_biometric():
+    data = request.json
+    response = requests.post(f"{BASE_API_URL}/auth/login/biometric", json=data)
+    if response.status_code == 200:
+        session["token"] = response.json()["access_token"]
+    return (response.content, response.status_code, {"Content-Type": "application/json"})
+
+@app.route("/register_biometric", methods=["POST"])
+@limiter.limit("5 per minute")
+def register_biometric():
+    if "token" not in session: return ("Unauthorized", 401)
+    data = request.json
+    response = requests.post(f"{BASE_API_URL}/users/me/biometric/register", headers=get_headers(), json=data)
+    return (response.content, response.status_code, {"Content-Type": "application/json"})
 
 @app.route("/signup", methods=["GET"])
 def signup():

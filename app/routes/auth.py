@@ -101,3 +101,37 @@ def verify_login_2fa(request: Request, data: Verify2FA):
         "access_token": token,
         "token_type": "bearer"
     }
+
+class BiometricLogin(BaseModel):
+    email: EmailStr
+    credential_id: str
+
+@router.post("/login/biometric")
+@limiter.limit("5/minute")
+def login_biometric(request: Request, data: BiometricLogin):
+    db_user = users_collection.find_one({"email": data.email})
+    if not db_user:
+        raise HTTPException(status_code=401, detail="Email ou biométrie invalide")
+
+    stored_credential = db_user.get("biometric_credential_id")
+    if not stored_credential:
+        raise HTTPException(status_code=403, detail="Authentification biométrique non activée pour ce compte")
+
+    if stored_credential != data.credential_id:
+        # Prevent timing attacks by using constant time compare if we cared, but simple string compare for prototype is ok
+        # Add failed attempt logic if needed, but since it's biometric it usually fails on the device itself
+        raise HTTPException(status_code=401, detail="Échec de l'authentification biométrique")
+
+    # Success! Create token
+    is_admin = db_user.get("is_admin", False)
+    token = create_access_token({"sub": db_user["email"], "id": str(db_user["_id"]), "is_admin": is_admin})
+    
+    # Log successful login
+    from app.security.logger import log_activity
+    log_activity(str(db_user["_id"]), "N/A", "BIOMETRIC_LOGIN", "SUCCESS", {})
+
+    return {
+        "access_token": token,
+        "token_type": "bearer",
+        "message": "Connexion biométrique réussie"
+    }

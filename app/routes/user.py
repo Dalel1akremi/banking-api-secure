@@ -231,3 +231,21 @@ def update_contact_info(request: Request, data: ContactUpdate, user=Depends(veri
     log_activity(str(db_user["_id"]), "N/A", "CONTACT_UPDATE", "SUCCESS", {"fields": list(updates.keys())})
 
     return {"message": "Coordonnées mises à jour avec succès.", "updated": list(updates.keys())}
+
+class BiometricRegister(BaseModel):
+    credential_id: str
+
+@router.post("/me/biometric/register")
+@limiter.limit("5/minute")
+def register_biometric(request: Request, data: BiometricRegister, user=Depends(verify_token)):
+    email = user["sub"]
+    db_user = users_collection.find_one({"email": email})
+    if not db_user:
+        raise HTTPException(status_code=404, detail="Utilisateur introuvable")
+
+    users_collection.update_one({"email": email}, {"$set": {"biometric_credential_id": data.credential_id}})
+
+    from app.security.logger import log_activity
+    log_activity(str(db_user["_id"]), "N/A", "BIOMETRIC_REGISTER", "SUCCESS", {})
+
+    return {"message": "Authentification biométrique activée avec succès."}
