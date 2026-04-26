@@ -400,6 +400,11 @@ def process_payment():
         
     return redirect(f"/account/{account_number}")
 
+@app.route("/agencies")
+def agencies():
+    if "token" not in session: return redirect("/")
+    return render_template("agencies.html")
+
 @app.route("/settings", methods=["GET", "POST"])
 def settings():
     if "token" not in session: return redirect("/")

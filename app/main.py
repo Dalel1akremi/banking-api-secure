@@ -14,7 +14,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger("audit_logger")
 
-from app.routes import account, payment, auth, user, email_verification, beneficiary, activity, support, admin
+from app.routes import account, payment, auth, user, email_verification, beneficiary, activity, support, admin, locations
 from app.rate_limiter import limiter
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -77,6 +77,7 @@ app.include_router(beneficiary.router)
 app.include_router(activity.router)
 app.include_router(support.router)
 app.include_router(admin.router)
+app.include_router(locations.router)
 
 @app.get("/")
 def root():
