@@ -16,25 +16,7 @@
 </head>
 <body>
 
-<nav>
-    <div style="display: flex; align-items: center; gap: 15px;">
-        <a href="javascript:history.back()" style="text-decoration: none; font-size: 22px; color: var(--text-muted); margin-right: 5px; transition: color 0.2s;" onmouseover="this.style.color='#fff'" onmouseout="this.style.color='var(--text-muted)'" title="Retour">⬅</a>
-        <a href="/dashboard" class="brand" style="text-decoration: none;">API Bank</a>
-    </div>
-    <div class="nav-links">
-        <a href="/dashboard">Tableau de Bord</a>
-        <a href="/credit_simulation">🧮 Simulation</a>
-        <a href="/bills">💡 Factures</a>
-        <a href="/beneficiaries">Bénéficiaires</a>
-        <a href="/journal">Journal</a>
-        <a href="/support">📩 Support</a>
-        {% if is_admin %}
-        <a href="/admin/dashboard" style="color: #fbbf24;">⚡ Admin</a>
-        {% endif %}
-        <a href="/settings">Paramètres</a>
-        <a href="/logout" class="text-red-400">Déconnexion</a>
-    </div>
-</nav>
+{% include 'nav.html' %}
 
 <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
     
@@ -176,6 +158,70 @@
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path></svg>
                     Confirmer la Demande
                 </button>
+            </form>
+        </div>
+
+        <!-- Paiement Marchand -->
+        <div class="bg-slate-800/50 border border-slate-700/50 rounded-2xl p-6 shadow-xl backdrop-blur-sm relative overflow-hidden group hover:border-emerald-500/50 transition-all duration-300 md:col-span-2">
+            <div class="absolute top-0 right-0 w-32 h-32 bg-emerald-500/10 rounded-full blur-3xl -mr-10 -mt-10 transition-transform group-hover:scale-150"></div>
+            
+            <h2 class="text-xl font-bold text-white mb-6 flex items-center gap-3">
+                <div class="p-2 bg-emerald-500/20 rounded-lg text-emerald-400">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"></path></svg>
+                </div>
+                Paiement Marchand (Categorisé)
+            </h2>
+
+            <form action="/process_merchant_payment" method="POST" class="grid grid-cols-1 md:grid-cols-2 gap-6 relative z-10">
+                <input type="hidden" name="account_number" value="{{ account.account_number }}">
+                
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-slate-300 mb-1">Nom du Marchand</label>
+                        <input type="text" name="merchant" required placeholder="Ex: Monoprix, Pharmacie, etc." class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-emerald-500 outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-300 mb-1">Catégorie de Budget</label>
+                        <select name="category" required class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-emerald-500 outline-none">
+                            <option value="sante">💊 Santé</option>
+                            <option value="alimentation">🛒 Alimentation</option>
+                            <option value="transport">🚗 Transport</option>
+                            <option value="logement">🏠 Logement</option>
+                            <option value="loisirs">🎬 Loisirs</option>
+                            <option value="shopping">🛍️ Shopping</option>
+                            <option value="autres">📦 Autres</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-300 mb-1">Montant (TND)</label>
+                        <input type="number" name="amount" required step="0.01" min="0.1" placeholder="0.00" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-emerald-500 outline-none font-mono">
+                    </div>
+                </div>
+
+                <div class="space-y-4">
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-slate-300 mb-1">Code PIN</label>
+                            <input type="password" name="pin" required pattern="\d{4}" maxlength="4" placeholder="••••" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white text-center tracking-widest outline-none focus:ring-2 focus:ring-emerald-500">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-slate-300 mb-1">Code OTP</label>
+                            <div class="flex gap-2">
+                                <input type="text" name="otp_code" required maxlength="6" placeholder="000000" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white text-center tracking-widest outline-none focus:ring-2 focus:ring-emerald-500">
+                                <button type="button" class="request-otp-btn bg-slate-700 hover:bg-slate-600 text-white px-3 py-2 rounded-lg text-sm transition-colors whitespace-nowrap">Demander OTP</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-2 py-2">
+                        <input type="checkbox" name="is_online" id="is_online" class="w-4 h-4 rounded border-slate-700 bg-slate-900 text-emerald-500 focus:ring-emerald-500">
+                        <label for="is_online" class="text-sm text-slate-300">Paiement en ligne</label>
+                    </div>
+                    <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 rounded-lg transition-colors flex justify-center items-center gap-2 shadow-lg shadow-emerald-500/20">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                        Valider le Paiement
+                    </button>
+                    <p class="text-[10px] text-center text-slate-500 uppercase tracking-widest">Paiement sécurisé crypté</p>
+                </div>
             </form>
         </div>
 

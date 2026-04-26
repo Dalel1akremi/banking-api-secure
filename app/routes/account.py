@@ -57,6 +57,7 @@ class Payment(BaseModel):
     is_online: bool = False
     is_foreign: bool = False
     is_contactless: bool = False
+    category: str = "shopping" # Par défaut
 
 class CardLimitsUpdate(BaseModel):
     account_number: str = Field(..., pattern=r"^\d{10}$")
@@ -507,10 +508,11 @@ def payment(request: Request, data: Payment, user=Depends(verify_token)):
         "type": "payment",
         "account_number": data.account_number,
         "merchant": data.merchant,
+        "category": data.category,
         "amount": data.amount,
         "owner_id": str(user["id"])
     })
-    log_activity(str(user["id"]), data.account_number, "PAYMENT", "SUCCESS", {"amount": data.amount, "merchant": data.merchant})
+    log_activity(str(user["id"]), data.account_number, "PAYMENT", "SUCCESS", {"amount": data.amount, "merchant": data.merchant, "category": data.category})
 
     return {"message": "Payment successful"}
 

@@ -95,24 +95,7 @@
 </head>
 <body>
 
-<nav>
-    <div style="display: flex; align-items: center; gap: 15px;">
-        <a href="javascript:history.back()" style="text-decoration: none; font-size: 22px; color: var(--text-muted); margin-right: 5px; transition: color 0.2s;" onmouseover="this.style.color='#fff'" onmouseout="this.style.color='var(--text-muted)'" title="Retour">⬅</a>
-        <a href="/dashboard" class="brand" style="text-decoration: none;">API Bank</a>
-    </div>
-    <div class="nav-links">
-        <a href="/dashboard">Tableau de Bord</a>
-        <a href="/bills">💡 Factures</a>
-        <a href="/beneficiaries">Bénéficiaires</a>
-        <a href="/journal">Journal</a>
-        <a href="/support">📩 Support</a>
-        {% if is_admin %}
-        <a href="/admin/dashboard" style="color: #fbbf24;">⚡ Admin</a>
-        {% endif %}
-        <a href="/settings">Paramètres</a>
-        <a href="/logout" class="text-danger">Déconnexion</a>
-    </div>
-</nav>
+{% include 'nav.html' %}
 
 <div class="page-container">
     <div class="page-header">
@@ -274,6 +257,59 @@
                 </form>
             </div>
         </div>
+    </div>
+    
+    <!-- ── Historique des Factures Payées ── -->
+    <div class="panel" style="margin-top: 40px; padding: 32px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
+            <h2 style="font-size: 20px; font-weight: 800; display: flex; align-items: center; gap: 12px;">
+                📜 Historique des Factures Payées
+            </h2>
+            <span style="font-size: 13px; color: var(--text-muted);">{{ paid_bills|length }} facture(s) trouvée(s)</span>
+        </div>
+
+        {% if paid_bills %}
+        <div style="overflow-x: auto;">
+            <table style="width: 100%; border-collapse: collapse; min-width: 600px;">
+                <thead>
+                    <tr style="text-align: left; border-bottom: 1px solid var(--card-border);">
+                        <th style="padding: 12px 15px; color: var(--text-muted); font-size: 12px; text-transform: uppercase;">Date</th>
+                        <th style="padding: 12px 15px; color: var(--text-muted); font-size: 12px; text-transform: uppercase;">Fournisseur</th>
+                        <th style="padding: 12px 15px; color: var(--text-muted); font-size: 12px; text-transform: uppercase;">Référence</th>
+                        <th style="padding: 12px 15px; color: var(--text-muted); font-size: 12px; text-transform: uppercase;">Compte</th>
+                        <th style="padding: 12px 15px; color: var(--text-muted); font-size: 12px; text-transform: uppercase;">Montant</th>
+                        <th style="padding: 12px 15px; color: var(--text-muted); font-size: 12px; text-transform: uppercase; text-align: center;">Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for bill in paid_bills %}
+                    <tr style="border-bottom: 1px solid rgba(255,255,255,.03); transition: background .2s;" onmouseover="this.style.background='rgba(255,255,255,.02)'" onmouseout="this.style.background='transparent'">
+                        <td style="padding: 16px 15px; font-size: 14px;">{{ bill.timestamp[:10] }}</td>
+                        <td style="padding: 16px 15px;">
+                            <div style="font-weight: 700; color: var(--text-main);">{{ bill.provider }}</div>
+                            <div style="font-size: 11px; color: var(--text-muted);">{{ bill.category | capitalize }}</div>
+                        </td>
+                        <td style="padding: 16px 15px; font-family: monospace; color: #a5b4fc;">{{ bill.bill_reference }}</td>
+                        <td style="padding: 16px 15px; font-size: 13px; color: var(--text-muted);">****{{ bill.acc_num[-4:] }}</td>
+                        <td style="padding: 16px 15px; font-weight: 800; color: #f87171;">-{{ "%.2f"|format(bill.amount|float) }} DT</td>
+                        <td style="padding: 16px 15px; text-align: center;">
+                            <a href="/account/{{ bill.acc_num }}/receipt/{{ bill.idx }}" 
+                               class="btn btn-secondary" 
+                               style="width: auto; padding: 6px 12px; font-size: 12px; display: inline-flex; align-items: center; gap: 6px;">
+                                📥 PDF
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div style="text-align: center; padding: 40px; color: var(--text-muted);">
+            <div style="font-size: 40px; margin-bottom: 10px;">📄</div>
+            <p>Aucun historique de paiement disponible pour le moment.</p>
+        </div>
+        {% endif %}
     </div>
 </div>
 

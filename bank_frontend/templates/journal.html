@@ -82,24 +82,7 @@
 </head>
 <body>
 
-<nav>
-    <div style="display: flex; align-items: center; gap: 15px;">
-        <a href="javascript:history.back()" style="text-decoration: none; font-size: 22px; color: var(--text-muted); margin-right: 5px; transition: color 0.2s;" onmouseover="this.style.color='#fff'" onmouseout="this.style.color='var(--text-muted)'" title="Retour">⬅</a>
-        <a href="/dashboard" class="brand" style="text-decoration: none;">API Bank</a>
-    </div>
-    <div class="nav-links">
-        <a href="/dashboard">Tableau de Bord</a>
-        <a href="/bills">💡 Factures</a>
-        <a href="/beneficiaries">Bénéficiaires</a>
-        <a href="/journal">Journal</a>
-        <a href="/support">📩 Support</a>
-        {% if is_admin %}
-        <a href="/admin/dashboard" style="color: #fbbf24;">⚡ Admin</a>
-        {% endif %}
-        <a href="/settings">Paramètres</a>
-        <a href="/logout" class="text-danger">Déconnexion</a>
-    </div>
-</nav>
+{% include 'nav.html' %}
 
 <div class="page-container">
 
@@ -189,13 +172,14 @@
                     {% else %}&#128203;{% endif %}
                 </div>
                 {% set trans = {
-                    'DEPOSIT': 'DEPOT', 'WITHDRAW': 'RETRAIT', 'PAYMENT': 'PAIEMENT',
-                    'BILL_PAYMENT': 'PAIEMENT FACTURE',
-                    'TRANSFER_OUT': 'TRANSFERT SORTANT', 'TRANSFER_IN': 'TRANSFERT ENTRANT',
-                    'ACCOUNT_CREATION': 'CREATION DE COMPTE', 'ACCOUNT_LOCKED': 'COMPTE VERROUILLE',
-                    'PIN_VERIFICATION': 'VERIFICATION PIN', 'CARD_STATUS_CHANGE': 'STATUT CARTE',
-                    'ACCOUNT_DELETION': 'SUPPRESSION COMPTE', 'CARD_RENEWAL': 'RENOUVELLEMENT CARTE',
-                    'CONTACT_UPDATE': 'MAJ COORDONNEES', 'LOGIN': 'CONNEXION', 'SIGNUP': 'INSCRIPTION'
+                    'DEPOSIT': 'Dépôt', 'WITHDRAW': 'Retirer', 'PAYMENT': 'Paiement',
+                    'BILL_PAYMENT': 'Paiement Facture',
+                    'TRANSFER_OUT': 'Transfert', 'TRANSFER_IN': 'Transfert Entrant',
+                    'ACCOUNT_CREATION': 'Création du compte', 'ACCOUNT_LOCKED': 'Compte Verrouillé',
+                    'PIN_VERIFICATION': 'Vérification PIN', 'CARD_STATUS_CHANGE': 'Statut Carte',
+                    'ACCOUNT_DELETION': 'Suppression Compte', 'CARD_RENEWAL': 'Renouvellement Carte',
+                    'CONTACT_UPDATE': 'MAJ Coordonnées', 'LOGIN': 'Connexion', 'SIGNUP': 'Inscription',
+                    'PHONE_RECHARGE': 'Recharge téléphone', 'CHECKBOOK_REQUEST': 'Demande carnet de chèque'
                 } %}
                 <div class="log-action">{{ trans[act.action_type] if act.action_type in trans else act.action_type.replace('_', ' ') }}</div>
                 <div class="log-account">

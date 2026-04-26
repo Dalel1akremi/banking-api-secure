@@ -39,18 +39,22 @@ def translate_status(status):
 def translate_action(action):
     mapping = {
         'LOGIN': 'Connexion',
-        'LOGOUT': 'Deconnexion',
+        'LOGOUT': 'Déconnexion',
         'TRANSACTION': 'Transaction',
         'ACCOUNT_DELETION': 'Suppression de compte',
+        'ACCOUNT_CREATION': 'Création du compte',
         'CARD_STATUS_CHANGE': 'Changement statut carte',
         'ACCOUNT_LOCKED': 'Verrouillage de compte',
         'TRANSFER': 'Virement',
-        'DEPOSIT': 'Depot',
+        'TRANSFER_OUT': 'Transfert',
+        'TRANSFER_IN': 'Transfert reçu',
+        'DEPOSIT': 'Dépôt',
+        'WITHDRAW': 'Retirer',
         'WITHDRAWAL': 'Retrait',
         'PAYMENT': 'Paiement',
         'BILL_PAYMENT': 'Paiement facture',
-        'PHONE_RECHARGE': 'Recharge telephonique',
-        'CHECKBOOK_REQUEST': 'Demande chequier'
+        'PHONE_RECHARGE': 'Recharge téléphone',
+        'CHECKBOOK_REQUEST': 'Demande carnet de chèque'
     }
     return mapping.get(str(action).upper(), str(action).replace('_', ' ').title())
 
@@ -678,9 +682,38 @@ def download_receipt(account_number, index):
 @app.route("/bills")
 def bills():
     if "token" not in session: return redirect("/")
-    res = requests.get(f"{BASE_API_URL}/accounts/", headers=get_headers())
+    
+    headers = get_headers()
+    res = requests.get(f"{BASE_API_URL}/accounts/", headers=headers)
     accounts = res.json() if res.status_code == 200 else []
-    return render_template("bills.html", accounts=accounts)
+    
+    # Fetch all transactions to find paid bills
+    paid_bills = []
+    for acc in accounts:
+        tx_res = requests.get(f"{BASE_API_URL}/accounts/transactions/{acc['account_number']}", headers=headers)
+        if tx_res.status_code == 200:
+            txs = tx_res.json().get("transactions", [])
+            # Filter for bill_payment and add account_number for context
+            for tx in txs:
+                if tx.get("type") == "bill_payment":
+                    # We need the index for the download receipt route
+                    # But index in tx_res list is what matters
+                    # Let's add index to tx object
+                    pass
+            
+            # Actually, it's better to fetch transactions with their original indices
+            # but since they are sorted by date in the backend, indices might be tricky.
+            # Wait, download_receipt(account_number, index) uses the index in the list returned by GET /transactions/{account_number}
+            for i, tx in enumerate(txs):
+                if tx.get("type") == "bill_payment":
+                    tx["idx"] = i
+                    tx["acc_num"] = acc["account_number"]
+                    paid_bills.append(tx)
+    
+    # Sort all bills by timestamp descending
+    paid_bills.sort(key=lambda x: x.get("timestamp", ""), reverse=True)
+    
+    return render_template("bills.html", accounts=accounts, paid_bills=paid_bills)
 
 @app.route("/pay_bill", methods=["POST"])
 @limiter.limit("10 per minute")
@@ -1107,6 +1140,35 @@ def qr_payment(account_number):
     account = acc_res.json()
     return render_template("qr_payment.html", account=account)
 
+@app.route("/process_merchant_payment", methods=["POST"])
+@limiter.limit("10 per minute")
+def process_merchant_payment():
+    if "token" not in session: return redirect("/")
+    account_number = request.form.get("account_number")
+    merchant       = request.form.get("merchant")
+    category       = request.form.get("category", "shopping")
+    amount         = float(request.form.get("amount", 0))
+    pin            = request.form.get("pin")
+    otp_code       = request.form.get("otp_code")
+    is_online      = request.form.get("is_online") == "on"
+
+    res = requests.post(f"{BASE_API_URL}/accounts/payment", json={
+        "account_number": account_number,
+        "merchant":       merchant,
+        "category":       category,
+        "amount":         amount,
+        "pin":            pin,
+        "otp_code":       otp_code,
+        "is_online":      is_online
+    }, headers=get_headers())
+
+    if res.status_code == 200:
+        flash(f"Paiement de {amount:.2f} DT à {merchant} ({category}) effectué !", "success")
+    else:
+        detail = res.json().get("detail", "Erreur lors du paiement")
+        flash(detail, "error")
+    return redirect(f"/account/{account_number}/services")
+
 @app.route("/process_qr_payment", methods=["POST"])
 @limiter.limit("10 per minute")
 def process_qr_payment():
@@ -1114,16 +1176,33 @@ def process_qr_payment():
     from_account = request.form.get("from_account")
     to_account   = request.form.get("to_account")
     amount       = float(request.form.get("amount", 0))
+    category     = request.form.get("category", "autres")
     pin          = request.form.get("pin", "")
     otp_code     = request.form.get("otp_code", "")
 
-    res = requests.post(f"{BASE_API_URL}/accounts/transfer", json={
-        "from_account": from_account,
-        "to_account":   to_account,
-        "amount":       amount,
-        "pin":          pin,
-        "otp_code":     otp_code
-    }, headers=get_headers())
+    # Note: Backend transfer doesn't store category yet, 
+    # so we might want to use 'payment' endpoint for QR if it's a merchant, 
+    # but for now we'll just send it.
+    # To support budget categorization for QR, let's use the payment endpoint if a category is provided!
+    
+    if category != "autres":
+        # Simulate a merchant payment via QR
+        res = requests.post(f"{BASE_API_URL}/accounts/payment", json={
+            "account_number": from_account,
+            "merchant": f"QR: {to_account}",
+            "category": category,
+            "amount": amount,
+            "pin": pin,
+            "otp_code": otp_code
+        }, headers=get_headers())
+    else:
+        res = requests.post(f"{BASE_API_URL}/accounts/transfer", json={
+            "from_account": from_account,
+            "to_account":   to_account,
+            "amount":       amount,
+            "pin":          pin,
+            "otp_code":     otp_code
+        }, headers=get_headers())
 
     if res.status_code == 200:
         flash(f"Paiement QR de {amount:.2f} TND effectué avec succès !", "success")
@@ -1638,6 +1717,50 @@ def delete_goal(goal_id):
                 return redirect(f"/account/{acc}/savings")
     
     return redirect("/dashboard")
+
+# ==============================
+# 📊 BUDGET MENSUEL
+# ==============================
+@app.route("/budget")
+def budget_selector():
+    if "token" not in session: return redirect("/")
+    res = requests.get(f"{BASE_API_URL}/accounts/", headers=get_headers())
+    if res.status_code == 200:
+        accounts = res.json()
+        if accounts:
+            return redirect(f"/budget/{accounts[0]['account_number']}")
+    flash("Veuillez d'abord ouvrir un compte pour accéder au budget.", "info")
+    return redirect("/dashboard")
+
+@app.route("/budget/<account_number>")
+def budget_page(account_number):
+    if "token" not in session: return redirect("/")
+    res = requests.get(f"{BASE_API_URL}/budgets/{account_number}", headers=get_headers())
+    if res.status_code == 200:
+        data = res.json()
+        return render_template("budget.html",
+            account_number=account_number,
+            budgets=data.get("budgets", []),
+            total_spent=data.get("total_spent_this_month", 0),
+            month=data.get("month", ""),
+        )
+    return redirect("/dashboard")
+
+@app.route("/api/budget/set", methods=["POST"])
+@limiter.limit("10 per minute")
+def api_set_budget():
+    if "token" not in session: return ("Unauthorized", 401)
+    data = request.json
+    res = requests.post(f"{BASE_API_URL}/budgets/", headers=get_headers(), json=data)
+    return (res.content, res.status_code, {"Content-Type": "application/json"})
+
+@app.route("/api/budget/delete", methods=["POST"])
+@limiter.limit("10 per minute")
+def api_delete_budget():
+    if "token" not in session: return ("Unauthorized", 401)
+    data = request.json
+    res = requests.delete(f"{BASE_API_URL}/budgets/", headers=get_headers(), json=data)
+    return (res.content, res.status_code, {"Content-Type": "application/json"})
 
 if __name__ == "__main__":
     app.run(port=5000, debug=True)

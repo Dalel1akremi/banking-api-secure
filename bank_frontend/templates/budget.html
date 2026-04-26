@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Budget Mensuel - API Bank</title>
+    <meta name="description" content="Gérez vos budgets mensuels et recevez des alertes en cas de dépassement.">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <style>
+        .budget-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+            gap: 20px;
+            margin-top: 24px;
+        }
+        .budget-card {
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 16px;
+            padding: 22px;
+            position: relative;
+            transition: border-color 0.2s;
+        }
+        .budget-card.exceeded {
+            border-color: rgba(248, 113, 113, 0.4);
+            background: rgba(248, 113, 113, 0.03);
+        }
+        .budget-card.alert {
+            border-color: rgba(245, 158, 11, 0.4);
+            background: rgba(245, 158, 11, 0.03);
+        }
+        .budget-card.ok {
+            border-color: rgba(52, 211, 153, 0.2);
+        }
+        .budget-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 16px;
+        }
+        .budget-category-name {
+            font-size: 16px;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .budget-amounts {
+            font-size: 13px;
+            color: var(--text-muted);
+            margin-bottom: 12px;
+        }
+        .budget-amounts span {
+            font-weight: 700;
+            font-size: 22px;
+            color: var(--text-main);
+        }
+        .progress-bar-track {
+            background: rgba(255,255,255,0.06);
+            border-radius: 100px;
+            height: 10px;
+            overflow: hidden;
+            margin-bottom: 10px;
+        }
+        .progress-bar-fill {
+            height: 100%;
+            border-radius: 100px;
+            transition: width 0.6s ease;
+        }
+        .progress-bar-fill.ok { background: linear-gradient(90deg, #34d399, #10b981); }
+        .progress-bar-fill.alert { background: linear-gradient(90deg, #f59e0b, #d97706); }
+        .progress-bar-fill.exceeded { background: linear-gradient(90deg, #f87171, #ef4444); }
+        .budget-meta {
+            display: flex;
+            justify-content: space-between;
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+        .status-badge {
+            font-size: 10px;
+            font-weight: 800;
+            padding: 3px 10px;
+            border-radius: 20px;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        .status-badge.ok { background: rgba(52,211,153,0.15); color: #34d399; }
+        .status-badge.alert { background: rgba(245,158,11,0.15); color: #f59e0b; }
+        .status-badge.exceeded { background: rgba(248,113,113,0.15); color: #f87171; }
+        .category-icon {
+            width: 38px; height: 38px;
+            border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 18px;
+            flex-shrink: 0;
+        }
+        .delete-btn {
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            cursor: pointer;
+            font-size: 14px;
+            padding: 4px 8px;
+            border-radius: 6px;
+            transition: all 0.2s;
+        }
+        .delete-btn:hover { background: rgba(248,113,113,0.1); color: #f87171; }
+        .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 16px;
+            margin-bottom: 28px;
+        }
+        .summary-card {
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 14px;
+            padding: 20px;
+            text-align: center;
+        }
+        .summary-card .s-value {
+            font-size: 28px;
+            font-weight: 900;
+            margin-bottom: 4px;
+        }
+        .summary-card .s-label {
+            font-size: 12px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        .modal-overlay {
+            position: fixed; inset: 0; background: rgba(0,0,0,.8);
+            display: none; align-items: center; justify-content: center;
+            z-index: 1000; backdrop-filter: blur(4px);
+        }
+        .modal-overlay.active { display: flex; }
+        .modal-content {
+            background: #1e293b; width: 100%; max-width: 440px;
+            padding: 32px; border-radius: 16px; border: 1px solid var(--card-border);
+        }
+        .no-budgets {
+            text-align: center;
+            padding: 60px 20px;
+            color: var(--text-muted);
+        }
+        .no-budgets .icon { font-size: 48px; margin-bottom: 16px; }
+        @media(max-width: 768px) {
+            .summary-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+{% include 'nav.html' %}
+
+<div class="page-container">
+    <div class="page-header flex-between">
+        <div>
+            <h1>📊 Budget Mensuel</h1>
+            <p>Suivi de vos dépenses pour <strong>{{ month }}</strong> — Compte ****{{ account_number[-4:] }}</p>
+        </div>
+        <button class="btn" onclick="openModal('modal-add-budget')" style="width:auto; padding:12px 24px; background:linear-gradient(135deg,#6366f1,#8b5cf6); border:none;">
+            ➕ Nouveau Budget
+        </button>
+    </div>
+
+    <!-- ── Alertes dépassement ── -->
+    {% set exceeded = budgets | selectattr('exceeded', 'equalto', true) | list %}
+    {% set alert = budgets | selectattr('alert', 'equalto', true) | rejectattr('exceeded', 'equalto', true) | list %}
+    {% if exceeded %}
+    <div style="background:rgba(248,113,113,0.08); border:1px solid rgba(248,113,113,0.3); border-radius:12px; padding:16px 20px; margin-bottom:20px; display:flex; align-items:center; gap:14px;">
+        <span style="font-size:24px;">🚨</span>
+        <div>
+            <div style="font-weight:700; color:#f87171; margin-bottom:2px;">Dépassement de budget !</div>
+            <div style="font-size:13px; color:var(--text-muted);">
+                Vous avez dépassé votre budget dans {{ exceeded|length }} catégorie(s) :
+                {% for b in exceeded %}<strong style="color:#f87171;">{{ b.category | capitalize }}</strong>{% if not loop.last %}, {% endif %}{% endfor %}.
+            </div>
+        </div>
+    </div>
+    {% endif %}
+    {% if alert %}
+    <div style="background:rgba(245,158,11,0.08); border:1px solid rgba(245,158,11,0.3); border-radius:12px; padding:16px 20px; margin-bottom:20px; display:flex; align-items:center; gap:14px;">
+        <span style="font-size:24px;">⚠️</span>
+        <div>
+            <div style="font-weight:700; color:#f59e0b; margin-bottom:2px;">Attention — Budget presque atteint</div>
+            <div style="font-size:13px; color:var(--text-muted);">
+                Vous avez dépensé plus de 80% de votre budget dans :
+                {% for b in alert %}<strong style="color:#f59e0b;">{{ b.category | capitalize }}</strong>{% if not loop.last %}, {% endif %}{% endfor %}.
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- ── Résumé ── -->
+    <div class="summary-grid">
+        <div class="summary-card">
+            <div class="s-value" style="color:#a5b4fc;">{{ "%.2f"|format(total_spent|float) }} DT</div>
+            <div class="s-label">Dépenses ce mois</div>
+        </div>
+        <div class="summary-card">
+            <div class="s-value" style="color:#34d399;">{{ budgets|length }}</div>
+            <div class="s-label">Budgets actifs</div>
+        </div>
+        <div class="summary-card">
+            <div class="s-value" style="color:{% if exceeded %}#f87171{% elif alert %}#f59e0b{% else %}#34d399{% endif %};">
+                {{ exceeded|length + alert|length }}
+            </div>
+            <div class="s-label">Alertes actives</div>
+        </div>
+    </div>
+
+    <!-- ── Cartes Budget ── -->
+    {% if budgets %}
+    <div class="budget-grid">
+        {% for b in budgets %}
+        {% set status = 'exceeded' if b.exceeded else ('alert' if b.alert else 'ok') %}
+        <div class="budget-card {{ status }}">
+            <div class="budget-header">
+                <div class="budget-category-name">
+                    <div class="category-icon" style="background: rgba(99,102,241,0.12);">
+                        {% if b.category == 'alimentation' %}🛒
+                        {% elif b.category == 'transport' %}🚗
+                        {% elif b.category == 'logement' %}🏠
+                        {% elif b.category == 'sante' %}💊
+                        {% elif b.category == 'loisirs' %}🎬
+                        {% elif b.category == 'shopping' %}🛍️
+                        {% elif b.category == 'factures' %}💡
+                        {% else %}📦{% endif %}
+                    </div>
+                    {{ b.category | capitalize }}
+                </div>
+                <div style="display:flex; align-items:center; gap:8px;">
+                    <span class="status-badge {{ status }}">
+                        {% if status == 'exceeded' %}Dépassé{% elif status == 'alert' %}Alerte{% else %}OK{% endif %}
+                    </span>
+                    <button class="delete-btn" onclick="deleteBudget('{{ b.category }}')">🗑</button>
+                </div>
+            </div>
+            <div class="budget-amounts">
+                Dépensé : <span>{{ "%.1f"|format(b.spent|float) }} DT</span> / {{ "%.0f"|format(b.monthly_limit|float) }} DT
+            </div>
+            <div class="progress-bar-track">
+                <div class="progress-bar-fill {{ status }}" style="width: {{ b.percentage }}%;"></div>
+            </div>
+            <div class="budget-meta">
+                <span>{{ b.percentage }}% utilisé</span>
+                <span>Reste : <strong style="color:{% if b.exceeded %}#f87171{% else %}#34d399{% endif %};">{{ "%.1f"|format(b.remaining|float) }} DT</strong></span>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="no-budgets panel">
+        <div class="icon">📊</div>
+        <h3>Aucun budget défini</h3>
+        <p style="margin:10px 0 20px;">Créez votre premier budget mensuel pour suivre vos dépenses par catégorie et recevoir des alertes.</p>
+        <button class="btn" onclick="openModal('modal-add-budget')" style="width:auto; padding:12px 30px; background:linear-gradient(135deg,#6366f1,#8b5cf6); border:none;">
+            ➕ Créer un budget
+        </button>
+    </div>
+    {% endif %}
+</div>
+
+<!-- ── MODAL Nouveau Budget ── -->
+<div id="modal-add-budget" class="modal-overlay">
+    <div class="modal-content">
+        <h2 style="margin-bottom:6px;">➕ Nouveau Budget</h2>
+        <p style="font-size:13px; color:var(--text-muted); margin-bottom:24px;">Définissez un plafond mensuel par catégorie de dépenses.</p>
+        <div class="input-group">
+            <label>Catégorie</label>
+            <select id="sel-category" style="width:100%; padding:12px; background:rgba(0,0,0,0.2); border:1px solid var(--card-border); border-radius:8px; color:var(--text-main); font-size:15px;">
+                <option value="sante">💊 Santé</option>
+                <option value="alimentation">🛒 Alimentation</option>
+                <option value="transport">🚗 Transport</option>
+                <option value="logement">🏠 Logement</option>
+                <option value="loisirs">🎬 Loisirs</option>
+                <option value="shopping">🛍️ Shopping</option>
+                <option value="factures">💡 Factures</option>
+                <option value="autres">📦 Autres</option>
+            </select>
+        </div>
+        <div class="input-group">
+            <label>Plafond mensuel (DT)</label>
+            <input type="number" id="inp-limit" min="1" max="100000" step="0.01" placeholder="Ex: 500">
+        </div>
+        <div id="modal-error" style="display:none; color:#f87171; font-size:13px; margin-bottom:14px;"></div>
+        <div style="display:flex; gap:10px; margin-top:20px;">
+            <button class="btn btn-secondary" onclick="closeModal('modal-add-budget')" style="flex:1;">Annuler</button>
+            <button class="btn" id="btn-save-budget" onclick="saveBudget()" style="flex:1; background:linear-gradient(135deg,#6366f1,#8b5cf6); border:none;">Enregistrer</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    const ACCOUNT_NUMBER = "{{ account_number }}";
+
+    function openModal(id) { document.getElementById(id).classList.add('active'); }
+    function closeModal(id) { document.getElementById(id).classList.remove('active'); }
+    window.onclick = e => { if(e.target.classList.contains('modal-overlay')) e.target.classList.remove('active'); };
+
+    async function saveBudget() {
+        const category = document.getElementById('sel-category').value;
+        const limit = parseFloat(document.getElementById('inp-limit').value);
+        const errEl = document.getElementById('modal-error');
+        errEl.style.display = 'none';
+
+        if (!limit || limit <= 0) {
+            errEl.style.display = 'block';
+            errEl.innerText = 'Veuillez entrer un montant valide.';
+            return;
+        }
+
+        const btn = document.getElementById('btn-save-budget');
+        btn.innerText = '⏳ Enregistrement...';
+        btn.disabled = true;
+
+        const res = await fetch('/api/budget/set', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ account_number: ACCOUNT_NUMBER, category, monthly_limit: limit })
+        });
+
+        if (res.ok) {
+            window.location.reload();
+        } else {
+            const data = await res.json();
+            errEl.style.display = 'block';
+            errEl.innerText = data.detail || 'Erreur lors de l\'enregistrement.';
+            btn.innerText = 'Enregistrer';
+            btn.disabled = false;
+        }
+    }
+
+    async function deleteBudget(category) {
+        if (!confirm(`Supprimer le budget "${category}" ?`)) return;
+        const res = await fetch('/api/budget/delete', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ account_number: ACCOUNT_NUMBER, category })
+        });
+        if (res.ok) {
+            window.location.reload();
+        } else {
+            alert('Erreur lors de la suppression.');
+        }
+    }
+</script>
+
+<script src="{{ url_for('static', filename='inactivity.js') }}"></script>
+</body>
+</html>

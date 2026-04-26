@@ -88,22 +88,7 @@
 </head>
 <body>
 
-<nav>
-    <div style="display: flex; align-items: center; gap: 15px;">
-        <a href="javascript:history.back()" style="text-decoration: none; font-size: 22px; color: #64748b; margin-right: 5px; transition: color 0.2s;" onmouseover="this.style.color='#fff'" onmouseout="this.style.color='#64748b'" title="Retour">⬅</a>
-        <a href="/dashboard" class="brand" style="text-decoration: none;">API Bank</a>
-    </div>
-    <div class="nav-links">
-        <a href="/dashboard">Tableau de Bord</a>
-        <a href="/bills">💡 Factures</a>
-        <a href="/beneficiaries">Bénéficiaires</a>
-        <a href="/journal">Journal</a>
-        <a href="/support">📩 Support</a>
-        {% if is_admin %}<a href="/admin/dashboard" style="color: #fbbf24;">⚡ Admin</a>{% endif %}
-        <a href="/settings">Paramètres</a>
-        <a href="/logout" class="text-red-400">Déconnexion</a>
-    </div>
-</nav>
+{% include 'nav.html' %}
 
 <div class="max-w-3xl mx-auto px-4 py-10">
 
@@ -275,6 +260,20 @@
             <input type="hidden" name="to_account" id="form-to-account">
             <input type="hidden" name="amount" id="form-amount">
             <input type="hidden" name="label" id="form-label">
+
+            <div class="mb-5">
+                <label class="block text-sm font-medium text-slate-300 mb-2">Catégorie de Budget</label>
+                <select name="category" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                    <option value="sante">💊 Santé</option>
+                    <option value="alimentation">🛒 Alimentation</option>
+                    <option value="transport">🚗 Transport</option>
+                    <option value="logement">🏠 Logement</option>
+                    <option value="loisirs">🎬 Loisirs</option>
+                    <option value="shopping">🛍️ Shopping</option>
+                    <option value="autres">📦 Autres / Transfert</option>
+                </select>
+                <p class="text-[10px] text-slate-500 mt-1 uppercase tracking-wider">Permet de suivre vos plafonds budgétaires</p>
+            </div>
 
             <div class="space-y-3 mb-5">
                 <div>
