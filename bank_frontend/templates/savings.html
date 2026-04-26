@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Épargne & Objectifs - API Bank</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { background-color: #0f172a; color: #f8fafc; font-family: 'Inter', sans-serif; margin: 0; padding: 0; }
+        nav { display: flex; justify-content: space-between; align-items: center; padding: 15px 30px; background: rgba(30,41,59,0.8); backdrop-filter: blur(10px); border-bottom: 1px solid rgba(255,255,255,0.05); }
+        .nav-links a { color: #cbd5e1; text-decoration: none; margin-left: 20px; font-size: 14px; font-weight: 500; transition: color 0.2s; }
+        .nav-links a:hover { color: #fff; }
+        .brand { font-size: 20px; font-weight: 800; color: #fff; }
+
+        .goal-card {
+            background: rgba(30, 41, 59, 0.6);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            border-radius: 20px; padding: 24px;
+            transition: all 0.3s ease;
+        }
+        .goal-card:hover { border-color: rgba(99, 102, 241, 0.3); transform: translateY(-2px); }
+
+        .progress-container {
+            height: 12px; background: rgba(255,255,255,0.05);
+            border-radius: 6px; overflow: hidden; margin: 15px 0;
+        }
+        .progress-bar {
+            height: 100%; border-radius: 6px;
+            background: linear-gradient(90deg, #6366f1, #a855f7);
+            transition: width 1s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .saving-action-btn {
+            background: rgba(99, 102, 241, 0.1); color: #818cf8;
+            border: 1px solid rgba(99, 102, 241, 0.2);
+            padding: 8px 16px; border-radius: 10px; font-size: 13px; font-weight: 600;
+            transition: all 0.2s;
+        }
+        .saving-action-btn:hover { background: #6366f1; color: white; border-color: #6366f1; }
+
+        .form-input {
+            width: 100%; background: rgba(15, 23, 42, 0.8); border: 1px solid rgba(99, 102, 241, 0.2);
+            border-radius: 12px; padding: 12px; color: white; outline: none;
+            transition: border-color 0.2s;
+        }
+        .form-input:focus { border-color: #6366f1; }
+
+        .modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.7); display: none; align-items: center; justify-content: center; z-index: 100; backdrop-filter: blur(4px); }
+        .modal-backdrop.open { display: flex; }
+        .modal-box { background: #1e293b; border: 1px solid rgba(99,102,241,0.3); border-radius: 24px; padding: 32px; max-width: 450px; width: 90%; }
+    </style>
+</head>
+<body>
+
+<nav>
+    <div style="display: flex; align-items: center; gap: 15px;">
+        <a href="javascript:history.back()" style="text-decoration:none; font-size:22px; color:#64748b;" title="Retour">⬅</a>
+        <a href="/dashboard" class="brand" style="text-decoration:none;">API Bank</a>
+    </div>
+    <div class="nav-links">
+        <a href="/dashboard">Tableau de Bord</a>
+        <a href="/bills">💡 Factures</a>
+        <a href="/journal">Journal</a>
+        <a href="/support">📩 Support</a>
+        <a href="/settings">Paramètres</a>
+        <a href="/logout" class="text-red-400">Déconnexion</a>
+    </div>
+</nav>
+
+<div class="max-w-4xl mx-auto px-4 py-12">
+    <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-6">
+        <div>
+            <h1 class="text-3xl font-extrabold text-white tracking-tight flex items-center gap-3">
+                <span class="p-2 bg-indigo-500/20 rounded-xl text-2xl">💰</span>
+                Épargne & Objectifs
+            </h1>
+            <p class="text-slate-400 mt-2">Gérez vos économies et atteignez vos rêves pas à pas.</p>
+        </div>
+        <div class="bg-indigo-500/10 border border-indigo-500/20 rounded-2xl p-4 px-6 text-right">
+            <div class="text-xs text-indigo-400 uppercase font-bold tracking-wider mb-1">Total Épargné</div>
+            <div class="text-3xl font-black text-white font-mono">{{ "%.2f"|format(total_savings) }} <span class="text-sm font-normal text-slate-500">TND</span></div>
+        </div>
+    </div>
+
+    <!-- Flash Messages -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+    <div class="mb-8">
+        {% for category, message in messages %}
+        <div class="p-4 rounded-xl {{ 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' if category == 'success' else 'bg-red-500/10 text-red-400 border border-red-500/20' }} mb-3">
+            {{ message }}
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+    {% endwith %}
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+        <!-- Savings Account Card -->
+        <div class="goal-card border-indigo-500/30 bg-indigo-500/5">
+            <h2 class="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                🏦 Tirelire de secours
+            </h2>
+            <p class="text-sm text-slate-400 mb-6">Mettez de l'argent de côté pour les imprévus. Disponible à tout moment.</p>
+            <div class="flex justify-between items-end mb-6">
+                <div>
+                    <div class="text-xs text-slate-500 font-bold uppercase mb-1">Solde Tirelire</div>
+                    <div class="text-3xl font-bold text-white font-mono">{{ "%.2f"|format(total_savings) }} TND</div>
+                </div>
+            </div>
+            <div class="flex gap-3">
+                <button onclick="openActionModal('deposit')" class="flex-1 bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3 rounded-xl transition-all shadow-lg shadow-indigo-500/25">
+                    📥 Épargner
+                </button>
+                <button onclick="openActionModal('withdraw')" class="flex-1 bg-slate-800 hover:bg-slate-700 text-white font-bold py-3 rounded-xl transition-all border border-slate-700">
+                    📤 Retirer
+                </button>
+            </div>
+        </div>
+
+        <!-- Create New Goal Card -->
+        <button onclick="openGoalModal()" class="goal-card border-dashed border-2 border-slate-700 flex flex-col items-center justify-center gap-4 group hover:bg-indigo-500/5 hover:border-indigo-500/40 transition-all">
+            <div class="w-16 h-16 rounded-full bg-slate-800 flex items-center justify-center text-3xl group-hover:scale-110 transition-transform">🎯</div>
+            <div class="text-center">
+                <div class="text-lg font-bold text-white">Nouvel Objectif</div>
+                <p class="text-sm text-slate-500">Vacances, voiture, maison...</p>
+            </div>
+        </button>
+    </div>
+
+    <!-- Goals List -->
+    <h2 class="text-2xl font-bold text-white mt-12 mb-6">Mes projets en cours</h2>
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {% for goal in goals %}
+        <div class="goal-card">
+            <div class="flex justify-between items-start mb-4">
+                <div class="flex items-center gap-3">
+                    <span class="text-2xl">{{ goal.emoji }}</span>
+                    <div>
+                        <h3 class="font-bold text-white">{{ goal.title }}</h3>
+                        <p class="text-xs text-slate-500">Objectif : {{ "%.0f"|format(goal.target) }} TND</p>
+                    </div>
+                </div>
+                <div class="text-right">
+                    <div class="text-lg font-bold text-indigo-400 font-mono">{{ "%.0f"|format(goal.current) }} TND</div>
+                    <div class="text-[10px] text-slate-500 font-bold uppercase tracking-widest">{{ (goal.current / goal.target * 100)|round|int }}%</div>
+                </div>
+            </div>
+            <div class="progress-container">
+                <div class="progress-bar" style="width: {{ [ (goal.current / goal.target * 100), 100 ] | min }}%"></div>
+            </div>
+            <div class="flex justify-between items-center mt-4">
+                <span class="text-xs text-slate-500 italic">{{ goal.days_left }} jours restants</span>
+                <div class="flex gap-2">
+                    <form action="/add_to_goal/{{ goal.id }}" method="POST">
+                        <button type="button" onclick="openAddToGoalModal('{{ goal.id }}', '{{ goal.title }}')" class="saving-action-btn">💰 Booster</button>
+                    </form>
+                    <form action="/delete_goal/{{ goal.id }}" method="POST" onsubmit="return confirm('Supprimer cet objectif ? Les fonds seront retournés dans votre tirelire.')">
+                        <button type="submit" class="text-slate-500 hover:text-red-400 p-1 transition-colors">🗑️</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+        {% else %}
+        <div class="col-span-full py-12 text-center text-slate-600 bg-slate-800/20 rounded-3xl border border-dashed border-slate-800">
+            <p>Vous n'avez pas encore d'objectif défini.</p>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<!-- ============ MODALS ============ -->
+
+<!-- Savings Action Modal (Deposit/Withdraw from Tirelire) -->
+<div id="action-modal" class="modal-backdrop">
+    <div class="modal-box">
+        <h2 id="action-title" class="text-2xl font-bold text-white mb-2">📥 Épargner</h2>
+        <p class="text-slate-400 text-sm mb-6">Transférez des fonds entre votre compte principal et votre tirelire.</p>
+        
+        <form id="action-form" action="/savings_action" method="POST" class="space-y-4">
+            <input type="hidden" name="type" id="action-type">
+            <input type="hidden" name="account_number" value="{{ account.account_number }}">
+            
+            <div>
+                <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Montant (TND)</label>
+                <input type="number" name="amount" required step="0.01" min="1" placeholder="0.00" class="form-input text-xl font-mono">
+            </div>
+
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Code PIN</label>
+                    <input type="password" name="pin" required maxlength="4" placeholder="****" class="form-input text-center tracking-widest">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Code OTP</label>
+                    <div class="flex gap-2">
+                        <input type="text" name="otp_code" required maxlength="6" placeholder="123456" class="form-input text-center tracking-widest flex-1">
+                        <button type="button" class="request-otp-btn bg-slate-800 hover:bg-slate-700 text-slate-300 px-3 rounded-xl border border-slate-700 text-[10px] font-bold uppercase transition-colors">OTP</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-indigo-500/10 p-3 rounded-xl text-xs text-indigo-400">
+                <span id="action-help">Les fonds seront prélevés de votre compte principal.</span>
+            </div>
+
+            <div class="flex gap-3 pt-4">
+                <button type="button" onclick="closeModal('action-modal')" class="flex-1 bg-slate-800 text-white font-bold py-3 rounded-xl">Annuler</button>
+                <button type="submit" class="flex-1 bg-indigo-600 text-white font-bold py-3 rounded-xl shadow-lg shadow-indigo-500/30">Confirmer</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- New Goal Modal -->
+<div id="goal-modal" class="modal-backdrop">
+    <div class="modal-box">
+        <h2 class="text-2xl font-bold text-white mb-2">🎯 Nouvel Objectif</h2>
+        <p class="text-slate-400 text-sm mb-6">Définissez un projet qui vous tient à cœur.</p>
+        
+        <form action="/create_goal" method="POST" class="space-y-4">
+            <input type="hidden" name="account_number" value="{{ account.account_number }}">
+            
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Titre</label>
+                    <input type="text" name="title" required placeholder="Ex: Voyage Japon" class="form-input">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Icône (Emoji)</label>
+                    <select name="emoji" class="form-input">
+                        <option value="✈️">✈️ Voyage</option>
+                        <option value="🚗">🚗 Voiture</option>
+                        <option value="🏠">🏠 Maison</option>
+                        <option value="💻">💻 Tech</option>
+                        <option value="🎓">🎓 Études</option>
+                        <option value="💍">💍 Mariage</option>
+                        <option value="🎁">🎁 Cadeau</option>
+                        <option value="🔥">🔥 Autre</option>
+                    </select>
+                </div>
+            </div>
+
+            <div>
+                <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Montant Cible (TND)</label>
+                <input type="number" name="target" required step="1" min="10" placeholder="1000" class="form-input font-mono">
+            </div>
+
+            <div>
+                <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Date d'échéance</label>
+                <input type="date" name="deadline" required class="form-input">
+            </div>
+
+            <div class="flex gap-3 pt-4">
+                <button type="button" onclick="closeModal('goal-modal')" class="flex-1 bg-slate-800 text-white font-bold py-3 rounded-xl">Annuler</button>
+                <button type="submit" class="flex-1 bg-indigo-600 text-white font-bold py-3 rounded-xl">Créer</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Boost Goal Modal -->
+<div id="boost-modal" class="modal-backdrop">
+    <div class="modal-box">
+        <h2 class="text-2xl font-bold text-white mb-2">💰 Booster l'objectif</h2>
+        <p class="text-slate-400 text-sm mb-4">Combien voulez-vous allouer au projet <span id="boost-title" class="text-indigo-400 font-bold"></span> ?</p>
+        
+        <form action="/boost_goal" method="POST" class="space-y-4">
+            <input type="hidden" name="goal_id" id="boost-id">
+            <input type="hidden" name="account_number" value="{{ account.account_number }}">
+            
+            <div>
+                <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Montant (TND)</label>
+                <input type="number" name="amount" required step="0.01" min="1" placeholder="0.00" class="form-input text-xl font-mono">
+            </div>
+
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Code PIN</label>
+                    <input type="password" name="pin" required maxlength="4" placeholder="****" class="form-input text-center tracking-widest">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Code OTP</label>
+                    <div class="flex gap-2">
+                        <input type="text" name="otp_code" required maxlength="6" placeholder="123456" class="form-input text-center tracking-widest flex-1">
+                        <button type="button" class="request-otp-btn bg-slate-800 hover:bg-slate-700 text-slate-300 px-3 rounded-xl border border-slate-700 text-[10px] font-bold uppercase transition-colors">OTP</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-indigo-500/10 p-3 rounded-xl text-xs text-indigo-400">
+                L'argent sera prélevé de votre tirelire.
+            </div>
+
+            <div class="flex gap-3 pt-4">
+                <button type="button" onclick="closeModal('boost-modal')" class="flex-1 bg-slate-800 text-white font-bold py-3 rounded-xl">Annuler</button>
+                <button type="submit" class="flex-1 bg-indigo-600 text-white font-bold py-3 rounded-xl">Booster</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    function openActionModal(type) {
+        document.getElementById('action-type').value = type;
+        const title = type === 'deposit' ? '📥 Épargner' : '📤 Retirer';
+        const help = type === 'deposit' ? "Les fonds seront prélevés de votre compte principal vers la tirelire." : "L'argent sera transféré de la tirelire vers votre compte principal.";
+        document.getElementById('action-title').innerText = title;
+        document.getElementById('action-help').innerText = help;
+        document.getElementById('action-modal').classList.add('open');
+    }
+
+    function openGoalModal() {
+        document.getElementById('goal-modal').classList.add('open');
+    }
+
+    function openAddToGoalModal(id, title) {
+        document.getElementById('boost-id').value = id;
+        document.getElementById('boost-title').innerText = title;
+        document.getElementById('boost-modal').classList.add('open');
+    }
+
+    function closeModal(id) {
+        document.getElementById(id).classList.remove('open');
+    }
+
+    // Auto-close modals on outside click
+    window.onclick = function(event) {
+        if (event.target.classList.contains('modal-backdrop')) {
+            event.target.classList.remove('open');
+        }
+    }
+
+    // Auto-dismiss flash messages
+    setTimeout(() => {
+        document.querySelectorAll('.p-4.rounded-xl').forEach(el => {
+            el.style.transition = 'opacity 0.5s ease';
+            el.style.opacity = '0';
+            setTimeout(() => el.remove(), 500);
+        });
+    }, 4000);
+
+    // OTP Buttons Event Binding
+    document.querySelectorAll('.request-otp-btn').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+            e.preventDefault();
+            btn.disabled = true;
+            const originalText = btn.innerText;
+            btn.innerText = "...";
+            try {
+                const res = await fetch("/request_auth_otp", { method: "POST" });
+                const data = await res.json();
+                alert(res.ok ? (data.message || "Code envoyé !") : (data.detail || "Erreur"));
+            } catch (err) {
+                alert("Erreur réseau");
+            }
+            btn.innerText = originalText;
+            btn.disabled = false;
+        });
+    });
+</script>
+
+</body>
+</html>

@@ -123,6 +123,19 @@ class CheckbookRequest(BaseModel):
 # 🔐 PIN VERIFICATION HELPER
 # ==============================
 
+class SecurityVerify(BaseModel):
+    account_number: str
+    pin: str
+    otp_code: str
+
+@router.post("/verify-security")
+def verify_security(data: SecurityVerify, user=Depends(verify_token)):
+    # ✅ Vérification du PIN
+    verify_pin(data.account_number, str(user["id"]), data.pin)
+    # ✅ Vérification OTP
+    verify_auth_otp(user["sub"], data.otp_code)
+    return {"message": "Verification successful"}
+
 def verify_pin(account_number: str, owner_id: str, pin: str):
     """Vérifie le PIN d'un compte. Lève une HTTPException si invalide."""
     from datetime import timedelta

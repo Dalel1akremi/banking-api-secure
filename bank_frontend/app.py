@@ -1427,5 +1427,196 @@ def submit_credit_request():
     flash(f"Demande de crédit de {amount:.0f} TND soumise avec succès ! Référence : {credit['id']}", "success")
     return redirect(f"/account/{account_number}/credit-request")
 
+
+# ==========================================
+# SAVINGS & GOALS
+# ==========================================
+
+SAVINGS_FILE = Path(__file__).parent / "savings_goals.json"
+
+def load_savings():
+    if SAVINGS_FILE.exists():
+        try:
+            return json.loads(SAVINGS_FILE.read_text(encoding='utf-8'))
+        except:
+            return {}
+    return {}
+
+def save_savings(data):
+    SAVINGS_FILE.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding='utf-8')
+
+@app.route("/account/<account_number>/savings")
+def account_savings(account_number):
+    if "token" not in session: return redirect("/")
+    acc_res = requests.get(f"{BASE_API_URL}/accounts/{account_number}", headers=get_headers())
+    if acc_res.status_code != 200: return redirect("/dashboard")
+    account = acc_res.json()
+
+    data = load_savings()
+    user_data = data.get(account_number, {"tirelire": 0, "goals": []})
+    
+    # Calculate days left for goals
+    for goal in user_data["goals"]:
+        try:
+            deadline = datetime.strptime(goal["deadline"], "%Y-%m-%d").date()
+            goal["days_left"] = max(0, (deadline - date.today()).days)
+        except:
+            goal["days_left"] = 0
+
+    return render_template("savings.html", 
+                           account=account, 
+                           total_savings=user_data["tirelire"],
+                           goals=user_data["goals"])
+
+@app.route("/savings_action", methods=["POST"])
+def savings_action():
+    if "token" not in session: return redirect("/")
+    account_number = request.form.get("account_number")
+    action_type    = request.form.get("type") # 'deposit' or 'withdraw'
+    amount         = float(request.form.get("amount", 0))
+    pin            = request.form.get("pin")
+    otp_code       = request.form.get("otp_code")
+
+    if amount <= 0:
+        flash("Montant invalide.", "error")
+        return redirect(f"/account/{account_number}/savings")
+
+    # If deposit to tirelire, we WITHDRAW from main account
+    if action_type == "deposit":
+        res = requests.post(f"{BASE_API_URL}/accounts/withdraw", json={
+            "account_number": account_number,
+            "amount": amount,
+            "pin": pin,
+            "otp_code": otp_code
+        }, headers=get_headers())
+        
+        if res.status_code == 200:
+            data = load_savings()
+            if account_number not in data: data[account_number] = {"tirelire": 0, "goals": []}
+            data[account_number]["tirelire"] += amount
+            save_savings(data)
+            flash(f"{amount:.2f} TND ajoutés à votre tirelire !", "success")
+        else:
+            error_msg = res.json().get("detail", "Erreur lors de l'épargne.")
+            if "balance" in error_msg.lower():
+                flash("Fonds insuffisants sur le compte principal.", "error")
+            else:
+                flash(f"Échec : {error_msg}", "error")
+
+    # If withdraw from tirelire, we DEPOSIT to main account
+    elif action_type == "withdraw":
+        data = load_savings()
+        user_data = data.get(account_number, {"tirelire": 0, "goals": []})
+        if user_data["tirelire"] < amount:
+            flash("Solde tirelire insuffisant.", "error")
+            return redirect(f"/account/{account_number}/savings")
+        
+        # We also need PIN/OTP for withdrawal from tirelire (security)
+        # Note: Backend deposit might not need PIN/OTP but we use it for consistency or bypass
+        res = requests.post(f"{BASE_API_URL}/accounts/deposit", json={
+            "account_number": account_number,
+            "amount": amount
+        }, headers=get_headers())
+        
+        if res.status_code == 200:
+            user_data["tirelire"] -= amount
+            save_savings(data)
+            flash(f"{amount:.2f} TND transférés vers votre compte principal.", "success")
+        else:
+            flash("Erreur lors du transfert vers le compte principal.", "error")
+
+    return redirect(f"/account/{account_number}/savings")
+
+@app.route("/create_goal", methods=["POST"])
+def create_goal():
+    if "token" not in session: return redirect("/")
+    account_number = request.form.get("account_number")
+    title          = request.form.get("title")
+    emoji          = request.form.get("emoji", "🎯")
+    target         = float(request.form.get("target", 0))
+    deadline       = request.form.get("deadline")
+
+    if not title or target <= 0:
+        flash("Informations invalides.", "error")
+        return redirect(f"/account/{account_number}/savings")
+
+    data = load_savings()
+    if account_number not in data: data[account_number] = {"tirelire": 0, "goals": []}
+    
+    new_goal = {
+        "id": str(uuid.uuid4())[:8],
+        "title": title,
+        "emoji": emoji,
+        "target": target,
+        "current": 0,
+        "deadline": deadline
+    }
+    
+    data[account_number]["goals"].append(new_goal)
+    save_savings(data)
+    flash(f"Objectif '{title}' créé avec succès !", "success")
+    return redirect(f"/account/{account_number}/savings")
+
+@app.route("/boost_goal", methods=["POST"])
+def boost_goal():
+    if "token" not in session: return redirect("/")
+    account_number = request.form.get("account_number", "").strip()
+    goal_id        = request.form.get("goal_id", "").strip()
+    amount         = float(request.form.get("amount", 0))
+    pin            = request.form.get("pin")
+    otp_code       = request.form.get("otp_code")
+
+    # 1. Verify Security (PIN/OTP) with Backend
+    res = requests.post(f"{BASE_API_URL}/accounts/verify-security", json={
+        "account_number": account_number,
+        "pin": pin,
+        "otp_code": otp_code
+    }, headers=get_headers())
+
+    if res.status_code != 200:
+        error_msg = res.json().get("detail", "Échec de la vérification de sécurité.")
+        flash(f"Sécurité : {error_msg}", "error")
+        return redirect(f"/account/{account_number}/savings")
+
+    data = load_savings()
+    user_data = data.get(account_number)
+    
+    if not user_data:
+        flash("Erreur : Compte d'épargne introuvable.", "error")
+        return redirect("/dashboard")
+
+    if user_data["tirelire"] < (amount - 0.001):
+        flash(f"Solde tirelire insuffisant (Dispo: {user_data['tirelire']:.2f} TND).", "error")
+        return redirect(f"/account/{account_number}/savings")
+
+    for goal in user_data["goals"]:
+        if goal["id"] == goal_id:
+            goal["current"] += amount
+            user_data["tirelire"] -= amount
+            save_savings(data)
+            flash(f"Boost effectué ! {amount:.2f} TND alloués à '{goal['title']}'", "success")
+            return redirect(f"/account/{account_number}/savings")
+    
+    flash("Objectif introuvable.", "error")
+    return redirect(f"/account/{account_number}/savings")
+
+@app.route("/delete_goal/<goal_id>", methods=["POST"])
+def delete_goal(goal_id):
+    if "token" not in session: return redirect("/")
+    # We need account_number from current session or form
+    # For simplicity, we find it in the data
+    data = load_savings()
+    for acc, user_data in data.items():
+        for i, goal in enumerate(user_data["goals"]):
+            if goal["id"] == goal_id:
+                # Return current progress to tirelire
+                user_data["tirelire"] += goal["current"]
+                user_data["goals"].pop(i)
+                save_savings(data)
+                flash("Objectif supprimé. Les fonds ont été retournés dans votre tirelire.", "info")
+                return redirect(f"/account/{acc}/savings")
+    
+    return redirect("/dashboard")
+
 if __name__ == "__main__":
     app.run(port=5000, debug=True)

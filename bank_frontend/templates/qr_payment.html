@@ -463,6 +463,15 @@
 
     // Auto-generate QR on load
     window.addEventListener('load', generateQR);
+
+    // Auto-dismiss flash messages
+    setTimeout(() => {
+        document.querySelectorAll('.alert, [class*="bg-emerald-500/10"], [class*="bg-red-500/10"]').forEach(el => {
+            el.style.transition = 'opacity 0.5s ease';
+            el.style.opacity = '0';
+            setTimeout(() => el.remove(), 500);
+        });
+    }, 4000);
 </script>
 
 <script src="{{ url_for('static', filename='chatbot.js') }}"></script>

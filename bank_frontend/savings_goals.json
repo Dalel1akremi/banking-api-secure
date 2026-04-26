@@ -1,0 +1,15 @@
+{
+  "4777710662": {
+    "tirelire": 300.0,
+    "goals": [
+      {
+        "id": "38fa2e64",
+        "title": "acheter une voiture",
+        "emoji": "🚗",
+        "target": 32000.0,
+        "current": 300.0,
+        "deadline": "2027-04-26"
+      }
+    ]
+  }
+}
