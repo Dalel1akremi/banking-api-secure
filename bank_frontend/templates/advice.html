@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Conseils & Experts - API Bank</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .glass-card {
+            background: rgba(30, 41, 59, 0.7);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .advice-tip {
+            border-left: 4px solid #3b82f6;
+            transition: all 0.3s ease;
+        }
+        .advice-tip:hover {
+            transform: translateX(5px);
+            background: rgba(59, 130, 246, 0.1);
+        }
+        .advisor-badge {
+            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+        }
+    </style>
+</head>
+<body class="bg-[#0f172a] text-slate-200 font-sans min-h-screen">
+
+    {% include 'nav.html' %}
+
+    <div class="max-w-7xl mx-auto px-4 py-12">
+        <!-- Header Section -->
+        <div class="mb-12">
+            <h1 class="text-4xl font-extrabold text-white tracking-tight mb-2">Centre de Conseil <span class="text-indigo-400">&</span> Expertise</h1>
+            <p class="text-slate-400 text-lg">Optimisez votre patrimoine avec l'intelligence artificielle et nos experts dédiés.</p>
+        </div>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="mb-6 p-4 rounded-xl {% if category == 'success' %}bg-emerald-500/20 text-emerald-400 border border-emerald-500/30{% else %}bg-rose-500/20 text-rose-400 border border-rose-500/30{% endif %}">
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            
+            <!-- LEFT COLUMN: AI ADVICE -->
+            <div class="lg:col-span-2 space-y-8">
+                <div class="glass-card rounded-3xl p-8 shadow-2xl relative overflow-hidden">
+                    <div class="absolute top-0 right-0 w-64 h-64 bg-indigo-500/10 rounded-full blur-3xl -mr-20 -mt-20"></div>
+                    
+                    <div class="flex items-center justify-between mb-8 relative z-10">
+                        <h2 class="text-2xl font-bold text-white flex items-center gap-3">
+                            <span class="p-2 bg-indigo-500/20 rounded-lg text-indigo-400">
+                                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                            </span>
+                            Conseils IA Personnalisés
+                        </h2>
+                        
+                        <form action="/advice" method="GET" id="accForm">
+                            <select name="account_number" onchange="this.form.submit()" class="bg-slate-900 border border-slate-700 rounded-xl px-4 py-2 text-sm text-slate-300 outline-none focus:ring-2 focus:ring-indigo-500">
+                                {% for acc in accounts %}
+                                <option value="{{ acc.account_number }}" {% if acc.account_number == selected_acc %}selected{% endif %}>
+                                    Compte ****{{ acc.account_number[-4:] }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </form>
+                    </div>
+
+                    <div class="space-y-6 relative z-10">
+                        {% if advice %}
+                            {% for tip in advice %}
+                            <div class="advice-tip glass-card p-6 rounded-2xl flex items-start gap-4">
+                                <div class="text-2xl mt-1">💡</div>
+                                <div>
+                                    <p class="text-slate-200 leading-relaxed">{{ tip }}</p>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        {% else %}
+                            <div class="text-center py-12 text-slate-500 italic">
+                                Analyse en cours... Nos algorithmes préparent vos conseils.
+                            </div>
+                        {% endif %}
+                    </div>
+
+                    <div class="mt-8 pt-8 border-t border-slate-700/50 flex items-center gap-4 text-sm text-slate-400">
+                        <span class="advisor-badge px-3 py-1 rounded-full text-white text-[10px] font-bold uppercase tracking-wider">Moteur Gemini 2.0</span>
+                        <span>Analysé à partir de vos budgets et transactions récents.</span>
+                    </div>
+                </div>
+
+                <!-- STATS PREVIEW (Optional but adds value) -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="glass-card p-6 rounded-3xl border border-emerald-500/20">
+                        <h3 class="text-slate-400 text-sm font-medium mb-1">Potentiel d'épargne</h3>
+                        <div class="text-3xl font-bold text-emerald-400">12.5% <span class="text-lg text-slate-500">/ mois</span></div>
+                    </div>
+                    <div class="glass-card p-6 rounded-3xl border border-indigo-500/20">
+                        <h3 class="text-slate-400 text-sm font-medium mb-1">Score financier</h3>
+                        <div class="text-3xl font-bold text-indigo-400">742 <span class="text-lg text-slate-500">/ 850</span></div>
+                        <p class="text-[10px] text-slate-500 mt-2 italic">Indicateur de fiabilité et de santé bancaire</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- RIGHT COLUMN: APPOINTMENTS -->
+            <div class="space-y-8">
+                <!-- NEW APPOINTMENT FORM -->
+                <div class="glass-card rounded-3xl p-8 shadow-2xl">
+                    <h2 class="text-xl font-bold text-white mb-6 flex items-center gap-3">
+                        📅 Prendre Rendez-vous
+                    </h2>
+                    
+                    <form action="/book_appointment" method="POST" class="space-y-4">
+                        <div>
+                            <label class="block text-xs font-medium text-slate-500 uppercase tracking-wider mb-1">Motif</label>
+                            <select name="subject" required class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-slate-200 outline-none focus:ring-2 focus:ring-indigo-500">
+                                <option value="Crédit Immobilier">🏠 Crédit Immobilier</option>
+                                <option value="Placement & Épargne">📈 Placement & Épargne</option>
+                                <option value="Assurance & Protection">🛡️ Assurance & Protection</option>
+                                <option value="Ouverture de Compte Pro">💼 Compte Professionnel</option>
+                                <option value="Autre">❓ Autre demande</option>
+                            </select>
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-medium text-slate-500 uppercase tracking-wider mb-1">Expert Dedié</label>
+                            <select name="advisor_name" required class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-slate-200 outline-none focus:ring-2 focus:ring-indigo-500">
+                                <option value="Mme. Salma Ben Ammar">Mme. Salma Ben Ammar</option>
+                                <option value="Mr. Ahmed Mansour">Mr. Ahmed Mansour</option>
+                                <option value="Mme. Inès Trabelsi">Mme. Inès Trabelsi</option>
+                            </select>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-xs font-medium text-slate-500 uppercase tracking-wider mb-1">Date</label>
+                                <input type="date" name="date" required class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-slate-200 outline-none focus:ring-2 focus:ring-indigo-500">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-slate-500 uppercase tracking-wider mb-1">Heure</label>
+                                <select name="time" required class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-slate-200 outline-none focus:ring-2 focus:ring-indigo-500">
+                                    <option value="09:00">09:00</option>
+                                    <option value="10:00">10:00</option>
+                                    <option value="11:00">11:00</option>
+                                    <option value="14:00">14:00</option>
+                                    <option value="15:00">15:00</option>
+                                    <option value="16:00">16:00</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-4 rounded-2xl transition-all shadow-lg shadow-indigo-500/20">
+                            Confirmer la Réservation
+                        </button>
+                    </form>
+                </div>
+
+                <!-- MY APPOINTMENTS LIST -->
+                <div class="glass-card rounded-3xl p-8 shadow-2xl">
+                    <h3 class="text-lg font-bold text-white mb-6">Mes Rendez-vous</h3>
+                    <div class="space-y-4">
+                        {% for appt in appointments %}
+                        <div class="p-4 rounded-2xl bg-slate-900/50 border border-slate-700 flex justify-between items-start">
+                            <div>
+                                <div class="text-sm font-bold text-white">{{ appt.subject }}</div>
+                                <div class="text-xs text-slate-500">{{ appt.date }} à {{ appt.time }}</div>
+                                <div class="text-[10px] text-indigo-400 mt-1">Avec {{ appt.advisor_name }}</div>
+                            </div>
+                            <form action="/cancel_appointment/{{ appt.id }}" method="POST">
+                                <button type="submit" class="text-rose-500 hover:text-rose-400 text-xs font-bold">Annuler</button>
+                            </form>
+                        </div>
+                        {% else %}
+                        <p class="text-center py-6 text-slate-500 text-sm italic">Aucun rendez-vous prévu.</p>
+                        {% endfor %}
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='chatbot.js') }}"></script>
+    <script src="{{ url_for('static', filename='inactivity.js') }}"></script>
+</body>
+</html>

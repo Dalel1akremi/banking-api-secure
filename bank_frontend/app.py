@@ -265,6 +265,7 @@ def account_details(account_number):
     if acc_res.status_code != 200:
         return redirect("/dashboard")
     account = acc_res.json()
+    session['last_account'] = account_number
     
     tx_res = requests.get(f"{BASE_API_URL}/accounts/transactions/{account_number}", headers=get_headers())
     transactions = []
@@ -965,8 +966,45 @@ def admin_dashboard():
     all_credits = load_credits()
     # Sort by date descending
     all_credits.sort(key=lambda c: c.get("created_at", ""), reverse=True)
+
+    # Fetch all appointments for admin management
+    appt_res = requests.get(f"{BASE_API_URL}/financial-hub/admin/appointments", headers=get_headers())
+    appointments = appt_res.json() if appt_res.status_code == 200 else []
     
-    return render_template("admin_dashboard.html", stats=stats, activities=activities, credits=all_credits)
+    return render_template("admin_dashboard.html", stats=stats, activities=activities, credits=all_credits, appointments=appointments)
+
+@app.route("/admin/appointments/status/<appt_id>", methods=["POST"])
+def admin_update_appointment_status(appt_id):
+    if "token" not in session: return redirect("/")
+    status = request.form.get("status")
+    res = requests.post(f"{BASE_API_URL}/financial-hub/admin/appointments/status/{appt_id}?status={status}", headers=get_headers())
+    if res.status_code == 200:
+        flash(f"Rendez-vous mis à jour : {status}.", "success")
+    else:
+        flash("Erreur lors de la mise à jour.", "error")
+    return redirect("/admin/dashboard")
+
+@app.route("/admin/appointments/cancel/<appt_id>", methods=["POST"])
+def admin_cancel_appointment(appt_id):
+    if "token" not in session: return redirect("/")
+    res = requests.delete(f"{BASE_API_URL}/financial-hub/appointments/{appt_id}", headers=get_headers())
+    if res.status_code == 200:
+        flash("Rendez-vous annulé par l'admin.", "success")
+    else:
+        flash("Erreur lors de l'annulation.", "error")
+    return redirect("/admin/dashboard")
+
+@app.route("/admin/appointments/reschedule/<appt_id>", methods=["POST"])
+def admin_reschedule_appointment(appt_id):
+    if "token" not in session: return redirect("/")
+    date = request.form.get("date")
+    time = request.form.get("time")
+    res = requests.put(f"{BASE_API_URL}/financial-hub/admin/appointments/reschedule/{appt_id}?date={date}&time={time}", headers=get_headers())
+    if res.status_code == 200:
+        flash("Rendez-vous replanifié.", "success")
+    else:
+        flash("Erreur lors de la replanification.", "error")
+    return redirect("/admin/dashboard")
 
 @app.route("/admin/credit/approve/<credit_id>", methods=["POST"])
 def admin_approve_credit(credit_id):
@@ -1761,6 +1799,63 @@ def api_delete_budget():
     data = request.json
     res = requests.delete(f"{BASE_API_URL}/budgets/", headers=get_headers(), json=data)
     return (res.content, res.status_code, {"Content-Type": "application/json"})
+
+@app.route("/advice")
+def advice_hub():
+    if "token" not in session: return redirect("/")
+    
+    headers = get_headers()
+    # 1. Fetch accounts to let user choose one for context (or just use first one)
+    acc_res = requests.get(f"{BASE_API_URL}/accounts/", headers=headers)
+    accounts = acc_res.json() if acc_res.status_code == 200 else []
+    
+    if not accounts:
+        flash("Vous devez avoir au moins un compte pour accéder aux conseils.", "info")
+        return redirect("/dashboard")
+        
+    selected_acc = request.args.get("account_number") or accounts[0]["account_number"]
+    
+    # 2. Fetch AI advice
+    adv_res = requests.get(f"{BASE_API_URL}/financial-hub/advice/{selected_acc}", headers=headers)
+    advice = adv_res.json().get("advice", []) if adv_res.status_code == 200 else []
+    
+    # 3. Fetch Appointments
+    appt_res = requests.get(f"{BASE_API_URL}/financial-hub/appointments", headers=headers)
+    appointments = appt_res.json() if appt_res.status_code == 200 else []
+    
+    return render_template("advice.html", accounts=accounts, selected_acc=selected_acc, advice=advice, appointments=appointments)
+
+@app.route("/book_appointment", methods=["POST"])
+def book_appointment():
+    if "token" not in session: return redirect("/")
+    
+    payload = {
+        "subject": request.form.get("subject"),
+        "advisor_name": request.form.get("advisor_name"),
+        "appointment_date": request.form.get("date"),
+        "appointment_time": request.form.get("time"),
+        "notes": request.form.get("notes", "")
+    }
+    
+    res = requests.post(f"{BASE_API_URL}/financial-hub/appointments", json=payload, headers=get_headers())
+    if res.status_code == 200:
+        flash("Rendez-vous confirmé !", "success")
+    else:
+        flash("Erreur lors de la réservation.", "error")
+        
+    return redirect("/advice")
+
+@app.route("/cancel_appointment/<appt_id>", methods=["POST"])
+def cancel_appointment(appt_id):
+    if "token" not in session: return redirect("/")
+    
+    res = requests.delete(f"{BASE_API_URL}/financial-hub/appointments/{appt_id}", headers=get_headers())
+    if res.status_code == 200:
+        flash("Rendez-vous annulé.", "success")
+    else:
+        flash("Erreur lors de l'annulation.", "error")
+        
+    return redirect("/advice")
 
 if __name__ == "__main__":
     app.run(port=5000, debug=True)
