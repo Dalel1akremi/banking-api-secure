@@ -115,6 +115,55 @@
             </tbody>
         </table>
     </div>
+    
+    <div class="panel" style="margin-top: 40px;">
+        <h2>📅 Gestion des Rendez-vous</h2>
+        <table class="activity-table">
+            <thead>
+                <tr>
+                    <th>Date & Heure</th>
+                    <th>Client</th>
+                    <th>Objet</th>
+                    <th>Conseiller</th>
+                    <th>Statut</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for a in appointments %}
+                <tr>
+                    <td>{{ a.date }} à {{ a.time }}</td>
+                    <td style="font-weight: 600;">{{ a.user_name }}</td>
+                    <td style="font-size: 13px;">{{ a.subject }}</td>
+                    <td style="font-size: 13px; color: #a5b4fc;">{{ a.advisor_name }}</td>
+                    <td>
+                        <span style="padding: 4px 8px; border-radius: 4px; font-size: 11px; 
+                            {% if a.status == 'CONFIRMED' %}background: rgba(16,185,129,0.2); color: #10b981;
+                            {% elif a.status == 'CANCELLED' %}background: rgba(239,68,68,0.2); color: #ef4444;
+                            {% elif a.status == 'COMPLETED' %}background: rgba(99,102,241,0.2); color: #818cf8;
+                            {% else %}background: rgba(245,158,11,0.2); color: #fbbf24;{% endif %}">
+                            {{ a.status }}
+                        </span>
+                    </td>
+                    <td>
+                        <div style="display: flex; gap: 8px;">
+                            <button type="button" onclick="openRescheduleModal('{{ a.id }}', '{{ a.date }}', '{{ a.time }}')" title="Modifier" style="background: #fbbf24; color: black; border: none; padding: 5px 10px; border-radius: 6px; cursor: pointer; font-size: 11px; font-weight: bold;">Modifier</button>
+                            <form action="/admin/appointments/status/{{ a.id }}" method="POST" style="display:inline;">
+                                <input type="hidden" name="status" value="COMPLETED">
+                                <button type="submit" title="Terminé" style="background: #818cf8; color: white; border: none; padding: 5px 10px; border-radius: 6px; cursor: pointer; font-size: 11px;">Terminé</button>
+                            </form>
+                            <form action="/admin/appointments/cancel/{{ a.id }}" method="POST" style="display:inline;" onsubmit="return confirm('Annuler ce RDV ?');">
+                                <button type="submit" title="Annuler" style="background: #ef4444; color: white; border: none; padding: 5px 10px; border-radius: 6px; cursor: pointer; font-size: 11px;">Annuler</button>
+                            </form>
+                        </div>
+                    </td>
+                </tr>
+                {% else %}
+                <tr><td colspan="6" style="text-align: center; color: var(--text-muted);">Aucun rendez-vous enregistré.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
 
     <div class="panel" style="margin-top: 40px;">
         <h2>Dernières Activités Globales</h2>
@@ -200,5 +249,59 @@
         </table>
     </div>
 </div>
+    <!-- Modal de Replanification -->
+    <div id="modal-reschedule" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.8); z-index:1000; align-items:center; justify-content:center; backdrop-filter:blur(5px);">
+        <div class="panel" style="max-width:400px; width:90%; position:relative;">
+            <h2 style="margin-bottom:20px;">📅 Replanifier le RDV</h2>
+            <form id="reschedule-form" method="POST" action="">
+                <div style="margin-bottom:15px;">
+                    <label style="display:block; font-size:12px; color:var(--text-muted); margin-bottom:5px;">Nouvelle Date</label>
+                    <input type="date" name="date" id="reschedule-date" required style="width:100%; background:rgba(0,0,0,0.3); border:1px solid var(--card-border); padding:10px; border-radius:8px; color:white;">
+                </div>
+                <div style="margin-bottom:20px;">
+                    <label style="display:block; font-size:12px; color:var(--text-muted); margin-bottom:5px;">Nouvelle Heure</label>
+                    <select name="time" id="reschedule-time" required style="width:100%; background:rgba(0,0,0,0.3); border:1px solid var(--card-border); padding:10px; border-radius:8px; color:white;">
+                        <option value="09:00">09:00</option>
+                        <option value="10:00">10:00</option>
+                        <option value="11:00">11:00</option>
+                        <option value="14:00">14:00</option>
+                        <option value="15:00">15:00</option>
+                        <option value="16:00">16:00</option>
+                    </select>
+                </div>
+                <div style="display:flex; gap:10px;">
+                    <button type="submit" style="flex:1; background:#fbbf24; color:black; font-weight:bold; border:none; padding:12px; border-radius:10px; cursor:pointer;">Enregistrer</button>
+                    <button type="button" onclick="closeRescheduleModal()" style="flex:1; background:rgba(255,255,255,0.1); color:white; border:none; padding:12px; border-radius:10px; cursor:pointer;">Annuler</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        function openRescheduleModal(id, date, time) {
+            const modal = document.getElementById('modal-reschedule');
+            const form = document.getElementById('reschedule-form');
+            const dateInput = document.getElementById('reschedule-date');
+            const timeInput = document.getElementById('reschedule-time');
+            
+            form.action = '/admin/appointments/reschedule/' + id;
+            dateInput.value = date;
+            timeInput.value = time;
+            
+            modal.style.display = 'flex';
+        }
+
+        function closeRescheduleModal() {
+            document.getElementById('modal-reschedule').style.display = 'none';
+        }
+
+        // Close on click outside
+        window.onclick = function(event) {
+            const modal = document.getElementById('modal-reschedule');
+            if (event.target == modal) {
+                closeRescheduleModal();
+            }
+        }
+    </script>
 </body>
 </html>
