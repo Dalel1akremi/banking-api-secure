@@ -1223,24 +1223,14 @@ def process_qr_payment():
     # but for now we'll just send it.
     # To support budget categorization for QR, let's use the payment endpoint if a category is provided!
     
-    if category != "autres":
-        # Simulate a merchant payment via QR
-        res = requests.post(f"{BASE_API_URL}/accounts/payment", json={
-            "account_number": from_account,
-            "merchant": f"QR: {to_account}",
-            "category": category,
-            "amount": amount,
-            "pin": pin,
-            "otp_code": otp_code
-        }, headers=get_headers())
-    else:
-        res = requests.post(f"{BASE_API_URL}/accounts/transfer", json={
-            "from_account": from_account,
-            "to_account":   to_account,
-            "amount":       amount,
-            "pin":          pin,
-            "otp_code":     otp_code
-        }, headers=get_headers())
+    res = requests.post(f"{BASE_API_URL}/accounts/transfer", json={
+        "from_account": from_account,
+        "to_account":   to_account,
+        "amount":       amount,
+        "category":     category,
+        "pin":          pin,
+        "otp_code":     otp_code
+    }, headers=get_headers())
 
     if res.status_code == 200:
         flash(f"Paiement QR de {amount:.2f} TND effectué avec succès !", "success")

@@ -47,11 +47,12 @@ class Transfer(BaseModel):
     amount: float = Field(..., gt=0, le=1000000)
     pin: str = Field(..., pattern=r"^\d{4}$")
     otp_code: str
+    category: str = "autres"
 
 class Payment(BaseModel):
     account_number: str = Field(..., pattern=r"^\d{10}$")
     amount: float = Field(..., gt=0, le=1000000)
-    merchant: str = Field(..., min_length=2, max_length=100, pattern=r"^[a-zA-Z0-9À-ÿ_\-\s\(\)&]+$")
+    merchant: str = Field(..., min_length=2, max_length=100, pattern=r"^[a-zA-Z0-9À-ÿ_\-\s\(\)&:]+$")
     pin: str = Field(..., pattern=r"^\d{4}$")
     otp_code: str
     is_online: bool = False
@@ -558,6 +559,7 @@ def transfer(request: Request, data: Transfer, user=Depends(verify_token)):
         "from_account": data.from_account,
         "to_account": data.to_account,
         "amount": data.amount,
+        "category": data.category,
         "owner_id": str(user["id"])
     })
     log_activity(str(user["id"]), data.from_account, "TRANSFER_OUT", "SUCCESS", {"amount": data.amount, "to_account": data.to_account})
