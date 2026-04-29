@@ -664,10 +664,10 @@ def delete_account(request: Request, data: AccountDelete, user=Depends(verify_to
 @router.post("/renew-card")
 @limiter.limit("2/minute")
 def renew_card(request: Request, data: CardRenew, user=Depends(verify_token)):
-    RENEWAL_FEE = 0.0 if acc.get("card_subscription") == "Prime" else 10.0
-    
     # 1. Vérification PIN
     acc = verify_pin(data.account_number, str(user["id"]), data.pin)
+    
+    RENEWAL_FEE = 0.0 if acc.get("card_subscription") == "Prime" else 10.0
     
     # 2. Vérification OTP
     verify_auth_otp(user["sub"], data.otp_code)
@@ -1324,4 +1324,4 @@ def checkbook_request(request: Request, data: CheckbookRequest, user=Depends(ver
         "type": data.type, "fee": fee
     })
     
-    return {"message": f"Demande de chéquier ({data.type} pages) enregistrée. Frais : {fee} DT."}
+    return {"message": f"Demande de chéquier ({data.type} pages) enregistrée. Frais : {fee} DT."}

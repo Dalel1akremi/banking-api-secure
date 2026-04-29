@@ -148,6 +148,11 @@
         @media(max-width: 768px) {
             .summary-grid { grid-template-columns: 1fr; }
         }
+        
+        /* Status Text Colors */
+        .color-exceeded { color: #f87171 !important; }
+        .color-alert { color: #f59e0b !important; }
+        .color-ok { color: #34d399 !important; }
     </style>
 </head>
 <body>
@@ -203,7 +208,8 @@
             <div class="s-label">Budgets actifs</div>
         </div>
         <div class="summary-card">
-            <div class="s-value" style="color:{% if exceeded %}#f87171{% elif alert %}#f59e0b{% else %}#34d399{% endif %};">
+            {% set total_status = 'color-exceeded' if exceeded else ('color-alert' if alert else 'color-ok') %}
+            <div class="s-value {{ total_status }}">
                 {{ exceeded|length + alert|length }}
             </div>
             <div class="s-label">Alertes actives</div>
@@ -241,11 +247,12 @@
                 Dépensé : <span>{{ "%.1f"|format(b.spent|float) }} DT</span> / {{ "%.0f"|format(b.monthly_limit|float) }} DT
             </div>
             <div class="progress-bar-track">
-                <div class="progress-bar-fill {{ status }}" style="width: {{ b.percentage }}%;"></div>
+                <div class="progress-bar-fill {{ status }}" data-percentage="{{ b.percentage|default(0) }}"></div>
             </div>
             <div class="budget-meta">
                 <span>{{ b.percentage }}% utilisé</span>
-                <span>Reste : <strong style="color:{% if b.exceeded %}#f87171{% else %}#34d399{% endif %};">{{ "%.1f"|format(b.remaining|float) }} DT</strong></span>
+                {% set rem_status = 'color-exceeded' if b.exceeded else 'color-ok' %}
+                <span>Reste : <strong class="{{ rem_status }}">{{ "%.1f"|format(b.remaining|float) }} DT</strong></span>
             </div>
         </div>
         {% endfor %}
@@ -345,6 +352,14 @@
             alert('Erreur lors de la suppression.');
         }
     }
+
+    // Apply progress bar widths dynamically to avoid IDE CSS errors
+    document.addEventListener('DOMContentLoaded', () => {
+        document.querySelectorAll('.progress-bar-fill').forEach(el => {
+            const pct = el.getAttribute('data-percentage') || '0';
+            el.style.width = pct + '%';
+        });
+    });
 </script>
 
 <script src="{{ url_for('static', filename='inactivity.js') }}"></script>
