@@ -1,8 +1,9 @@
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, HTTPException, Request, Depends
 from pydantic import BaseModel, Field, EmailStr, field_validator
-from werkzeug.security import generate_password_hash
+from werkzeug.security import generate_password_hash, check_password_hash
 from app.db import users_collection, otp_collection, accounts_collection, transactions_collection, beneficiaries_collection
 from app.rate_limiter import limiter
+from app.security.auth import verify_token
 import re
 import datetime
 
@@ -30,7 +31,6 @@ class User(BaseModel):
 @router.post("/")
 @limiter.limit("5/minute")
 def create_user(request: Request, user: User):
-
     # Unicité de l'identité (Email ou CIN)
     if users_collection.find_one({"$or": [{"email": user.email}, {"cin": user.cin}]}):
         raise HTTPException(status_code=400, detail="L'utilisateur (Email ou CIN) existe déjà.")
@@ -54,27 +54,17 @@ def create_user(request: Request, user: User):
 
     # transformer en dict
     new_user = user.dict()
-    
-    # ✂️ Ne pas stocker le code OTP en base !
     new_user.pop("verification_code", None)
-    
-    # Hachage sécurisé du mot de passe (sans erreur binaire Windows)
     new_user["password"] = generate_password_hash(user.password)
 
     # insertion dans MongoDB
     result = users_collection.insert_one(new_user)
-
-    # 🗑️ Supprimer le code OTP : un seul usage autorisé (One-Time Password)
     otp_collection.delete_one({"email": user.email})
 
     return {
         "message": "User created successfully",
         "user_id": str(result.inserted_id)
     }
-
-from app.security.auth import verify_token
-from fastapi import Depends
-from werkzeug.security import check_password_hash
 
 def verify_auth_otp(email: str, otp_code: str):
     """Vérifie le code OTP pour une action sensible."""
@@ -94,7 +84,6 @@ def verify_auth_otp(email: str, otp_code: str):
             otp_collection.update_one({"email": email}, {"$set": {"failed_attempts": failed_attempts}})
             raise HTTPException(status_code=400, detail="Code de vérification incorrect.")
             
-    # Valid
     otp_collection.delete_one({"email": email})
     return True
 
@@ -109,7 +98,8 @@ def get_current_user(user=Depends(verify_token)):
         "lastname": db_user.get("lastname"),
         "email": db_user.get("email"),
         "cin": db_user.get("cin"),
-        "phone": db_user.get("phone")
+        "phone": db_user.get("phone"),
+        "biometric_enabled": bool(db_user.get("biometric_credential_id"))
     }
 
 class SettingsUpdate(BaseModel):
@@ -137,14 +127,11 @@ def update_security_settings(request: Request, data: SettingsUpdate, user=Depend
     if not db_user:
         raise HTTPException(status_code=404, detail="Utilisateur introuvable")
 
-    # 1. Vérification du mot de passe
     if not check_password_hash(db_user.get("password", ""), data.current_password):
         raise HTTPException(status_code=403, detail="Mot de passe actuel incorrect.")
 
-    # 2. Vérification de l'OTP
     verify_auth_otp(email, data.otp_code)
 
-    # 3. Application des modifications
     updates = {}
     if data.new_username:
         updates["username"] = data.new_username
@@ -168,30 +155,17 @@ def delete_user_profile(request: Request, data: UserDelete, user=Depends(verify_
     if not db_user:
         raise HTTPException(status_code=404, detail="Utilisateur introuvable")
 
-    # 1. Vérification du mot de passe
     if not check_password_hash(db_user.get("password", ""), data.current_password):
         raise HTTPException(status_code=403, detail="Mot de passe actuel incorrect.")
 
-    # 2. Vérification de l'OTP
     verify_auth_otp(email, data.otp_code)
 
     user_id = str(db_user["_id"])
-
-    # 3. Nettoyage complet
-    # Suppression des bénéficiaires
     beneficiaries_collection.delete_many({"owner_id": user_id})
-    
-    # Suppression des transactions (pour tous les comptes de cet utilisateur)
     transactions_collection.delete_many({"owner_id": user_id})
-    
-    # Suppression des comptes bancaires
     accounts_collection.delete_many({"owner_id": user_id})
-    
-    # Suppression de l'utilisateur
     users_collection.delete_one({"_id": db_user["_id"]})
 
-    # Log - On le fait avant de supprimer l'utilisateur si on veut garder une trace liée à son ID 
-    # ou on log l'action de manière générale.
     from app.security.logger import log_activity
     log_activity(user_id, "N/A", "USER_PROFILE_DELETION", "SUCCESS", {"email": email})
 
@@ -200,22 +174,18 @@ def delete_user_profile(request: Request, data: UserDelete, user=Depends(verify_
 @router.put("/me/contact")
 @limiter.limit("3/minute")
 def update_contact_info(request: Request, data: ContactUpdate, user=Depends(verify_token)):
-    """Met à jour l'email et/ou le numéro de téléphone de l'utilisateur."""
     email = user["sub"]
     db_user = users_collection.find_one({"email": email})
     if not db_user:
         raise HTTPException(status_code=404, detail="Utilisateur introuvable")
 
-    # 1. Vérification mot de passe
     if not check_password_hash(db_user.get("password", ""), data.current_password):
         raise HTTPException(status_code=403, detail="Mot de passe actuel incorrect.")
 
-    # 2. Vérification OTP
     verify_auth_otp(email, data.otp_code)
 
     updates = {}
     if data.new_email:
-        # Vérifier que le nouvel email n'est pas déjà utilisé
         if users_collection.find_one({"email": data.new_email}):
             raise HTTPException(status_code=400, detail="Cet email est déjà utilisé par un autre compte.")
         updates["email"] = data.new_email
@@ -235,13 +205,42 @@ def update_contact_info(request: Request, data: ContactUpdate, user=Depends(veri
 class BiometricRegister(BaseModel):
     credential_id: str
 
+def euclidean_distance(v1, v2):
+    return sum((a - b) ** 2 for a, b in zip(v1, v2)) ** 0.5
+
 @router.post("/me/biometric/register")
 @limiter.limit("5/minute")
 def register_biometric(request: Request, data: BiometricRegister, user=Depends(verify_token)):
+    import json
     email = user["sub"]
     db_user = users_collection.find_one({"email": email})
     if not db_user:
         raise HTTPException(status_code=404, detail="Utilisateur introuvable")
+
+    # --- VÉRIFICATION D'UNICITÉ ---
+    try:
+        new_descriptor = json.loads(data.credential_id)
+    except:
+        raise HTTPException(status_code=400, detail="Format de signature invalide")
+
+    # On cherche si ce visage appartient déjà à quelqu'un d'autre
+    other_users = users_collection.find({
+        "email": {"$ne": email}, 
+        "biometric_credential_id": {"$exists": True}
+    })
+    
+    for other in other_users:
+        try:
+            stored_desc = json.loads(other["biometric_credential_id"])
+            dist = euclidean_distance(new_descriptor, stored_desc)
+            if dist < 0.7:
+                raise HTTPException(
+                    status_code=400, 
+                    detail="Ce visage est déjà associé à un autre compte bancaire."
+                )
+        except HTTPException: raise
+        except: continue
+    # ------------------------------
 
     users_collection.update_one({"email": email}, {"$set": {"biometric_credential_id": data.credential_id}})
 
@@ -249,3 +248,10 @@ def register_biometric(request: Request, data: BiometricRegister, user=Depends(v
     log_activity(str(db_user["_id"]), "N/A", "BIOMETRIC_REGISTER", "SUCCESS", {})
 
     return {"message": "Authentification biométrique activée avec succès."}
+
+@router.delete("/me/biometric")
+@limiter.limit("5/minute")
+def deactivate_biometric(request: Request, user=Depends(verify_token)):
+    email = user["sub"]
+    users_collection.update_one({"email": email}, {"$unset": {"biometric_credential_id": ""}})
+    return {"message": "Authentification biométrique désactivée"}

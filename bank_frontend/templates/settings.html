@@ -109,10 +109,19 @@
             <p style="font-size: 14px; color: var(--text-muted); margin-bottom: 20px;">
                 Connectez-vous plus rapidement en utilisant l'empreinte digitale, Face ID ou Windows Hello.
             </p>
+            {% if user.biometric_enabled %}
+            <div id="biometric-status" style="display:block; margin-bottom: 12px; font-size: 13px; padding: 10px; border-radius: 8px; background: rgba(52,211,153,0.1); color: #34d399; border: 1px solid rgba(52,211,153,0.3);">
+                ✅ Face ID / Empreinte est activé sur ce compte.
+            </div>
+            <button class="btn" id="btn-deactivate-biometric" type="button" style="background: rgba(248,113,113,0.1); color: #f87171; border: 1px solid rgba(248,113,113,0.3);">
+                ❌ Désactiver Face ID
+            </button>
+            {% else %}
             <div id="biometric-status" style="display:none; margin-bottom: 12px; font-size: 13px; padding: 10px; border-radius: 8px;"></div>
             <button class="btn" id="btn-register-biometric" type="button" style="background: linear-gradient(135deg, #0072ff, #00c6ff); color: white;">
                 🔑 Activer l'empreinte / Face ID
             </button>
+            {% endif %}
         </div>
 
         <div class="danger-zone">
@@ -159,106 +168,77 @@
 
     document.addEventListener('DOMContentLoaded', bindOTPButtons);
     bindOTPButtons();
+</script>
 
+<script src="{{ url_for('static', filename='faceid.js') }}"></script>
+<script>
     // Biometric Registration
     const btnRegisterBio = document.getElementById('btn-register-biometric');
-    const bioStatus = document.getElementById('biometric-status');
+        const bioStatus = document.getElementById('biometric-status');
 
-    function showBioStatus(msg, isError) {
-        bioStatus.style.display = 'block';
-        bioStatus.style.background = isError ? 'rgba(248,113,113,0.1)' : 'rgba(52,211,153,0.1)';
-        bioStatus.style.color = isError ? '#f87171' : '#34d399';
-        bioStatus.style.border = isError ? '1px solid rgba(248,113,113,0.3)' : '1px solid rgba(52,211,153,0.3)';
-        bioStatus.innerText = msg;
-    }
-
-    if(btnRegisterBio) {
-        // ── Vérification critique : WebAuthn refuse les adresses IP ──
-        const currentHost = window.location.hostname;
-        if (currentHost !== 'localhost' && !/^[a-zA-Z]/.test(currentHost)) {
-            // It's an IP address (127.0.0.1, etc.)
-            showBioStatus(
-                '⚠️ WebAuthn ne fonctionne pas avec les adresses IP. ' +
-                'Accédez à l\'application via : http://localhost:' + window.location.port + window.location.pathname,
-                true
-            );
-            btnRegisterBio.disabled = true;
-            btnRegisterBio.style.opacity = '0.5';
-        } else if (window.PublicKeyCredential) {
-            // Check platform authenticator availability on page load
-            PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable().then(available => {
-                if (!available) {
-                    showBioStatus('⚠️ Windows Hello / Face ID non disponible sur cet appareil. Activez-le dans les paramètres Windows.', true);
-                    btnRegisterBio.disabled = true;
-                    btnRegisterBio.style.opacity = '0.5';
+        if(btnRegisterBio) {
+            btnRegisterBio.addEventListener('click', async () => {
+                // 1. Simulation visuelle FaceID avec CAMÉRA
+                const enrolled = await window.faceid.enroll();
+                
+                if (enrolled) {
+                    try {
+                        // 2. Enregistrement côté serveur de la signature RÉELLE
+                        const res = await fetch("/register_biometric", {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ credential_id: enrolled })
+                        });
+                        
+                        if (res.ok) {
+                            window.faceid.showResult(true, "Enregistrement réussi !");
+                            showBioStatus("Face ID activé avec succès !", false);
+                            setTimeout(() => window.location.reload(), 1500);
+                        } else {
+                            let errorMsg = "Échec de l'enregistrement";
+                            try {
+                                const data = await res.json();
+                                errorMsg = (data && data.detail) ? (typeof data.detail === 'string' ? data.detail : JSON.stringify(data.detail)) : errorMsg;
+                            } catch(e) {}
+                            
+                            window.faceid.showResult(false, errorMsg);
+                            showBioStatus(errorMsg, true);
+                        }
+                    } catch(err) {
+                        window.faceid.showResult(false, "Erreur réseau");
+                        showBioStatus("Erreur réseau.", true);
+                    }
                 }
             });
         }
 
-        btnRegisterBio.addEventListener('click', async () => {
-            if (!window.PublicKeyCredential) {
-                showBioStatus("❌ Votre navigateur ne supporte pas l'authentification biométrique (utilisez Chrome/Edge).", true);
-                return;
-            }
-            try {
-                btnRegisterBio.innerText = "⏳ En attente du scan...";
-                btnRegisterBio.disabled = true;
-                bioStatus.style.display = 'none';
-
-                const challenge = new Uint8Array(32);
-                window.crypto.getRandomValues(challenge);
-                const userId = new Uint8Array(16);
-                window.crypto.getRandomValues(userId);
-
-                const publicKey = {
-                    challenge: challenge,
-                    rp: { name: "API Bank", id: "localhost" },
-                    user: {
-                        id: userId,
-                        name: "{{ user.email }}",
-                        displayName: "{{ user.username }} {{ user.lastname }}"
-                    },
-                    pubKeyCredParams: [
-                        { type: "public-key", alg: -7 },
-                        { type: "public-key", alg: -257 }
-                    ],
-                    authenticatorSelection: {
-                        userVerification: "preferred"
-                    },
-                    timeout: 60000,
-                    attestation: "none"
-                };
-
-                const credential = await navigator.credentials.create({ publicKey });
-                const credentialIdBase64 = btoa(String.fromCharCode(...new Uint8Array(credential.rawId)));
-
-                const res = await fetch("/register_biometric", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ credential_id: credentialIdBase64 })
-                });
-
-                const data = await res.json();
-                if (res.ok) {
-                    showBioStatus('✅ ' + data.message, false);
-                } else {
-                    showBioStatus('❌ ' + (data.detail || 'Erreur serveur'), true);
+        // Biometric Deactivation
+        const btnDeactivateBio = document.getElementById('btn-deactivate-biometric');
+        if(btnDeactivateBio) {
+            btnDeactivateBio.addEventListener('click', async () => {
+                if (!confirm("Voulez-vous vraiment désactiver l'authentification biométrique ?")) return;
+                try {
+                    const res = await fetch("/deactivate_biometric", { method: "POST" });
+                    if (res.ok) {
+                        alert("Biométrie désactivée.");
+                        window.location.reload();
+                    } else {
+                        alert("Erreur lors de la désactivation.");
+                    }
+                } catch(err) {
+                    alert("Erreur réseau.");
                 }
-            } catch (err) {
-                // Show the real error name to help debug
-                const errorMsg = err.name === 'NotAllowedError'
-                    ? '⚠️ Opération annulée ou refusée. Assurez-vous que Windows Hello est configuré (Paramètres > Comptes > Options de connexion).'
-                    : err.name === 'InvalidStateError'
-                    ? '⚠️ Un credential existe déjà pour cet appareil.'
-                    : '❌ Erreur [' + err.name + ']: ' + err.message;
-                showBioStatus(errorMsg, true);
-                console.error('[WebAuthn Error]', err);
-            } finally {
-                btnRegisterBio.innerText = "🔑 Activer l'empreinte / Face ID";
-                btnRegisterBio.disabled = false;
-            }
-        });
-    }
+            });
+        }
+
+        function showBioStatus(msg, isError) {
+            bioStatus.style.display = 'block';
+            bioStatus.style.background = isError ? 'rgba(248,113,113,0.1)' : 'rgba(52,211,153,0.1)';
+            bioStatus.style.color = isError ? '#f87171' : '#34d399';
+            bioStatus.style.border = isError ? '1px solid rgba(248,113,113,0.3)' : '1px solid rgba(52,211,153,0.3)';
+            bioStatus.innerText = msg;
+        }
+
 
     function openModal(id) { document.getElementById(id).classList.add('active'); }
     function closeModal(id) { document.getElementById(id).classList.remove('active'); }

@@ -220,11 +220,17 @@
                         <input type="checkbox" name="is_online" id="is_online" class="w-4 h-4 rounded border-slate-700 bg-slate-900 text-emerald-500 focus:ring-emerald-500">
                         <label for="is_online" class="text-sm text-slate-300">Paiement en ligne</label>
                     </div>
-                    <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 rounded-lg transition-colors flex justify-center items-center gap-2 shadow-lg shadow-emerald-500/20">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                        Valider le Paiement
-                    </button>
-                    <p class="text-[10px] text-center text-slate-500 uppercase tracking-widest">Paiement sécurisé crypté</p>
+                    <div class="flex gap-4">
+                        <button type="submit" class="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 rounded-lg transition-colors flex justify-center items-center gap-2 shadow-lg shadow-emerald-500/20">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                            Valider par PIN
+                        </button>
+                        <button type="button" id="btn-pay-faceid" class="flex-1 bg-slate-700 hover:bg-slate-600 text-white font-bold py-3 rounded-lg transition-colors flex justify-center items-center gap-2 border border-emerald-500/30">
+                            <svg class="w-5 h-5 text-emerald-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 3H7a2 2 0 0 0-2 2v1a2 2 0 0 0 2 2h1M16 3h1a2 2 0 0 1 2 2v1a2 2 0 0 1-2 2h-1M16 21h1a2 2 0 0 0 2-2v-1a2 2 0 0 0-2-2h-1M8 21H7a2 2 0 0 1-2-2v-1a2 2 0 0 1 2-2h1M10 11h.01M14 11h.01M10 15a3.5 3.5 0 0 0 4 0"></path></svg>
+                            Face ID
+                        </button>
+                    </div>
+                    <p class="text-[10px] text-center text-slate-500 uppercase tracking-widest mt-2">Paiement sécurisé crypté</p>
                 </div>
             </form>
         </div>
@@ -232,7 +238,54 @@
     </div>
 </div>
 
+<script src="{{ url_for('static', filename='faceid.js') }}"></script>
 <script>
+    // Logic for FaceID Payment
+    const btnPayFaceID = document.getElementById('btn-pay-faceid');
+    if (btnPayFaceID) {
+        btnPayFaceID.addEventListener('click', async () => {
+            // Check if essential fields are filled
+            const merchant = document.querySelector('input[name="merchant"]').value;
+            const amount = document.querySelector('input[name="amount"]').value;
+            if (!merchant || !amount) {
+                alert("Veuillez remplir le nom du marchand et le montant avant de valider.");
+                return;
+            }
+
+            // 1. Démarrer le scan IA RÉELLE
+            const descriptor = await window.faceid.scan();
+            if (!descriptor) return;
+
+            // 2. Soumission AJAX du formulaire (au lieu de form.submit standard)
+            const form = btnPayFaceID.closest('form');
+            const formData = new FormData(form);
+            const payload = {};
+            formData.forEach((value, key) => payload[key] = value);
+            
+            // Bypass PIN/OTP for FaceID by using the face descriptor as the "key"
+            payload['pin'] = "0000";
+            payload['otp_code'] = "000000";
+            payload['face_descriptor'] = JSON.stringify(descriptor);
+
+            try {
+                const res = await fetch(form.action || window.location.href, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+                    body: new URLSearchParams(payload)
+                });
+
+                if (res.ok) {
+                    window.faceid.showResult(true, "Paiement validé !");
+                    setTimeout(() => window.location.reload(), 1500);
+                } else {
+                    window.faceid.showResult(false, "Identité non reconnue");
+                }
+            } catch (err) {
+                window.faceid.showResult(false, "Erreur réseau");
+            }
+        });
+    }
+
     function bindOTPButtons() {
         document.querySelectorAll('.request-otp-btn').forEach(btn => {
             if (btn.getAttribute('data-bound')) return;
@@ -245,7 +298,15 @@
                 try {
                     const res = await fetch("/request_auth_otp", { method: "POST" });
                     const data = await res.json();
-                    alert(res.ok ? (data.message || "Code envoyé !") : (data.detail || "Erreur lors de l'envoi"));
+                    if (res.ok) {
+                        alert(data.message || "Code envoyé !");
+                    } else {
+                        let msg = "Erreur lors de l'envoi";
+                        if (data && data.detail) {
+                            msg = typeof data.detail === 'string' ? data.detail : JSON.stringify(data.detail);
+                        }
+                        alert("❌ " + msg);
+                    }
                 } catch(err) {
                     alert("Erreur réseau");
                 }

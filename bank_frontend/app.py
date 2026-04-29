@@ -160,6 +160,13 @@ def register_biometric():
     response = requests.post(f"{BASE_API_URL}/users/me/biometric/register", headers=get_headers(), json=data)
     return (response.content, response.status_code, {"Content-Type": "application/json"})
 
+@app.route("/deactivate_biometric", methods=["POST"])
+@limiter.limit("5 per minute")
+def deactivate_biometric():
+    if "token" not in session: return ("Unauthorized", 401)
+    response = requests.delete(f"{BASE_API_URL}/users/me/biometric", headers=get_headers())
+    return (response.content, response.status_code, {"Content-Type": "application/json"})
+
 @app.route("/signup", methods=["GET"])
 def signup():
     return render_template("signup.html")
@@ -399,6 +406,8 @@ def process_payment():
     is_foreign = request.form.get("is_foreign") == "on"
     is_contactless = request.form.get("is_contactless") == "on"
     
+    face_descriptor = request.form.get("face_descriptor")
+    
     res = requests.post(f"{BASE_API_URL}/accounts/payment", json={
         "account_number": account_number,
         "amount": amount,
@@ -407,7 +416,8 @@ def process_payment():
         "otp_code": otp_code,
         "is_online": is_online,
         "is_foreign": is_foreign,
-        "is_contactless": is_contactless
+        "is_contactless": is_contactless,
+        "face_descriptor": face_descriptor
     }, headers=get_headers())
     
     if res.status_code != 200:

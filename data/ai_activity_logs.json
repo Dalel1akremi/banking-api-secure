@@ -41,3 +41,42 @@
 {"timestamp": "2026-04-29T19:49:15.688928Z", "user_id": "69e95444c01742443e027693", "account_number": "8567836065", "action_type": "TRANSFER_IN", "status": "SUCCESS", "details": {"amount": 200.0, "from_account": "4777710662"}}
 {"timestamp": "2026-04-29T20:41:03.531397Z", "user_id": "69e95444c01742443e027693", "account_number": "8567836065", "action_type": "PAYMENT_RECEIVED", "status": "SUCCESS", "details": {"amount": 100.0, "from_account": "4777710662"}}
 {"timestamp": "2026-04-29T20:41:03.533255Z", "user_id": "69ebdc7ed9445df8e0df2bb0", "account_number": "4777710662", "action_type": "PAYMENT", "status": "SUCCESS", "details": {"amount": 100.0, "merchant": "zara", "category": "shopping"}}
+{"timestamp": "2026-04-29T20:53:58.322784Z", "user_id": "69ebdc7ed9445df8e0df2bb0", "account_number": "N/A", "action_type": "BIOMETRIC_LOGIN", "status": "SUCCESS", "details": {}}
+{"timestamp": "2026-04-29T20:55:18.006228Z", "user_id": "69ebdc7ed9445df8e0df2bb0", "account_number": "N/A", "action_type": "BIOMETRIC_LOGIN", "status": "SUCCESS", "details": {}}
+{"timestamp": "2026-04-29T20:57:59.631791Z", "user_id": "69ebdc7ed9445df8e0df2bb0", "account_number": "N/A", "action_type": "BIOMETRIC_LOGIN", "status": "SUCCESS", "details": {}}
+{"timestamp": "2026-04-29T21:00:47.139161Z", "user_id": "69ebdc7ed9445df8e0df2bb0", "account_number": "N/A", "action_type": "BIOMETRIC_LOGIN", "status": "SUCCESS", "details": {}}
+{"timestamp": "2026-04-29T21:01:05.337538Z", "user_id": "69ebdc7ed9445df8e0df2bb0", "account_number": "N/A", "action_type": "BIOMETRIC_LOGIN", "status": "SUCCESS", "details": {}}
+{"timestamp": "2026-04-29T21:04:38.296484Z", "user_id": "69ebdc7ed9445df8e0df2bb0", "account_number": "N/A", "action_type": "BIOMETRIC_REGISTER", "status": "SUCCESS", "details": {}}
+{"timestamp": "2026-04-29T21:05:01.957697Z", "user_id": "69ebdc7ed9445df8e0df2bb0", "account_number": "N/A", "action_type": "BIOMETRIC_LOGIN", "status": "SUCCESS", "details": {}}
+{"timestamp": "2026-04-29T21:18:35.756017Z", "user_id": "69ebdc7ed9445df8e0df2bb0", "account_number": "N/A", "action_type": "BIOMETRIC_LOGIN", "status": "SUCCESS", "details": {}}
+{"timestamp": "2026-04-29T21:18:56.582490Z", "user_id": "69ebdc7ed9445df8e0df2bb0", "account_number": "N/A", "action_type": "BIOMETRIC_REGISTER", "status": "SUCCESS", "details": {}}
+{"timestamp": "2026-04-29T21:20:09.838891Z", "user_id": "69ebdc7ed9445df8e0df2bb0", "account_number": "N/A", "action_type": "BIOMETRIC_LOGIN", "status": "SUCCESS", "details": {}}
+{"timestamp": "2026-04-29T21:20:44.192296Z", "user_id": "69e95444c01742443e027693", "account_number": "N/A", "action_type": "BIOMETRIC_LOGIN", "status": "SUCCESS", "details": {}}
+{"timestamp": "2026-04-29T21:21:03.848125Z", "user_id": "69e95444c01742443e027693", "account_number": "N/A", "action_type": "BIOMETRIC_REGISTER", "status": "SUCCESS", "details": {}}
+{"timestamp": "2026-04-29T21:21:15.819018Z", "user_id": "69e95444c01742443e027693", "account_number": "N/A", "action_type": "BIOMETRIC_REGISTER", "status": "SUCCESS", "details": {}}
+{"timestamp": "2026-04-29T21:21:28.426711Z", "user_id": "69e95444c01742443e027693", "account_number": "N/A", "action_type": "BIOMETRIC_LOGIN", "status": "SUCCESS", "details": {}}
+{"timestamp": "2026-04-29T21:21:40.647187Z", "user_id": "69e95444c01742443e027693", "account_number": "N/A", "action_type": "BIOMETRIC_LOGIN", "status": "SUCCESS", "details": {}}
+{"timestamp": "2026-04-29T21:22:59.741398Z", "user_id": "69e95444c01742443e027693", "account_number": "N/A", "action_type": "BIOMETRIC_LOGIN", "status": "SUCCESS", "details": {}}
+{"timestamp": "2026-04-29T21:24:22.619934Z", "user_id": "69e95444c01742443e027693", "account_number": "N/A", "action_type": "BIOMETRIC_LOGIN", "status": "SUCCESS", "details": {}}
+{"timestamp": "2026-04-29T21:24:33.168042Z", "user_id": "69e95444c01742443e027693", "account_number": "N/A", "action_type": "BIOMETRIC_LOGIN", "status": "SUCCESS", "details": {}}
+{"timestamp": "2026-04-29T21:24:50.901271Z", "user_id": "69e95444c01742443e027693", "account_number": "N/A", "action_type": "BIOMETRIC_REGISTER", "status": "SUCCESS", "details": {}}
+{"timestamp": "2026-04-29T21:25:08.003574Z", "user_id": "69e95444c01742443e027693", "account_number": "N/A", "action_type": "BIOMETRIC_LOGIN", "status": "SUCCESS", "details": {}}
+{"timestamp": "2026-04-29T21:32:07.266530Z", "user_id": "69e95444c01742443e027693", "account_number": "N/A", "action_type": "BIOMETRIC_REGISTER", "status": "SUCCESS", "details": {}}
+{"timestamp": "2026-04-29T21:32:22.585389Z", "user_id": "69e95444c01742443e027693", "account_number": "N/A", "action_type": "BIOMETRIC_LOGIN", "status": "SUCCESS", "details": {}}
+{"timestamp": "2026-04-29T21:32:51.328327Z", "user_id": "69e95444c01742443e027693", "account_number": "N/A", "action_type": "BIOMETRIC_LOGIN", "status": "SUCCESS", "details": {}}
+{"timestamp": "2026-04-29T21:53:27.206412Z", "user_id": "69e95444c01742443e027693", "account_number": "N/A", "action_type": "BIOMETRIC_REGISTER", "status": "SUCCESS", "details": {}}
+{"timestamp": "2026-04-29T21:58:43.724037Z", "user_id": "69ebdc7ed9445df8e0df2bb0", "account_number": "N/A", "action_type": "BIOMETRIC_REGISTER", "status": "SUCCESS", "details": {}}
+{"timestamp": "2026-04-29T22:07:24.089291Z", "user_id": "69ebdc7ed9445df8e0df2bb0", "account_number": "N/A", "action_type": "BIOMETRIC_REGISTER", "status": "SUCCESS", "details": {}}
+{"timestamp": "2026-04-29T22:07:38.484201Z", "user_id": "69ebdc7ed9445df8e0df2bb0", "account_number": "N/A", "action_type": "BIOMETRIC_LOGIN", "status": "SUCCESS", "details": {"distance": 0.5351313041399154}}
+{"timestamp": "2026-04-29T22:09:53.964825Z", "user_id": "69ebdc7ed9445df8e0df2bb0", "account_number": "N/A", "action_type": "BIOMETRIC_LOGIN", "status": "SUCCESS", "details": {"distance": 0.629739986497917}}
+{"timestamp": "2026-04-29T22:12:27.851358Z", "user_id": "69e95444c01742443e027693", "account_number": "N/A", "action_type": "BIOMETRIC_REGISTER", "status": "SUCCESS", "details": {}}
+{"timestamp": "2026-04-29T22:12:41.237360Z", "user_id": "69e95444c01742443e027693", "account_number": "N/A", "action_type": "BIOMETRIC_LOGIN", "status": "SUCCESS", "details": {"distance": 0.39288664899120496}}
+{"timestamp": "2026-04-29T22:12:50.715635Z", "user_id": "69ebdc7ed9445df8e0df2bb0", "account_number": "N/A", "action_type": "BIOMETRIC_LOGIN", "status": "SUCCESS", "details": {"distance": 0.5940247730060866}}
+{"timestamp": "2026-04-29T22:13:05.650452Z", "user_id": "69e95444c01742443e027693", "account_number": "N/A", "action_type": "BIOMETRIC_LOGIN", "status": "SUCCESS", "details": {"distance": 0.44652389117272623}}
+{"timestamp": "2026-04-29T22:13:23.953438Z", "user_id": "69e95444c01742443e027693", "account_number": "N/A", "action_type": "BIOMETRIC_REGISTER", "status": "SUCCESS", "details": {}}
+{"timestamp": "2026-04-29T22:13:33.614506Z", "user_id": "69e95444c01742443e027693", "account_number": "N/A", "action_type": "BIOMETRIC_LOGIN", "status": "SUCCESS", "details": {"distance": 0.4547827758227365}}
+{"timestamp": "2026-04-29T22:16:46.845399Z", "user_id": "69e95444c01742443e027693", "account_number": "N/A", "action_type": "BIOMETRIC_LOGIN", "status": "SUCCESS", "details": {"distance": 0.48466224993374873}}
+{"timestamp": "2026-04-29T22:17:10.775366Z", "user_id": "69ebdc7ed9445df8e0df2bb0", "account_number": "N/A", "action_type": "BIOMETRIC_LOGIN", "status": "SUCCESS", "details": {"distance": 0.5901628509376957}}
+{"timestamp": "2026-04-29T22:23:29.135658Z", "user_id": "69e95444c01742443e027693", "account_number": "N/A", "action_type": "BIOMETRIC_REGISTER", "status": "SUCCESS", "details": {}}
+{"timestamp": "2026-04-29T22:27:01.165405Z", "user_id": "69e95444c01742443e027693", "account_number": "N/A", "action_type": "BIOMETRIC_REGISTER", "status": "SUCCESS", "details": {}}
+{"timestamp": "2026-04-29T22:27:17.235855Z", "user_id": "69e95444c01742443e027693", "account_number": "N/A", "action_type": "BIOMETRIC_LOGIN", "status": "SUCCESS", "details": {"distance": 0.1703777182556124}}

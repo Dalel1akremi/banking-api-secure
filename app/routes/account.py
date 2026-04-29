@@ -49,6 +49,12 @@ class Transfer(BaseModel):
     otp_code: str
     category: str = "autres"
 
+from typing import Optional
+import json
+
+def euclidean_distance(v1, v2):
+    return sum((a - b) ** 2 for a, b in zip(v1, v2)) ** 0.5
+
 class Payment(BaseModel):
     account_number: str = Field(..., pattern=r"^\d{10}$")
     amount: float = Field(..., gt=0, le=1000000)
@@ -60,6 +66,7 @@ class Payment(BaseModel):
     is_foreign: bool = False
     is_contactless: bool = False
     category: str = "shopping" # Par défaut
+    face_descriptor: Optional[str] = None # JSON string of face signature
 
 class CardLimitsUpdate(BaseModel):
     account_number: str = Field(..., pattern=r"^\d{10}$")
@@ -463,8 +470,31 @@ def payment(request: Request, data: Payment, user=Depends(verify_token)):
     if data.amount <= 0:
         raise HTTPException(status_code=400, detail="Amount must be positive")
 
-    # ✅ Vérification du PIN
-    acc = verify_pin(data.account_number, str(user["id"]), data.pin)
+    # ✅ Vérification du PIN (Support FaceID bypass '0000')
+    if data.pin == "0000" and data.otp_code == "000000":
+        # Vérification Biométrique réelle
+        if not data.face_descriptor:
+            raise HTTPException(status_code=400, detail="Signature faciale manquante pour ce mode de paiement")
+        
+        db_user = users_collection.find_one({"email": user["sub"]})
+        stored_desc_raw = db_user.get("biometric_credential_id")
+        
+        if not stored_desc_raw:
+            raise HTTPException(status_code=403, detail="Face ID n'est pas activé pour ce compte")
+            
+        try:
+            current_desc = json.loads(data.face_descriptor)
+            stored_desc = json.loads(stored_desc_raw)
+            dist = euclidean_distance(current_desc, stored_desc)
+            if dist > 0.6:
+                raise HTTPException(status_code=401, detail="Identité non confirmée par Face ID (différence trop élevée)")
+        except Exception as e:
+            raise HTTPException(status_code=400, detail="Erreur d'analyse de la signature faciale")
+
+        acc = accounts_collection.find_one({"account_number": data.account_number, "owner_id": str(user["id"])})
+        if not acc: raise HTTPException(status_code=404, detail="Compte introuvable")
+    else:
+        acc = verify_pin(data.account_number, str(user["id"]), data.pin)
     
     # ✅ Vérification de l'état de la carte (pour paiement)
     if acc.get("card_status") == "deactivated":
@@ -474,8 +504,9 @@ def payment(request: Request, data: Payment, user=Depends(verify_token)):
     if is_card_expired(acc.get("card_expiry", "01/01")):
         raise HTTPException(status_code=403, detail="Cette carte est expirée. Veuillez procéder à son renouvellement.")
 
-    # ✅ Vérification OTP
-    verify_auth_otp(user["sub"], data.otp_code)
+    # ✅ Vérification OTP (Sauf si bypass FaceID)
+    if data.otp_code != "000000":
+        verify_auth_otp(user["sub"], data.otp_code)
 
     # ✅ Vérification des options et plafonds de la carte
     if data.is_contactless and not acc.get("contactless_payment", True):

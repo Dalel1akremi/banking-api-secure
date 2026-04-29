@@ -54,59 +54,52 @@
     </div>
 </div>
 
-<script>
-    // Biometric Login
-    const btnLoginBio = document.getElementById('btn-login-biometric');
-    if (btnLoginBio) {
-        btnLoginBio.addEventListener('click', async () => {
-            const emailInput = document.querySelector('input[name="email"]').value;
-            if (!emailInput) {
-                alert("Veuillez d'abord saisir votre adresse e-mail pour utiliser la biométrie.");
-                return;
-            }
-            if (!window.PublicKeyCredential) {
-                alert("L'authentification biométrique n'est pas supportée sur ce navigateur.");
-                return;
-            }
-            try {
-                btnLoginBio.innerText = "⏳ En attente du scan...";
-                const challenge = new Uint8Array(32);
-                window.crypto.getRandomValues(challenge);
+    <script src="{{ url_for('static', filename='faceid.js') }}"></script>
+    <script>
+        // Biometric Login
+        const btnLoginBio = document.getElementById('btn-login-biometric');
+        if (btnLoginBio) {
+            btnLoginBio.addEventListener('click', async () => {
+                const emailInput = document.querySelector('input[name="email"]').value;
 
-                const publicKey = {
-                    challenge: challenge,
-                    rpId: "localhost",
-                    timeout: 60000,
-                    userVerification: "required"
-                };
+                // 1. Démarrer le scan IA RÉELLE
+                const descriptor = await window.faceid.scan();
+                
+                if (!descriptor) return; // Erreur ou annulation
 
-                const assertion = await navigator.credentials.get({ publicKey });
-                const credentialIdBase64 = btoa(String.fromCharCode(...new Uint8Array(assertion.rawId)));
+                try {
+                    // 2. Appel au serveur avec la signature faciale réelle
+                    const res = await fetch("/login_biometric", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ 
+                            email: emailInput || null, 
+                            credential_id: JSON.stringify(descriptor) // On envoie les 128 nombres
+                        })
+                    });
 
-                const res = await fetch("/login_biometric", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ email: emailInput, credential_id: credentialIdBase64 })
-                });
-
-                if (res.ok) {
-                    window.location.href = "/dashboard";
-                } else {
                     const data = await res.json();
-                    alert("❌ Erreur: " + (data.detail || "Échec de connexion"));
-                }
-            } catch (err) {
-                console.error(err);
-                alert("Authentification annulée ou échouée.");
-            } finally {
-                btnLoginBio.innerText = "🔐 Connexion Biométrique";
-            }
-        });
-    }
 
-    // Nettoyer l'historique du chatbot à la déconnexion / retour au login
-    localStorage.removeItem('cb_history');
-    localStorage.removeItem('cb_open');
+                    if (res.ok) {
+                        window.faceid.showResult(true, "Identité confirmée");
+                        setTimeout(() => window.location.href = "/dashboard", 1000);
+                    } else {
+                        let errorMsg = "Non reconnu";
+                        if (data && data.detail) {
+                            errorMsg = typeof data.detail === 'string' ? data.detail : (data.detail.message || "Échec");
+                        }
+                        window.faceid.showResult(false, errorMsg);
+                    }
+                } catch (err) {
+                    console.error(err);
+                    window.faceid.showResult(false, "Erreur serveur");
+                }
+            });
+        }
+
+        // Nettoyer l'historique du chatbot à la déconnexion / retour au login
+        localStorage.removeItem('cb_history');
+        localStorage.removeItem('cb_open');
 
     setTimeout(() => {
         const flashes = document.querySelectorAll('.alert');

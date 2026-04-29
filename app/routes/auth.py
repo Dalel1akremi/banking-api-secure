@@ -102,36 +102,82 @@ def verify_login_2fa(request: Request, data: Verify2FA):
         "token_type": "bearer"
     }
 
+from typing import Optional
+
 class BiometricLogin(BaseModel):
-    email: EmailStr
-    credential_id: str
+    email: Optional[EmailStr] = None
+    credential_id: str # This is now the JSON string of the face descriptor
+
+def euclidean_distance(v1, v2):
+    return sum((a - b) ** 2 for a, b in zip(v1, v2)) ** 0.5
 
 @router.post("/login/biometric")
 @limiter.limit("5/minute")
 def login_biometric(request: Request, data: BiometricLogin):
-    db_user = users_collection.find_one({"email": data.email})
-    if not db_user:
-        raise HTTPException(status_code=401, detail="Email ou biométrie invalide")
+    import json
+    try:
+        current_descriptor = json.loads(data.credential_id)
+    except:
+        raise HTTPException(status_code=400, detail="Format de signature faciale invalide")
 
-    stored_credential = db_user.get("biometric_credential_id")
-    if not stored_credential:
-        raise HTTPException(status_code=403, detail="Authentification biométrique non activée pour ce compte")
+    # Mode 1: Recherche par e-mail
+    if data.email:
+        db_user = users_collection.find_one({"email": data.email})
+        if not db_user:
+            raise HTTPException(status_code=401, detail="Aucun compte associé à cet email")
+        
+        stored_desc_raw = db_user.get("biometric_credential_id")
+        if not stored_desc_raw:
+            raise HTTPException(status_code=403, detail="Face ID n'est pas activé pour ce compte")
+        
+        try:
+            stored_descriptor = json.loads(stored_desc_raw)
+            dist = euclidean_distance(current_descriptor, stored_descriptor)
+            # Seuil de reconnaissance assoupli à 0.7 pour plus de fiabilité
+            if dist > 0.7:
+                raise HTTPException(
+                    status_code=401, 
+                    detail="Visage non reconnu (Écart de ressemblance: {:.2f}, max autorisé: 0.70)".format(dist)
+                )
+        except HTTPException: raise
+        except Exception as e:
+            raise HTTPException(status_code=500, detail="Erreur de lecture de la signature: " + str(e))
 
-    if stored_credential != data.credential_id:
-        # Prevent timing attacks by using constant time compare if we cared, but simple string compare for prototype is ok
-        # Add failed attempt logic if needed, but since it's biometric it usually fails on the device itself
-        raise HTTPException(status_code=401, detail="Échec de l'authentification biométrique")
+    # Mode 2: Identification automatique (One-Click Face ID)
+    else:
+        # On parcourt les utilisateurs ayant FaceID activé
+        all_users = users_collection.find({"biometric_credential_id": {"$exists": True}})
+        best_match = None
+        min_dist = 2.0 
+        
+        for u in all_users:
+            try:
+                stored_desc = json.loads(u["biometric_credential_id"])
+                dist = euclidean_distance(current_descriptor, stored_desc)
+                if dist < min_dist:
+                    min_dist = dist
+                    if dist < 0.7:
+                        best_match = u
+            except: continue
+            
+        if not best_match:
+            detail_msg = "Identité non reconnue"
+            if min_dist < 2.0:
+                detail_msg += " (Écart le plus proche: {:.2f}, max: 0.70)".format(min_dist)
+            raise HTTPException(status_code=401, detail=detail_msg)
+        
+        db_user = best_match
+        dist = min_dist # pour le log
 
     # Success! Create token
     is_admin = db_user.get("is_admin", False)
     token = create_access_token({"sub": db_user["email"], "id": str(db_user["_id"]), "is_admin": is_admin})
     
-    # Log successful login
     from app.security.logger import log_activity
-    log_activity(str(db_user["_id"]), "N/A", "BIOMETRIC_LOGIN", "SUCCESS", {})
+    log_activity(str(db_user["_id"]), "N/A", "BIOMETRIC_LOGIN", "SUCCESS", {"distance": min_dist if not data.email else dist})
 
     return {
         "access_token": token,
         "token_type": "bearer",
-        "message": "Connexion biométrique réussie"
+        "message": "Connexion Face ID réussie"
     }
