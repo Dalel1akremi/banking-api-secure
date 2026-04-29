@@ -1186,18 +1186,20 @@ def process_merchant_payment():
     merchant       = request.form.get("merchant")
     category       = request.form.get("category", "shopping")
     amount         = float(request.form.get("amount", 0))
-    pin            = request.form.get("pin")
-    otp_code       = request.form.get("otp_code")
-    is_online      = request.form.get("is_online") == "on"
+    merchant_account = request.form.get("merchant_account")
+    pin              = request.form.get("pin")
+    otp_code         = request.form.get("otp_code")
+    is_online        = request.form.get("is_online") == "on"
 
     res = requests.post(f"{BASE_API_URL}/accounts/payment", json={
-        "account_number": account_number,
-        "merchant":       merchant,
-        "category":       category,
-        "amount":         amount,
-        "pin":            pin,
-        "otp_code":       otp_code,
-        "is_online":      is_online
+        "account_number":   account_number,
+        "merchant":         merchant,
+        "merchant_account": merchant_account,
+        "category":         category,
+        "amount":           amount,
+        "pin":              pin,
+        "otp_code":         otp_code,
+        "is_online":        is_online
     }, headers=get_headers())
 
     if res.status_code == 200:
@@ -1221,15 +1223,17 @@ def process_qr_payment():
     # Note: Backend transfer doesn't store category yet, 
     # so we might want to use 'payment' endpoint for QR if it's a merchant, 
     # but for now we'll just send it.
-    # To support budget categorization for QR, let's use the payment endpoint if a category is provided!
-    
-    res = requests.post(f"{BASE_API_URL}/accounts/transfer", json={
-        "from_account": from_account,
-        "to_account":   to_account,
-        "amount":       amount,
-        "category":     category,
-        "pin":          pin,
-        "otp_code":     otp_code
+    # ✅ On utilise désormais l'API payment qui supporte le compte destinataire (merchant_account)
+    # Cela permet de conserver la catégorie et le nom du marchand
+    res = requests.post(f"{BASE_API_URL}/accounts/payment", json={
+        "account_number":   from_account,
+        "amount":           amount,
+        "merchant":         f"QR: {to_account}",
+        "merchant_account": to_account,
+        "category":         category,
+        "pin":              pin,
+        "otp_code":         otp_code,
+        "is_contactless":   True
     }, headers=get_headers())
 
     if res.status_code == 200:

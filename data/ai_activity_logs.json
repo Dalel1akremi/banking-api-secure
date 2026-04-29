@@ -39,3 +39,5 @@
 {"timestamp": "2026-04-29T19:43:05.100237Z", "user_id": "69ebdc7ed9445df8e0df2bb0", "account_number": "4777710662", "action_type": "PAYMENT", "status": "SUCCESS", "details": {"amount": 200.0, "merchant": "QR: 8567836065", "category": "sante"}}
 {"timestamp": "2026-04-29T19:49:15.687195Z", "user_id": "69ebdc7ed9445df8e0df2bb0", "account_number": "4777710662", "action_type": "TRANSFER_OUT", "status": "SUCCESS", "details": {"amount": 200.0, "to_account": "8567836065"}}
 {"timestamp": "2026-04-29T19:49:15.688928Z", "user_id": "69e95444c01742443e027693", "account_number": "8567836065", "action_type": "TRANSFER_IN", "status": "SUCCESS", "details": {"amount": 200.0, "from_account": "4777710662"}}
+{"timestamp": "2026-04-29T20:41:03.531397Z", "user_id": "69e95444c01742443e027693", "account_number": "8567836065", "action_type": "PAYMENT_RECEIVED", "status": "SUCCESS", "details": {"amount": 100.0, "from_account": "4777710662"}}
+{"timestamp": "2026-04-29T20:41:03.533255Z", "user_id": "69ebdc7ed9445df8e0df2bb0", "account_number": "4777710662", "action_type": "PAYMENT", "status": "SUCCESS", "details": {"amount": 100.0, "merchant": "zara", "category": "shopping"}}
