@@ -1863,3 +1863,92 @@ def cancel_appointment(appt_id):
 
 if __name__ == "__main__":
     app.run(port=5000, debug=True)
+
+
+@app.route("/admin/users")
+def admin_users():
+    if "token" not in session: return redirect("/")
+    res = requests.get(f"{BASE_API_URL}/admin/users", headers=get_headers(), timeout=30)
+    if res.status_code == 403:
+        flash("Accès refusé. Privilèges administrateur requis.", "error")
+        return redirect("/dashboard")
+    users = res.json() if res.status_code == 200 else []
+    return render_template("admin_users.html", users=users)
+
+
+@app.route("/admin/users/<user_id>")
+def admin_user_details(user_id):
+    if "token" not in session: return redirect("/")
+    res = requests.get(f"{BASE_API_URL}/admin/users/{user_id}", headers=get_headers(), timeout=30)
+    if res.status_code == 403:
+        flash("Accès refusé.", "error")
+        return redirect("/dashboard")
+    elif res.status_code != 200:
+        flash("Utilisateur introuvable.", "error")
+        return redirect("/admin/users")
+        
+    data = res.json()
+    return render_template("admin_user_details.html", user=data.get("user"), accounts=data.get("accounts", []), transactions=data.get("transactions", []))
+
+@app.route("/admin/users/<user_id>/status", methods=["POST"])
+
+def admin_update_user_status(user_id):
+    if "token" not in session: return redirect("/")
+    status = request.form.get("status", "active")
+    otp_code = request.form.get("otp_code")
+    reason = request.form.get("reason", "Action administrative")
+    res = requests.put(f"{BASE_API_URL}/admin/users/{user_id}/status", json={"status": status, "otp_code": otp_code, "reason": reason}, headers=get_headers(), timeout=30)
+    if res.status_code == 200:
+        flash(f"Statut utilisateur mis à jour : {status}", "success")
+    else:
+        flash("Erreur lors de la mise à jour du statut", "error")
+    return redirect("/admin/users")
+
+@app.route("/admin/accounts")
+def admin_accounts():
+    if "token" not in session: return redirect("/")
+    res = requests.get(f"{BASE_API_URL}/admin/accounts", headers=get_headers(), timeout=30)
+    if res.status_code == 403:
+        flash("Accès refusé. Privilèges administrateur requis.", "error")
+        return redirect("/dashboard")
+    accounts = res.json() if res.status_code == 200 else []
+    return render_template("admin_accounts.html", accounts=accounts)
+
+@app.route("/admin/accounts/<account_number>/status", methods=["POST"])
+def admin_update_account_status(account_number):
+    if "token" not in session: return redirect("/")
+    status = request.form.get("status", "active")
+    otp_code = request.form.get("otp_code")
+    reason = request.form.get("reason", "Action administrative")
+    res = requests.put(f"{BASE_API_URL}/admin/accounts/{account_number}/status", json={"status": status, "otp_code": otp_code, "reason": reason}, headers=get_headers(), timeout=30)
+    if res.status_code == 200:
+        flash(f"Statut du compte mis à jour : {status}", "success")
+    else:
+        flash("Erreur lors de la mise à jour", "error")
+    return redirect("/admin/accounts")
+
+@app.route("/admin/transactions")
+def admin_transactions():
+    if "token" not in session: return redirect("/")
+    res = requests.get(f"{BASE_API_URL}/admin/transactions", headers=get_headers(), timeout=30)
+    if res.status_code == 403:
+        flash("Accès refusé.", "error")
+        return redirect("/dashboard")
+    transactions = res.json() if res.status_code == 200 else []
+    return render_template("admin_transactions.html", transactions=transactions)
+
+@app.route("/admin/cards")
+def admin_cards():
+    if "token" not in session: return redirect("/")
+    res = requests.get(f"{BASE_API_URL}/admin/accounts", headers=get_headers(), timeout=30)
+    if res.status_code == 403:
+        flash("Accès refusé.", "error")
+        return redirect("/dashboard")
+    accounts = res.json() if res.status_code == 200 else []
+    return render_template("admin_cards.html", accounts=accounts)
+
+@app.route("/admin/request-otp", methods=["POST"])
+def admin_request_otp():
+    if "token" not in session: return ("Unauthorized", 401)
+    res = requests.post(f"{BASE_API_URL}/verification/request-auth-otp", headers=get_headers())
+    return (res.content, res.status_code, {"Content-Type": "application/json"})

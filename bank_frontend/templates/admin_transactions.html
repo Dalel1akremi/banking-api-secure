@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Administration - Registre des Transactions</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <style>
+        .activity-table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        .activity-table th, .activity-table td { padding: 12px; text-align: left; border-bottom: 1px solid rgba(255,255,255,0.05); }
+        .activity-table th { color: var(--text-muted); font-size: 12px; text-transform: uppercase; }
+        .activity-table tr:hover { background: rgba(255,255,255,0.02); }
+    </style>
+</head>
+<body>
+
+<nav>
+    <div style="display: flex; align-items: center; gap: 15px;">
+        <a href="/dashboard" style="font-size: 24px; color: var(--text-main); font-weight: bold; text-decoration: none;">&larr;</a>
+        <div class="brand" style="color: #fbbf24;">Admin Console</div>
+    </div>
+    <div class="nav-links">
+        <a href="/admin/dashboard" style="color: #fbbf24; font-weight: 800;">Vue d'ensemble</a>
+        <a href="/admin/users">Utilisateurs</a>
+        <a href="/admin/accounts">Comptes</a>
+        <a href="/admin/cards">Cartes</a>
+        <a href="/admin/transactions">Transactions</a>
+        <a href="/admin/messages">Support</a>
+        <a href="/logout" class="text-danger">Déconnexion</a>
+    </div>
+</nav>
+
+<div class="page-container" style="max-width: 1200px;">
+    <div class="page-header">
+        <h1>📊 Grand Livre des Transactions</h1>
+        <p>Historique complet des flux financiers (Ledger) pour audit et conformité.</p>
+    </div>
+
+    <div class="panel">
+        <table class="activity-table">
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Type</th>
+                    <th>De (Compte Source)</th>
+                    <th>À (Compte Dest / Marchand)</th>
+                    <th>Montant (DT)</th>
+                    <th>Statut</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for t in transactions %}
+                <tr>
+                    <td>{{ t.timestamp[:19].replace('T', ' ') if t.timestamp is string else 'N/A' }}</td>
+                    <td><span style="background: rgba(255,255,255,0.1); padding: 4px 8px; border-radius: 4px; font-size: 11px;">{{ t.transaction_type | upper }}</span></td>
+                    <td style="font-family: monospace;">{{ t.from_account if t.from_account else '—' }}</td>
+                    <td style="font-family: monospace;">{{ t.to_account if t.to_account else (t.merchant if t.merchant else '—') }}</td>
+                    <td style="font-weight: bold; color: {{ '#10b981' if t.transaction_type in ['deposit', 'transfer_in'] else '#fbbf24' }}">{{ "%.2f" | format(t.amount) }}</td>
+                    <td>
+                        <span style="color: {{ '#10b981' if t.status == 'SUCCESS' else '#ef4444' }}; font-weight: bold; font-size: 12px;">{{ t.status }}</span>
+                    </td>
+                </tr>
+                {% else %}
+                <tr><td colspan="6" style="text-align: center; color: var(--text-muted);">Aucune transaction dans le Grand Livre.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+</body>
+</html>

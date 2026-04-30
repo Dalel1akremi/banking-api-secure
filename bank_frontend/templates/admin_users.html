@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Administration - Utilisateurs</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <style>
+        .activity-table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        .activity-table th, .activity-table td { padding: 12px; text-align: left; border-bottom: 1px solid rgba(255,255,255,0.05); }
+        .activity-table th { color: var(--text-muted); font-size: 12px; text-transform: uppercase; }
+        .activity-table tr:hover { background: rgba(255,255,255,0.02); }
+        .status-badge { padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: bold; }
+        .status-active { background: rgba(16,185,129,0.2); color: #10b981; }
+        .status-blocked { background: rgba(239,68,68,0.2); color: #ef4444; }
+    </style>
+</head>
+<body>
+
+<nav>
+    <div style="display: flex; align-items: center; gap: 15px;">
+        <a href="/dashboard" style="font-size: 24px; color: var(--text-main); font-weight: bold; text-decoration: none;">&larr;</a>
+        <div class="brand" style="color: #fbbf24;">Admin Console</div>
+    </div>
+    <div class="nav-links">
+        <a href="/admin/dashboard" style="color: #fbbf24; font-weight: 800;">Vue d'ensemble</a>
+        <a href="/admin/users">Utilisateurs</a>
+        <a href="/admin/accounts">Comptes</a>
+        <a href="/admin/cards">Cartes</a>
+        <a href="/admin/transactions">Transactions</a>
+        <a href="/admin/messages">Support</a>
+        <a href="/logout" class="text-danger">Déconnexion</a>
+    </div>
+</nav>
+
+<div class="page-container">
+    <div class="page-header">
+        <h1>👥 Gestion des Utilisateurs</h1>
+        <p>Consultez la base clients et gérez leurs accès de sécurité.</p>
+    </div>
+
+    <div class="panel">
+        <table class="activity-table">
+            <thead>
+                <tr>
+                    <th>Date Création</th>
+                    <th>Nom Complet</th>
+                    <th>Email</th>
+                    <th>CIN</th>
+                    <th>Téléphone</th>
+                    <th>Statut</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for u in users %}
+                <tr>
+                    <td>{{ u.created_at[:10] if u.created_at else 'N/A' }}</td>
+                    <td style="font-weight: bold;"><a href="/admin/users/{{ u.id }}" style="color: #fbbf24; text-decoration: none;">{{ u.username }} {{ u.lastname }} 🔍</a></td>
+                    <td>{{ u.email }}</td>
+                    <td>{{ u.cin }}</td>
+                    <td>{{ u.phone if u.phone else '-' }}</td>
+                    <td>
+                        {% set status = u.status | default('active') %}
+                        <span class="status-badge status-{{ status }}">{{ status | upper }}</span>
+                    </td>
+                    <td>
+                        <form action="/admin/users/{{ u.id }}/status" method="POST" style="display:inline;">
+                            {% if status == 'active' %}
+                                <input type="hidden" name="status" value="blocked">
+                                <button type="button" onclick="handleAdminAction(event, this)" style="background: #ef4444; color: white; border: none; padding: 5px 10px; border-radius: 6px; cursor: pointer; font-size: 11px; font-weight: bold;">Bloquer</button>
+                            {% else %}
+                                <input type="hidden" name="status" value="active">
+                                <button type="button" onclick="handleAdminAction(event, this)" style="background: #10b981; color: white; border: none; padding: 5px 10px; border-radius: 6px; cursor: pointer; font-size: 11px; font-weight: bold;">Débloquer</button>
+                            {% endif %}
+                        </form>
+                    </td>
+                </tr>
+                {% else %}
+                <tr><td colspan="7" style="text-align: center; color: var(--text-muted);">Aucun utilisateur trouvé.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+    
+    <script>
+        async function handleAdminAction(event, button) {
+            event.preventDefault();
+            const form = button.closest('form');
+            const actionName = button.innerText.toLowerCase();
+            
+            let reason = "";
+            
+            // Si c'est une réactivation/déblocage, on utilise le message automatique
+            if (actionName.includes("activer") || actionName.includes("débloquer")) {
+                reason = "Votre problème est résolu. Pour plus d'informations, merci de contacter le conseiller référent.";
+                if (!confirm(`Voulez-vous procéder à la réactivation ? Une vérification OTP est requise.`)) return;
+            } else {
+                // Sinon (blocage/suspension), on demande un motif
+                reason = prompt("Veuillez saisir le motif de cette action (sera visible par le client) :", "Activité suspecte / Maintenance");
+                if (!reason) return;
+                if (!confirm(`Voulez-vous vraiment effectuer l'action : ${button.innerText} ? Une vérification OTP est requise.`)) return;
+            }
+
+            try {
+                const res = await fetch('/admin/request-otp', { method: 'POST' });
+                if (!res.ok) throw new Error('Erreur lors de la demande OTP');
+                
+                const otp = prompt("Un code OTP a été envoyé à votre adresse e-mail administrateur. Veuillez le saisir pour valider l'action :");
+                
+                if (otp) {
+                    let input = form.querySelector('input[name="otp_code"]');
+                    if (!input) {
+                        input = document.createElement('input');
+                        input.type = 'hidden';
+                        input.name = 'otp_code';
+                        form.appendChild(input);
+                    }
+                    input.value = otp;
+                    
+                    let reasonInput = form.querySelector('input[name="reason"]');
+                    if (!reasonInput) {
+                        reasonInput = document.createElement('input');
+                        reasonInput.type = 'hidden';
+                        reasonInput.name = 'reason';
+                        form.appendChild(reasonInput);
+                    }
+                    reasonInput.value = reason;
+
+                    form.submit();
+                }
+            } catch (err) {
+                alert(err.message);
+            }
+        }
+    </script>
+
+
+</body>
+</html>
