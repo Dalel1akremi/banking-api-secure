@@ -65,7 +65,8 @@ limiter = Limiter(
     storage_uri="memory://"
 )
 
-BASE_API_URL = "http://127.0.0.1:8000"
+import os
+BASE_API_URL = os.getenv("BASE_API_URL", "http://127.0.0.1:8000")
 
 @app.context_processor
 def inject_is_admin():

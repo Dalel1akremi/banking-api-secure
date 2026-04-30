@@ -1,0 +1,42 @@
+version: '3.8'
+
+services:
+
+  # Backend FastAPI (Cœur Bancaire)
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    container_name: banking_backend
+    environment:
+      - MONGO_URI=mongodb://host.docker.internal:27017
+      - SECRET_KEY=votre_cle_secrete_ultra_securisee
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  # Frontend Flask (Interface Client)
+  frontend:
+    build:
+      context: ./bank_frontend
+      dockerfile: Dockerfile.frontend
+    container_name: banking_frontend
+    depends_on:
+      - backend
+    environment:
+      - BASE_API_URL=http://backend:8000
+
+  # API Gateway (NGINX) - Le point d'entrée unique
+  gateway:
+    image: nginx:latest
+    container_name: api_gateway
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx_logs:/var/log/nginx
+    depends_on:
+      - frontend
+      - backend
+
+volumes:
+  mongo_data:

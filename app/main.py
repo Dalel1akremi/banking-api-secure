@@ -18,7 +18,7 @@ from app.routes import account, payment, auth, user, email_verification, benefic
 from app.rate_limiter import limiter
 from fastapi.middleware.cors import CORSMiddleware
 
-app = FastAPI(title="Banking API Secure")
+app = FastAPI(title="Banking API Secure", root_path="/api")
 
 # Security: CORS Policy (Only frontend is allowed)
 app.add_middleware(

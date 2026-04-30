@@ -85,3 +85,5 @@
 {"timestamp": "2026-04-30T13:43:40.041936Z", "user_id": "69e95444c01742443e027693", "account_number": "4268250118", "action_type": "ACCOUNT_CREATION", "status": "SUCCESS", "details": {"message": "Compte et Carte Visa cr\u00e9\u00e9s"}}
 {"timestamp": "2026-04-30T13:44:15.328992Z", "user_id": "69e95444c01742443e027693", "account_number": "4268250118", "action_type": "DEPOSIT", "status": "SUCCESS", "details": {"amount": 20000.0}}
 {"timestamp": "2026-04-30T14:59:03.631521Z", "user_id": "69ebdc7ed9445df8e0df2bb0", "account_number": "N/A", "action_type": "BIOMETRIC_LOGIN", "status": "SUCCESS", "details": {"distance": 0.5587920955587226}}
+{"timestamp": "2026-04-30T19:37:36.438999Z", "user_id": "69ebdc7ed9445df8e0df2bb0", "account_number": "N/A", "action_type": "BIOMETRIC_LOGIN", "status": "SUCCESS", "details": {"distance": 0.6120972129389213}}
+{"timestamp": "2026-04-30T19:55:57.629833Z", "user_id": "69ebdc7ed9445df8e0df2bb0", "account_number": "N/A", "action_type": "BIOMETRIC_LOGIN", "status": "SUCCESS", "details": {"distance": 0.6305855026688386}}

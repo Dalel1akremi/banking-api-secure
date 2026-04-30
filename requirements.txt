@@ -1,0 +1,15 @@
+fastapi
+uvicorn[standard]
+pymongo
+pydantic
+pydantic[email]
+python-multipart
+python-dotenv
+passlib[bcrypt]
+python-jose[cryptography]
+slowapi
+requests
+werkzeug
+fpdf
+python-dateutil
+google-generativeai

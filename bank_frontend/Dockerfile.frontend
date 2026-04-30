@@ -1,0 +1,21 @@
+# Utiliser une image Python légère
+FROM python:3.10-slim
+
+# Définir le répertoire de travail
+WORKDIR /app
+
+# Copier les dépendances (le fichier est dans bank_frontend/)
+COPY requirements.txt .
+
+# Installer les dépendances
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copier le code du frontend
+COPY . .
+
+# Exposer le port du frontend
+EXPOSE 5000
+
+# Commande pour lancer Flask
+# On utilise gunicorn ou le serveur de dev flask (pour le debug)
+CMD ["python", "-m", "flask", "run", "--host=0.0.0.0", "--port=5000"]
