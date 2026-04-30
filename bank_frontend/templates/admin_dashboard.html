@@ -20,6 +20,20 @@
         .activity-table th, .activity-table td { padding: 12px; text-align: left; border-bottom: 1px solid rgba(255,255,255,0.05); }
         .activity-table th { color: var(--text-muted); font-size: 12px; text-transform: uppercase; }
         .activity-table tr:hover { background: rgba(255,255,255,0.02); }
+
+        /* Status Badges */
+        .status-badge { padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: bold; }
+        .status-approved { background: rgba(16,185,129,0.2); color: #10b981; }
+        .status-rejected { background: rgba(239,68,68,0.2); color: #ef4444; }
+        .status-review { background: rgba(99,102,241,0.2); color: #818cf8; }
+        .status-pending { background: rgba(245,158,11,0.2); color: #fbbf24; }
+        
+        .status-confirmed { background: rgba(16,185,129,0.2); color: #10b981; }
+        .status-cancelled { background: rgba(239,68,68,0.2); color: #ef4444; }
+        .status-completed { background: rgba(99,102,241,0.2); color: #818cf8; }
+
+        .text-success { color: #10b981 !important; }
+        .text-danger { color: #ef4444 !important; }
     </style>
 </head>
 <body>
@@ -86,11 +100,7 @@
                         Inc: {{ c.monthly_income }} / Ch: {{ c.monthly_charges }}
                     </td>
                     <td>
-                        <span style="padding: 4px 8px; border-radius: 4px; font-size: 11px; 
-                            {% if c.status == 'approved' %}background: rgba(16,185,129,0.2); color: #10b981;
-                            {% elif c.status == 'rejected' %}background: rgba(239,68,68,0.2); color: #ef4444;
-                            {% elif c.status == 'review' %}background: rgba(99,102,241,0.2); color: #818cf8;
-                            {% else %}background: rgba(245,158,11,0.2); color: #fbbf24;{% endif %}">
+                        <span class="status-badge status-{{ c.status }}">
                             {{ c.status | upper }}
                         </span>
                     </td>
@@ -137,11 +147,7 @@
                     <td style="font-size: 13px;">{{ a.subject }}</td>
                     <td style="font-size: 13px; color: #a5b4fc;">{{ a.advisor_name }}</td>
                     <td>
-                        <span style="padding: 4px 8px; border-radius: 4px; font-size: 11px; 
-                            {% if a.status == 'CONFIRMED' %}background: rgba(16,185,129,0.2); color: #10b981;
-                            {% elif a.status == 'CANCELLED' %}background: rgba(239,68,68,0.2); color: #ef4444;
-                            {% elif a.status == 'COMPLETED' %}background: rgba(99,102,241,0.2); color: #818cf8;
-                            {% else %}background: rgba(245,158,11,0.2); color: #fbbf24;{% endif %}">
+                        <span class="status-badge status-{{ a.status | lower }}">
                             {{ a.status }}
                         </span>
                     </td>
@@ -203,7 +209,7 @@
                             {{ actions[act.action_type] if act.action_type in actions else act.action_type }}
                         </span>
                     </td>
-                    <td style="font-weight: bold; color: {{ '#10b981' if act.details and act.details.amount and act.details.amount|float > 0 else '#ef4444' }};">
+                    <td class="font-bold {{ 'text-success' if act.details and act.details.amount and act.details.amount|float > 0 else 'text-danger' }}">
                         {{ act.details.amount if (act.details and act.details.amount) else '-' }}
                     </td>
                     <td style="font-size: 13px; color: var(--text-muted);">

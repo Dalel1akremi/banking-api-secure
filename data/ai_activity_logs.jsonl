@@ -80,3 +80,4 @@
 {"timestamp": "2026-04-29T22:23:29.135658Z", "user_id": "69e95444c01742443e027693", "account_number": "N/A", "action_type": "BIOMETRIC_REGISTER", "status": "SUCCESS", "details": {}}
 {"timestamp": "2026-04-29T22:27:01.165405Z", "user_id": "69e95444c01742443e027693", "account_number": "N/A", "action_type": "BIOMETRIC_REGISTER", "status": "SUCCESS", "details": {}}
 {"timestamp": "2026-04-29T22:27:17.235855Z", "user_id": "69e95444c01742443e027693", "account_number": "N/A", "action_type": "BIOMETRIC_LOGIN", "status": "SUCCESS", "details": {"distance": 0.1703777182556124}}
+{"timestamp": "2026-04-30T10:54:20.806192Z", "user_id": "69ebdc7ed9445df8e0df2bb0", "account_number": "N/A", "action_type": "BIOMETRIC_LOGIN", "status": "SUCCESS", "details": {"distance": 0.5779969124878583}}

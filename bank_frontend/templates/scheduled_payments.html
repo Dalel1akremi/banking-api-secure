@@ -257,7 +257,7 @@
         {% if payments %}
         <div class="space-y-4">
             {% for p in payments %}
-            <div class="payment-card" style="animation-delay: {{ loop.index0 * 0.05 }}s">
+            <div class="payment-card" style="--delay: {{ loop.index0 * 0.05 }}s; animation-delay: var(--delay);">
                 <div class="flex items-start justify-between gap-4">
                     <!-- Left: icon + info -->
                     <div class="flex items-center gap-4 flex-1 min-w-0">
@@ -327,7 +327,7 @@
                 <!-- Progress bar (days until next payment) -->
                 {% if p.status == 'active' %}
                 <div class="timeline-bar mt-4">
-                    <div class="timeline-fill" style="width: {{ p.progress_pct }}%"></div>
+                    <div class="timeline-fill" style="--w: {{ p.progress_pct }}%; width: var(--w);"></div>
                 </div>
                 <div class="flex justify-between text-xs text-slate-600 mt-1">
                     <span>Dernier paiement</span>

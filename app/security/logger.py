@@ -3,7 +3,7 @@ import os
 from datetime import datetime
 from app.db import activity_logs_collection
 
-LOG_FILE_PATH = "data/ai_activity_logs.json"
+LOG_FILE_PATH = "data/ai_activity_logs.jsonl"
 
 def log_activity(user_id: str, account_number: str, action_type: str, status: str, details: dict = None):
     """

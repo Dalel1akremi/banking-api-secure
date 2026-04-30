@@ -64,7 +64,7 @@
 
         .visa-card .card-logo { display: flex; justify-content: space-between; align-items: center; margin-bottom: 22px; }
         .visa-card .bank-name { font-size: 15px; font-weight: 800; letter-spacing: .1em; color: rgba(255,255,255,.9); text-transform: uppercase; }
-        .visa-word { font-size: 26px; font-weight: 900; font-style: italic; background: linear-gradient(90deg, #d4af37, #f5e17a, #d4af37); -webkit-background-clip: text; -webkit-text-fill-color: transparent; letter-spacing: -.02em; }
+        .visa-word { font-size: 26px; font-weight: 900; font-style: italic; background: linear-gradient(90deg, #d4af37, #f5e17a, #d4af37); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; letter-spacing: -.02em; }
         
         .card-chip { width: 42px; height: 32px; background: linear-gradient(135deg, #d4af37 0%, #f5e17a 50%, #b8960c 100%); border-radius: 6px; margin-bottom: 18px; box-shadow: 0 2px 6px rgba(0,0,0,.4); position: relative; overflow: hidden; }
         .card-chip::after { content: ''; position: absolute; top: 50%; left: 0; right: 0; height: 1px; background: rgba(0,0,0,.25); }
@@ -99,6 +99,12 @@
         .activity-icon { width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 14px; flex-shrink: 0; }
         .activity-icon.success { background: rgba(52,211,153,.12); color: #34d399; }
         .activity-icon.failure { background: rgba(248,113,113,.12); color: #f87171; }
+
+        /* Dynamic styles helpers */
+        .bg-danger { background: #f87171 !important; }
+        .bg-success { background: #34d399 !important; }
+        .text-ok { color: #34d399 !important; }
+        .text-fail { color: #f87171 !important; }
     </style>
 </head>
 <body>
@@ -194,9 +200,9 @@
                 <div class="panel">
                     <h3>🛠️ État de la carte</h3>
                     <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 15px;">Désactivez temporairement votre carte en cas de doute.</p>
-                    <button class="btn {{ 'btn-secondary' if (account.card_status or 'active') == 'active' else '' }}" 
+                    <button class="btn {{ 'btn-secondary' if (account.card_status or 'active') == 'active' else '' }} {{ 'bg-danger' if (account.card_status or 'active') == 'active' else 'bg-success' }}" 
                             onclick="openModal('modal-toggle-card')" 
-                            style="width: 100%; {{ 'background:#f87171;' if (account.card_status or 'active') == 'active' else 'background:#34d399;' }}">
+                            style="width: 100%;">
                         {{ 'Désactiver la carte' if (account.card_status or 'active') == 'active' else 'Réactiver la carte' }}
                     </button>
                 </div>
@@ -268,7 +274,7 @@
                          </div>
                     </div>
                     <div style="text-align:right;">
-                        <span style="font-size:10px; color:{{ '#f87171' if is_fail else '#34d399' }}; font-weight:700;">{{ 'ÉCHEC' if is_fail else 'OK' }}</span>
+                        <span class="{{ 'text-fail' if is_fail else 'text-ok' }}" style="font-size:10px; font-weight:700;">{{ 'ÉCHEC' if is_fail else 'OK' }}</span>
                         <div style="font-size:9px; color:var(--text-muted);">{{ act.timestamp[:10] }}</div>
                     </div>
                 </div>
@@ -298,7 +304,7 @@
             </div>
             <div style="display:flex; gap:10px; margin-top:20px;">
                 <button type="button" class="btn btn-secondary" onclick="closeModal('modal-toggle-card')" style="flex:1;">Annuler</button>
-                <button type="submit" class="btn" style="flex:1; background:{{ '#f87171' if (account.card_status or 'active') == 'active' else '#34d399' }};">Confirmer</button>
+                <button type="submit" class="btn {{ 'bg-danger' if (account.card_status or 'active') == 'active' else 'bg-success' }}" style="flex:1;">Confirmer</button>
             </div>
         </form>
     </div>
@@ -411,7 +417,7 @@
     }
 
     function handleRenewClick() {
-        const isExpired = {{ 'true' if is_expired else 'false' }};
+        const isExpired = "{{ 'true' if is_expired else 'false' }}" === "true";
         if (!isExpired) { alert("Carte encore valide !"); return; }
         openModal('modal-renew-card');
     }

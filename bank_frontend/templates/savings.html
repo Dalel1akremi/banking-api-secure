@@ -135,7 +135,7 @@
                 </div>
             </div>
             <div class="progress-container">
-                <div class="progress-bar" style="width: {{ [ (goal.current / goal.target * 100), 100 ] | min }}%"></div>
+                <div class="progress-bar" style="--w: {{ (goal.current / goal.target * 100) if goal.current < goal.target else 100 }}%; width: var(--w);"></div>
             </div>
             <div class="flex justify-between items-center mt-4">
                 <span class="text-xs text-slate-500 italic">{{ goal.days_left }} jours restants</span>
