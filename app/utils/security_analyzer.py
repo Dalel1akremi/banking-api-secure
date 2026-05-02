@@ -27,7 +27,7 @@ def parse_security_logs(limit=2000):
         r"\[(?P<timestamp>.*?)\] \| (?P<level>.*?) \| IP: (?P<ip>.*?) \| METHOD: (?P<method>.*?) \| PATH: (?P<path>.*?) \| STATUS: (?P<status>\d+) \| DURATION: (?P<duration>.*?)ms"
     )
     rate_pattern = re.compile(
-        r"ratelimit .*? \((?P<ip>.*?)\) exceeded at endpoint: (?P<path>.*)"
+        r"(ratelimit .*? \((?P<ip>.*?)\) exceeded at endpoint: (?P<path>.*)|STATUS: 429)"
     )
 
     try:
@@ -35,6 +35,22 @@ def parse_security_logs(limit=2000):
             lines = f.readlines()
             for line in lines[-limit:]:
                 match = log_pattern.search(line)
+                
+                # Rate Limit (429) - Only count WARNING level to avoid duplicates
+                if match and int(match.group("status")) == 429:
+                    if match.group("level") != "WARNING":
+                        continue # Ignore the INFO log from flask-limiter
+                    
+                    logs.append({
+                        "type": "ratelimit",
+                        "timestamp": match.group("timestamp"),
+                        "level": "WARN",
+                        "ip": match.group("ip"),
+                        "path": match.group("path"),
+                        "status": 429
+                    })
+                    continue
+
                 if match:
                     logs.append({
                         "type": "request",
@@ -46,16 +62,6 @@ def parse_security_logs(limit=2000):
                         "duration": match.group("duration")
                     })
                     continue
-                match_rate = rate_pattern.search(line)
-                if match_rate:
-                    logs.append({
-                        "type": "ratelimit",
-                        "timestamp": match_rate.group("timestamp"),
-                        "level": match_rate.group("level"),
-                        "ip": match_rate.group("ip"),
-                        "path": match_rate.group("path"),
-                        "status": 429
-                    })
     except Exception as e:
         print(f"Error parsing logs: {e}")
 
@@ -146,7 +152,7 @@ def get_security_stats():
 
     stats["brute_force_attempts"] = sum([c for ip, c in ip_failures.items() if c >= 3])
     stats["unique_ips"] = len(unique_ips)
-    stats["critical_alerts"] = stats["brute_force_attempts"] + (1 if stats["forbidden"] > 5 else 0)
+    stats["critical_alerts"] = stats["brute_force_attempts"] + stats["rate_limited"] + (1 if stats["forbidden"] > 0 else 0)
 
     # Try Gemini first, fallback to rule-based analysis
     stats["ai_insight"] = analyze_with_ai(logs[-50:])

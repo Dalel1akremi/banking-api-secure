@@ -38,9 +38,6 @@ _alerted_ips = set()                    # IPs déjà alertées (évite duplicats
 _LOG_PATTERN = re.compile(
     r"\[(?P<timestamp>.*?)\] \| (?P<level>.*?) \| IP: (?P<ip>.*?) \| METHOD: (?P<method>.*?) \| PATH: (?P<path>.*?) \| STATUS: (?P<status>\d+)"
 )
-_RATE_PATTERN = re.compile(
-    r"\[(?P<timestamp>.*?)\] \| WARNING \| ratelimit.*?\((?P<ip>.*?)\) exceeded at endpoint: (?P<path>.*)"
-)
 
 
 def _send_email_alert(subject: str, body: str):
@@ -104,11 +101,10 @@ def _analyze_line(line: str):
                     add_alert("unauthorized_access", "HIGH", ip, msg, source="HTTP Log")
                     _ip_forbidden[ip] = []
 
-    # Rate Limit (429)
-    match_rate = _RATE_PATTERN.search(line)
-    if match_rate:
-        ip = match_rate.group("ip")
-        path = match_rate.group("path").strip()
+    # Rate Limit (429) detection - ONLY on WARNING level to avoid duplicates
+    if match and int(match.group("status")) == 429 and match.group("level") == "WARNING":
+        ip = match.group("ip")
+        path = match.group("path")
         _ip_rate_limits[ip].append(now_str)
         if len(_ip_rate_limits[ip]) >= RATE_ABUSE_THRESHOLD:
             count = len(_ip_rate_limits[ip])

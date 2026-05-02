@@ -68,6 +68,22 @@ limiter = Limiter(
 import os
 BASE_API_URL = os.getenv("BASE_API_URL", "http://127.0.0.1:8000")
 
+# --- Setup Security Logger ---
+import logging
+logging.basicConfig(
+    filename="security_audit.log",
+    level=logging.INFO,
+    format="[%(asctime)s] | %(levelname)s | %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S"
+)
+logger = logging.getLogger("frontend_audit")
+
+@app.errorhandler(429)
+def ratelimit_handler(e):
+    client_ip = request.headers.get("X-Real-IP") or request.remote_addr
+    logger.warning(f"IP: {client_ip} | METHOD: {request.method} | PATH: {request.path} | STATUS: 429 | DURATION: 0ms")
+    return "Too Many Requests", 429
+
 @app.context_processor
 def inject_is_admin():
     import base64
