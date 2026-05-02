@@ -11,6 +11,9 @@ services:
     environment:
       - MONGO_URI=mongodb://host.docker.internal:27017
       - SECRET_KEY=votre_cle_secrete_ultra_securisee
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - GMAIL_SENDER=${GMAIL_SENDER}
+      - GMAIL_APP_PASSWORD=${GMAIL_APP_PASSWORD}
     extra_hosts:
       - "host.docker.internal:host-gateway"
 

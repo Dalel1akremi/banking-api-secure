@@ -42,7 +42,8 @@ def login(request: Request, user: Login, background_tasks: BackgroundTasks):
             failed_attempts = db_user.get("failed_login_attempts", 0) + 1
             update_data = {"failed_login_attempts": failed_attempts}
             if failed_attempts >= 3:
-                update_data["locked_until"] = datetime.datetime.utcnow() + datetime.timedelta(minutes=15)
+                # Réduit à 1 minute pour faciliter les tests et démos
+                update_data["locked_until"] = datetime.datetime.utcnow() + datetime.timedelta(minutes=1)
             users_collection.update_one({"_id": db_user["_id"]}, {"$set": update_data})
 
         raise HTTPException(status_code=401, detail="Invalid email or password")

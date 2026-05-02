@@ -11,6 +11,8 @@ def verify_admin(user=Depends(verify_token)):
         raise HTTPException(status_code=403, detail="Accès refusé. Privilèges administrateur requis.")
     return user
 
+from app.utils.security_analyzer import get_security_stats
+
 @router.get("/stats")
 def get_dashboard_stats(admin=Depends(verify_admin)):
     total_users = users_collection.count_documents({})
@@ -22,11 +24,15 @@ def get_dashboard_stats(admin=Depends(verify_admin)):
     volume_result = list(transactions_collection.aggregate(pipeline))
     total_volume = volume_result[0]["total_volume"] if volume_result else 0
     
+    # Security Stats
+    security_stats = get_security_stats()
+    
     return {
         "total_users": total_users,
         "total_accounts": total_accounts,
         "total_transactions": total_transactions,
-        "total_volume": total_volume
+        "total_volume": total_volume,
+        "security": security_stats
     }
 
 @router.get("/activities")

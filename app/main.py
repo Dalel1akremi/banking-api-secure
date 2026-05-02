@@ -14,11 +14,18 @@ logging.basicConfig(
 )
 logger = logging.getLogger("audit_logger")
 
-from app.routes import account, payment, auth, user, email_verification, beneficiary, activity, support, admin, locations, budget, financial_hub
+from app.routes import account, payment, auth, user, email_verification, beneficiary, activity, support, admin, locations, budget, financial_hub, alerts
 from app.rate_limiter import limiter
 from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI(title="Banking API Secure", root_path="/api")
+
+# Start threat monitor background thread
+from app.utils.threat_monitor import start_monitor
+
+@app.on_event("startup")
+async def on_startup():
+    start_monitor()
 
 # Security: CORS Policy (Only frontend is allowed)
 app.add_middleware(
@@ -45,7 +52,10 @@ async def combined_security_middleware(request: Request, call_next):
     
     # Calculate duration
     process_time_ms = round((time.time() - start_time) * 1000, 2)
-    client_ip = request.client.host if request.client else "Unknown IP"
+    # Get Real Client IP (Robust check)
+    client_ip = request.headers.get("X-Real-IP") or \
+                request.headers.get("X-Forwarded-For", "").split(',')[0] or \
+                (request.client.host if request.client else "Unknown IP")
     method = request.method
     path = request.url.path
     status = response.status_code
@@ -80,6 +90,7 @@ app.include_router(admin.router)
 app.include_router(locations.router)
 app.include_router(budget.router)
 app.include_router(financial_hub.router)
+app.include_router(alerts.router)
 
 @app.get("/")
 def root():

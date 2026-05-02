@@ -4,17 +4,19 @@ from app.security.auth import verify_token
 from app.db import support_collection, users_collection
 import datetime
 import os
-import google.generativeai as genai
 from dotenv import load_dotenv
 
 load_dotenv()
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
+gemini_client = None
 if GEMINI_API_KEY:
-    genai.configure(api_key=GEMINI_API_KEY)
-    gemini_model = genai.GenerativeModel('gemini-2.5-flash')
-else:
-    gemini_model = None
+    try:
+        from google import genai as genai_sdk
+        gemini_client = genai_sdk.Client(api_key=GEMINI_API_KEY)
+    except Exception as e:
+        print(f"Gemini init error: {e}")
+
 router = APIRouter(prefix="/support", tags=["Support"])
 
 # ==============================
@@ -54,15 +56,19 @@ def chatbot_responder(data: ChatRequest, user=Depends(verify_token)):
         reply = "Pour effectuer des opérations bancaires (virement, dépôt, retrait, paiement), veuillez vous rendre sur la page de détails de votre compte et utiliser les formulaires dédiés."
     else:
         # 2. IA pour l'assistance générale
-        if gemini_model:
+        if gemini_client:
             try:
+                from google import genai as genai_sdk
                 system_prompt = (
                     "Tu es l'assistant virtuel de 'API Bank'. Ton rôle est d'aider les utilisateurs avec des informations générales sur la banque, "
                     "expliquer les services, guider l'utilisateur, reformuler ses demandes et répondre aux questions fréquentes. "
                     "Reste professionnel, concis et poli. Si on te demande des actions sensibles (comme bloquer la carte ou vérifier le solde), "
                     "dis à l'utilisateur de consulter l'interface ou de contacter le support. Ne donne jamais de fausses informations financières."
                 )
-                response = gemini_model.generate_content(f"{system_prompt}\n\nQuestion de l'utilisateur: {data.message}")
+                response = gemini_client.models.generate_content(
+                    model="gemini-2.0-flash-lite",
+                    contents=f"{system_prompt}\n\nQuestion de l'utilisateur: {data.message}"
+                )
                 reply = response.text
             except Exception as e:
                 reply = "Je suis désolé, je rencontre des difficultés de connexion en ce moment. Vous pouvez toujours contacter un conseiller via la messagerie."

@@ -982,7 +982,7 @@ def admin_dashboard():
     appt_res = requests.get(f"{BASE_API_URL}/financial-hub/admin/appointments", headers=get_headers())
     appointments = appt_res.json() if appt_res.status_code == 200 else []
     
-    return render_template("admin_dashboard.html", stats=stats, activities=activities, credits=all_credits, appointments=appointments)
+    return render_template("admin_dashboard.html", stats=stats, activities=activities, credits=all_credits, appointments=appointments, siem_token=session.get("token"))
 
 @app.route("/admin/appointments/status/<appt_id>", methods=["POST"])
 def admin_update_appointment_status(appt_id):
