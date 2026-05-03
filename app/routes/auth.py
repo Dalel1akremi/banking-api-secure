@@ -46,6 +46,8 @@ def login(request: Request, user: Login, background_tasks: BackgroundTasks):
                 update_data["locked_until"] = datetime.datetime.utcnow() + datetime.timedelta(minutes=1)
             users_collection.update_one({"_id": db_user["_id"]}, {"$set": update_data})
 
+        # Set target email for the middleware to log
+        request.state.target_email = user.email
         raise HTTPException(status_code=401, detail="Invalid email or password")
 
     # Reinitialiser les tentatives si succes

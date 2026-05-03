@@ -60,7 +60,10 @@ async def combined_security_middleware(request: Request, call_next):
     path = request.url.path
     status = response.status_code
     
-    log_message = f"IP: {client_ip} | METHOD: {method} | PATH: {path} | STATUS: {status} | DURATION: {process_time_ms}ms"
+    target_email = getattr(request.state, "target_email", None)
+    email_suffix = f" | TARGET_EMAIL: {target_email}" if target_email else ""
+    
+    log_message = f"IP: {client_ip} | METHOD: {method} | PATH: {path} | STATUS: {status} | DURATION: {process_time_ms}ms{email_suffix}"
     
     # Colorize errors vs success logically in log level
     if status >= 400:
@@ -73,6 +76,26 @@ async def combined_security_middleware(request: Request, call_next):
 # Setup Rate Limiting Exception Handler
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    try:
+        if isinstance(exc.body, dict) and "email" in exc.body:
+            request.state.target_email = exc.body.get("email")
+        elif isinstance(exc.body, bytes):
+            import json
+            body_dict = json.loads(exc.body.decode())
+            if "email" in body_dict:
+                request.state.target_email = body_dict.get("email")
+    except:
+        pass
+    return JSONResponse(
+        status_code=422,
+        content={"detail": exc.errors()},
+    )
 
 from slowapi.middleware import SlowAPIMiddleware
 app.add_middleware(SlowAPIMiddleware)

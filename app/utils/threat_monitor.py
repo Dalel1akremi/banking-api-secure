@@ -23,9 +23,16 @@ CHECK_INTERVAL = 10  # secondes entre chaque vérification
 GMAIL_SENDER = os.getenv("GMAIL_SENDER")
 GMAIL_APP_PASSWORD = os.getenv("GMAIL_APP_PASSWORD")
 
+from app.db import users_collection
+
+def _get_admin_email():
+    """Récupérer l'email de l'administrateur (supporte booléen ou chaîne "true")."""
+    admin = users_collection.find_one({"is_admin": {"$in": [True, "true"]}})
+    return admin.get("email") if admin else GMAIL_SENDER
+
 # Seuils de détection
 BRUTE_FORCE_THRESHOLD = 3   # Nombre d'échecs 401 dans la fenêtre
-RATE_ABUSE_THRESHOLD = 2    # Nombre de 429 dans la fenêtre
+RATE_ABUSE_THRESHOLD = 1    # Alerter dès le premier 429 détecté
 FORBIDDEN_THRESHOLD = 3     # Nombre d'accès 403
 
 # État interne du moniteur
@@ -36,19 +43,20 @@ _alerted_ips = set()                    # IPs déjà alertées (évite duplicats
 
 # Regex
 _LOG_PATTERN = re.compile(
-    r"\[(?P<timestamp>.*?)\] \| (?P<level>.*?) \| IP: (?P<ip>.*?) \| METHOD: (?P<method>.*?) \| PATH: (?P<path>.*?) \| STATUS: (?P<status>\d+)"
+    r"\[(?P<timestamp>.*?)\] \| (?P<level>.*?) \| IP: (?P<ip>.*?) \| METHOD: (?P<method>.*?) \| PATH: (?P<path>.*?) \| STATUS: (?P<status>\d+).*?(?: \| TARGET_EMAIL: (?P<email>.*?))?$"
 )
 
 
-def _send_email_alert(subject: str, body: str):
-    """Envoyer un email d'alerte à l'administrateur."""
-    if not GMAIL_SENDER or not GMAIL_APP_PASSWORD:
+def _send_email_alert(subject: str, body: str, recipient=None):
+    """Envoyer un email d'alerte à l'administrateur ou à un utilisateur spécifique."""
+    target = recipient if recipient else _get_admin_email()
+    if not GMAIL_SENDER or not GMAIL_APP_PASSWORD or not target:
         return
     try:
         msg = MIMEMultipart("alternative")
         msg["Subject"] = f"🚨 [API Bank SIEM] {subject}"
-        msg["From"] = GMAIL_SENDER
-        msg["To"] = GMAIL_SENDER
+        msg["From"] = f"Sécurité API Bank <{GMAIL_SENDER}>"
+        msg["To"] = target
 
         html = f"""
         <html><body style="font-family: sans-serif; background:#0f172a; color:#e2e8f0; padding:20px;">
@@ -56,7 +64,9 @@ def _send_email_alert(subject: str, body: str):
             <h2 style="color:#ef4444; margin:0 0 16px;">🚨 Alerte de Sécurité — API Bank</h2>
             <p style="font-size:16px;">{body}</p>
             <p style="color:#64748b; font-size:12px; margin-top:24px;">
-                Généré automatiquement par le système SIEM · {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
+                Ceci est une notification automatique de sécurité. Si vous n'êtes pas à l'origine de cette activité, veuillez contacter le support immédiatement.
+                <br><br>
+                Généré par le système SIEM · {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
             </p>
         </div>
         </body></html>
@@ -65,7 +75,7 @@ def _send_email_alert(subject: str, body: str):
 
         with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
             server.login(GMAIL_SENDER, GMAIL_APP_PASSWORD)
-            server.sendmail(GMAIL_SENDER, GMAIL_SENDER, msg.as_string())
+            server.sendmail(GMAIL_SENDER, target, msg.as_string())
     except Exception as e:
         print(f"[ThreatMonitor] Email error: {e}")
 
@@ -82,13 +92,56 @@ def _analyze_line(line: str):
         path = match.group("path")
 
         if (status == 401 or status == 422) and "/auth/login" in path:
-            _ip_auth_failures[ip].append(now_str)
+            email = match.group("email")
+            if email: email = email.strip()
+            _ip_auth_failures[ip].append({"time": now_str, "email": email})
+            
             if len(_ip_auth_failures[ip]) >= BRUTE_FORCE_THRESHOLD:
                 count = len(_ip_auth_failures[ip])
                 msg = f"Brute force détecté depuis {ip} : {count} tentatives de connexion échouées sur /auth/login."
+                
+                # Récupérer le dernier email valide de la série
+                valid_emails = [f["email"] for f in _ip_auth_failures[ip] if f["email"]]
+                last_email = valid_emails[-1] if valid_emails else None
+                
+                if last_email:
+                    msg += f" Dernier compte ciblé : {last_email}"
+                
                 add_alert("brute_force", "CRITICAL", ip, msg, source="HTTP Log")
-                _send_email_alert("Brute Force Détecté", msg)
-                _ip_auth_failures[ip] = []  # Reset pour permettre la détection de la série suivante
+                
+                # Notify Admin
+                _send_email_alert("Alerte Brute Force - Administrateur", msg)
+                print(f"[ThreatMonitor] Sent Admin Alert for Brute Force.")
+                
+                # Notify targeted User if email exists in DB
+                if last_email:
+                    print(f"[ThreatMonitor] Looking up user in DB for email: '{last_email}'")
+                    target_user = users_collection.find_one({"email": last_email})
+                    if target_user:
+                        print(f"[ThreatMonitor] User found in DB! Sending warning email to {last_email}")
+                        user_msg = f"""
+                        Bonjour,
+                        <br><br>
+                        Notre système de sécurité a bloqué plusieurs tentatives de connexion avec un mot de passe erroné sur votre compte depuis l'adresse IP {ip}.
+                        <br><br>
+                        <strong>S'agit-il bien de vous ?</strong>
+                        <br>
+                        Si c'est le cas et que vous avez oublié votre mot de passe, ne vous inquiétez pas. Vous pouvez lancer la procédure de récupération :
+                        <ul>
+                            <li>Rendez-vous sur la page de connexion.</li>
+                            <li>Cliquez sur "Mot de passe oublié".</li>
+                            <li>Suivez les instructions pour réinitialiser votre accès en toute sécurité.</li>
+                        </ul>
+                        <br>
+                        <strong>Si ce n'est pas vous</strong>, votre compte pourrait être la cible d'une attaque malveillante. L'administrateur a déjà été alerté et votre compte est actuellement sous surveillance. Aucune action n'est requise de votre part tant que vous ne partagez pas vos codes secrets.
+                        """
+                        _send_email_alert("Alerte de Sécurité : Tentatives de connexion sur votre compte", user_msg, recipient=last_email)
+                    else:
+                        print(f"[ThreatMonitor] User NOT found in DB for email: '{last_email}'")
+                else:
+                    print(f"[ThreatMonitor] No valid email found to notify user.")
+                
+                _ip_auth_failures[ip] = []
 
         elif status == 403:
             _ip_forbidden[ip].append(now_str)
@@ -108,12 +161,13 @@ def _analyze_line(line: str):
         _ip_rate_limits[ip].append(now_str)
         if len(_ip_rate_limits[ip]) >= RATE_ABUSE_THRESHOLD:
             count = len(_ip_rate_limits[ip])
-            alert_key = f"rl_{ip}"
-            if alert_key not in _alerted_ips:
-                _alerted_ips.add(alert_key)
-                msg = f"Abus de débit (Rate Limit) depuis {ip} : {count} dépassements de quota sur {path}."
-                add_alert("rate_limit_abuse", "HIGH", ip, msg, source="HTTP Log")
-                _ip_rate_limits[ip] = []
+            msg = f"Abus de débit (Rate Limit) depuis {ip} : {count} dépassements de quota sur {path}."
+            add_alert("rate_limit_abuse", "HIGH", ip, msg, source="HTTP Log")
+            
+            # Notify Admin for Rate Limit
+            _send_email_alert("Alerte Rate Limit - Administrateur", msg)
+            
+            _ip_rate_limits[ip] = []
 
 
 def _monitor_loop():
