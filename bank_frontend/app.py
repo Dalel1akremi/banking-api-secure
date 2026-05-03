@@ -160,6 +160,41 @@ def verify_login():
         except:
             detail = "Erreur de validation"
         return render_template("verify_login.html", email=email, error=detail)
+
+@app.route("/forgot-password", methods=["GET", "POST"])
+def forgot_password():
+    if request.method == "POST":
+        email = request.form.get("email")
+        if not email:
+            return "Email requis", 400
+            
+        response = requests.post(f"{BASE_API_URL}/auth/forgot-password", json={"email": email})
+        if response.status_code == 200:
+            # On renvoie le template de reset directement pour l'injection JS
+            return render_template("reset_password.html", email=email, message=response.json().get("message"))
+        else:
+            return "Erreur lors de l'envoi du code", response.status_code
+    return render_template("forgot_password.html")
+
+@app.route("/reset-password", methods=["POST"])
+def reset_password():
+    email = request.form["email"]
+    otp_code = request.form["otp_code"]
+    new_password = request.form["new_password"]
+    
+    response = requests.post(f"{BASE_API_URL}/auth/reset-password", json={
+        "email": email,
+        "otp_code": otp_code,
+        "new_password": new_password
+    })
+    
+    if response.status_code == 200:
+        flash("Votre mot de passe a été réinitialisé. Vous pouvez vous connecter.", "success")
+        return redirect("/")
+    else:
+        error_msg = response.json().get("detail", "Code incorrect ou expiré.")
+        return render_template("reset_password.html", email=email, error=error_msg)
+
 @app.route("/login_biometric", methods=["POST"])
 @limiter.limit("5 per minute")
 def login_biometric():

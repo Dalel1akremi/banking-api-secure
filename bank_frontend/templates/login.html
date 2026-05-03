@@ -33,6 +33,9 @@
             <div class="input-group">
                 <label>Mot de passe</label>
                 <input type="password" name="password" required placeholder="••••••••">
+                <div style="text-align: right; margin-top: 5px;">
+                    <button type="button" id="btn-forgot-password" style="background: none; border: none; color: var(--primary); cursor: pointer; font-size: 12px; opacity: 0.8; padding: 0;">Mot de passe oublié ?</button>
+                </div>
             </div>
 
             <button type="submit" class="btn">Connexion Sécurisée</button>
@@ -100,6 +103,47 @@
         // Nettoyer l'historique du chatbot à la déconnexion / retour au login
         localStorage.removeItem('cb_history');
         localStorage.removeItem('cb_open');
+
+        // Forgot Password logic
+        const btnForgot = document.getElementById('btn-forgot-password');
+        if (btnForgot) {
+            btnForgot.addEventListener('click', async () => {
+                const email = document.querySelector('input[name="email"]').value;
+                if (!email) {
+                    alert("Veuillez d'abord saisir votre adresse e-mail.");
+                    return;
+                }
+                
+                btnForgot.innerText = "Envoi...";
+                btnForgot.disabled = true;
+
+                try {
+                    const res = await fetch("/forgot-password", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+                        body: new URLSearchParams({ email: email })
+                    });
+                    
+                    if (res.ok) {
+                        // On redirige vers une page qui demande juste le code et le nouveau MDP
+                        document.body.innerHTML = await res.text();
+                    } else if (res.status === 429) {
+                        alert("Trop de tentatives. Veuillez patienter avant de demander un nouveau code.");
+                        btnForgot.innerText = "Mot de passe oublié ?";
+                        btnForgot.disabled = false;
+                    } else {
+                        alert("Erreur lors de l'envoi du code.");
+                        btnForgot.innerText = "Mot de passe oublié ?";
+                        btnForgot.disabled = false;
+                    }
+                } catch (err) {
+                    console.error(err);
+                    alert("Erreur réseau.");
+                    btnForgot.innerText = "Mot de passe oublié ?";
+                    btnForgot.disabled = false;
+                }
+            });
+        }
 
     setTimeout(() => {
         const flashes = document.querySelectorAll('.alert');

@@ -184,3 +184,59 @@ def login_biometric(request: Request, data: BiometricLogin):
         "token_type": "bearer",
         "message": "Connexion Face ID réussie"
     }
+
+class ForgotPassword(BaseModel):
+    email: EmailStr
+
+class ResetPassword(BaseModel):
+    email: EmailStr
+    otp_code: str
+    new_password: str = Field(..., min_length=6, max_length=100)
+
+@router.post("/forgot-password")
+@limiter.limit("10/hour")
+def forgot_password(request: Request, data: ForgotPassword, background_tasks: BackgroundTasks):
+    db_user = users_collection.find_one({"email": data.email})
+    if not db_user:
+        # On ne révèle pas si l'email existe pour des raisons de sécurité
+        return {"message": "Si votre e-mail existe dans notre système, vous recevrez un code de réinitialisation."}
+        
+    code = str(random.randint(100000, 999999))
+    expiration = datetime.datetime.utcnow() + datetime.timedelta(minutes=15)
+    
+    # Stocker dans otp_collection avec un tag spécial
+    otp_collection.update_one(
+        {"email": data.email},
+        {"$set": {"reset_code": code, "reset_expires_at": expiration}},
+        upsert=True
+    )
+    
+    # Envoyer l'email
+    subject = "Réinitialisation de votre mot de passe"
+    body = f"Votre code de réinitialisation est : <b>{code}</b>. Il expire dans 15 minutes."
+    background_tasks.add_task(send_otp_email, data.email, code) # On réutilise la fonction d'envoi d'OTP
+    
+    return {"message": "Si votre e-mail existe dans notre système, vous recevrez un code de réinitialisation."}
+
+from werkzeug.security import generate_password_hash
+
+@router.post("/reset-password")
+@limiter.limit("5/hour")
+def reset_password(request: Request, data: ResetPassword):
+    otp_record = otp_collection.find_one({"email": data.email})
+    if not otp_record or "reset_code" not in otp_record:
+        raise HTTPException(status_code=400, detail="Aucune demande de réinitialisation trouvée.")
+        
+    if datetime.datetime.utcnow() > otp_record["reset_expires_at"]:
+        otp_collection.delete_one({"email": data.email})
+        raise HTTPException(status_code=400, detail="Code expiré.")
+        
+    if otp_record["reset_code"] != data.otp_code:
+        raise HTTPException(status_code=400, detail="Code de réinitialisation incorrect.")
+        
+    # Valid! Update password
+    hashed_password = generate_password_hash(data.new_password)
+    users_collection.update_one({"email": data.email}, {"$set": {"password": hashed_password}})
+    otp_collection.delete_one({"email": data.email})
+    
+    return {"message": "Votre mot de passe a été réinitialisé avec succès."}
