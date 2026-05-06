@@ -10,6 +10,9 @@
         .activity-table th, .activity-table td { padding: 12px; text-align: left; border-bottom: 1px solid rgba(255,255,255,0.05); }
         .activity-table th { color: var(--text-muted); font-size: 12px; text-transform: uppercase; }
         .activity-table tr:hover { background: rgba(255,255,255,0.02); }
+        .text-success-custom { color: #10b981; }
+        .text-warning-custom { color: #fbbf24; }
+        .text-danger-custom { color: #ef4444; }
     </style>
 </head>
 <body>
@@ -55,9 +58,9 @@
                     <td><span style="background: rgba(255,255,255,0.1); padding: 4px 8px; border-radius: 4px; font-size: 11px;">{{ t.transaction_type | upper }}</span></td>
                     <td style="font-family: monospace;">{{ t.from_account if t.from_account else '—' }}</td>
                     <td style="font-family: monospace;">{{ t.to_account if t.to_account else (t.merchant if t.merchant else '—') }}</td>
-                    <td style="font-weight: bold; color: {{ '#10b981' if t.transaction_type in ['deposit', 'transfer_in'] else '#fbbf24' }}">{{ "%.2f" | format(t.amount) }}</td>
+                    <td class="{{ 'text-success-custom' if t.transaction_type in ['deposit', 'transfer_in'] else 'text-warning-custom' }}" style="font-weight: bold;">{{ "%.2f" | format(t.amount) }}</td>
                     <td>
-                        <span style="color: {{ '#10b981' if t.status == 'SUCCESS' else '#ef4444' }}; font-weight: bold; font-size: 12px;">{{ t.status }}</span>
+                        <span class="{{ 'text-success-custom' if t.status == 'SUCCESS' else 'text-danger-custom' }}" style="font-weight: bold; font-size: 12px;">{{ t.status }}</span>
                     </td>
                 </tr>
                 {% else %}

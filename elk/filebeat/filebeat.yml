@@ -1,0 +1,29 @@
+filebeat.inputs:
+- type: log
+  enabled: true
+  paths:
+    - /var/log/nginx/access.log
+  fields:
+    log_type: nginx_access
+  fields_under_root: true
+
+- type: log
+  enabled: true
+  paths:
+    - /var/log/audit/security_audit.log
+  fields:
+    log_type: security_audit
+  fields_under_root: true
+
+- type: log
+  enabled: true
+  paths:
+    - /var/log/ai/ai_activity_logs.jsonl
+  fields:
+    log_type: ai_activity
+  fields_under_root: true
+
+output.logstash:
+  hosts: ["logstash:5044"]
+
+logging.level: info

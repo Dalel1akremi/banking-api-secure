@@ -16,6 +16,8 @@
         .profile-card { background: linear-gradient(135deg, #1e293b, #0f172a); border: 1px solid var(--card-border); padding: 20px; border-radius: 12px; margin-bottom: 20px; }
         .profile-card h3 { margin: 0 0 10px 0; color: #fbbf24; }
         .profile-card p { margin: 5px 0; font-size: 14px; }
+        .text-danger-custom { color: #ef4444; }
+        .text-success-custom { color: #10b981; }
     </style>
 </head>
 <body>
@@ -176,7 +178,7 @@
                             {% endif %}
                         {% endif %}
                     </td>
-                    <td style="font-weight: bold; color: {{ '#ef4444' if ns.is_sender else '#10b981' }}">
+                    <td class="{{ 'text-danger-custom' if ns.is_sender else 'text-success-custom' }}" style="font-weight: bold;">
                         {{ "-" if ns.is_sender else "+" }} {{ "%.2f" | format(t.amount) }} DT
                     </td>
                     <td>
