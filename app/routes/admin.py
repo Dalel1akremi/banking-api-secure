@@ -232,3 +232,30 @@ def get_all_transactions(admin=Depends(verify_admin)):
         tx["id"] = str(tx["_id"])
         del tx["_id"]
     return transactions
+
+# ==========================================
+# FIREWALL APPLICATIF (SIEM)
+# ==========================================
+
+from app.utils.security_state import block_ip
+from app.utils.alert_store import add_alert
+
+class IPBlockRequest(BaseModel):
+    ip: str
+
+@router.post("/block-ip")
+def manual_block_ip(data: IPBlockRequest, admin=Depends(verify_admin)):
+    ip = data.ip
+    block_ip(ip)
+    
+    # Générer une alerte confirmant l'action manuelle
+    add_alert(
+        "admin_action", 
+        "MEDIUM", 
+        ip, 
+        f"L'administrateur a bloqué manuellement l'IP {ip}.", 
+        source="Admin Dashboard"
+    )
+    
+    return {"message": f"IP {ip} bloquée avec succès."}
+

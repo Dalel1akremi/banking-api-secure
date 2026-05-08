@@ -400,15 +400,50 @@
                 alertDiv.style.fontSize = '12px';
                 alertDiv.style.animation = 'slideIn 0.3s ease-out';
 
+                let actionHtml = '';
+                if(data.type !== 'admin_action' && data.type !== 'auto_remediation') {
+                    const blockId = 'btn-block-' + data.id;
+                    const timerId = 'timer-' + data.id;
+                    actionHtml = '<div style="margin-top: 10px; display: flex; gap: 8px; align-items: center;">' +
+                        '<button id="' + blockId + '" onclick="blockIp(\'' + data.ip + '\', this)" style="background: #ef4444; color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 10px; font-weight: bold;">Bloquer l\'IP</button>' +
+                        '<span id="' + timerId + '" style="color: #fbbf24; font-size: 10px; font-weight: bold;">Auto-blocage dans <span class="sec">30</span>s</span>' +
+                        '</div>';
+                }
+
                 alertDiv.innerHTML = '<div style="display: flex; justify-content: space-between; margin-bottom: 5px;">' +
                     '<span style="color: ' + color + '; font-weight: bold;">' + (data.type ? data.type.toUpperCase() : 'ALERT') + '</span>' +
                     '<span style="color: var(--text-muted); font-size: 10px;">' + (data.timestamp ? data.timestamp.split(' ')[1] : '') + '</span>' +
                     '</div>' +
                     '<div style="color: var(--text-main);">' + data.message + '</div>' +
-                    '<div style="margin-top: 5px; font-size: 10px; color: var(--text-muted);">Source: ' + data.source + ' - IP: ' + data.ip + '</div>';
+                    '<div style="margin-top: 5px; font-size: 10px; color: var(--text-muted);">Source: ' + data.source + ' - IP: ' + data.ip + '</div>' +
+                    actionHtml;
 
                 // Add to top of container
                 container.prepend(alertDiv);
+                
+                // Countdown logic
+                if(data.type !== 'admin_action' && data.type !== 'auto_remediation') {
+                    const timerId = 'timer-' + data.id;
+                    const blockId = 'btn-block-' + data.id;
+                    let sec = 30;
+                    const interval = setInterval(() => {
+                        sec--;
+                        const t = document.getElementById(timerId);
+                        const b = document.getElementById(blockId);
+                        if(!t || (b && b.disabled)) {
+                            clearInterval(interval);
+                            return;
+                        }
+                        if(sec <= 0) {
+                            clearInterval(interval);
+                            t.innerHTML = '<span style="color:#10b981">Auto-bloqué</span>';
+                            if(b) b.style.display = 'none';
+                        } else {
+                            const secSpan = t.querySelector('.sec');
+                            if(secSpan) secSpan.innerText = sec;
+                        }
+                    }, 1000);
+                }
                 
                 // Show notification if critical
                 if (data.severity === 'CRITICAL') {
@@ -421,6 +456,39 @@
                 container.innerHTML = '<p style="color: #ef4444; font-size: 12px;">Flux deconnecte. Reconnexion...</p>';
             };
         }
+
+        function blockIp(ip, btnElement) {
+            btnElement.disabled = true;
+            btnElement.innerText = "Blocage...";
+            
+            const token = document.body.dataset.token;
+            
+            fetch('/api/admin/block-ip', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': 'Bearer ' + token
+                },
+                body: JSON.stringify({ ip: ip })
+            })
+            .then(response => {
+                if(response.ok) {
+                    btnElement.innerText = "Bloqué";
+                    btnElement.style.background = "#10b981";
+                    const timerElement = btnElement.nextElementSibling;
+                    if(timerElement) timerElement.style.display = 'none';
+                } else {
+                    throw new Error('Erreur API');
+                }
+            })
+            .catch(error => {
+                console.error("Erreur de blocage IP:", error);
+                btnElement.innerText = "Erreur";
+                btnElement.style.background = "#fbbf24";
+                btnElement.disabled = false;
+            });
+        }
+
 
         // Initialize icons and alerts
         document.addEventListener('DOMContentLoaded', function() {

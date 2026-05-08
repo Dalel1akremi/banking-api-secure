@@ -71,10 +71,22 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+from app.utils.security_state import is_ip_blocked
+from fastapi.responses import JSONResponse
+
 # --- Middlewares (Audit Logging & Security Headers) ---
 @app.middleware("http")
 async def combined_security_middleware(request: Request, call_next):
     start_time = time.time()
+    
+    # Get Real Client IP (Robust check)
+    client_ip = request.headers.get("X-Real-IP") or \
+                request.headers.get("X-Forwarded-For", "").split(',')[0] or \
+                (request.client.host if request.client else "Unknown IP")
+                
+    # --- FIREWALL APPLICATIF : Blocage IP ---
+    if is_ip_blocked(client_ip):
+        return JSONResponse(status_code=403, content={"detail": "IP Blocked by SIEM"})
     
     # Pass the request down the chain
     response = await call_next(request)
@@ -87,10 +99,7 @@ async def combined_security_middleware(request: Request, call_next):
     
     # Calculate duration
     process_time_ms = round((time.time() - start_time) * 1000, 2)
-    # Get Real Client IP (Robust check)
-    client_ip = request.headers.get("X-Real-IP") or \
-                request.headers.get("X-Forwarded-For", "").split(',')[0] or \
-                (request.client.host if request.client else "Unknown IP")
+    
     method = request.method
     path = request.url.path
     status = response.status_code

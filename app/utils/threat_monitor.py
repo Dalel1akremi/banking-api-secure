@@ -14,8 +14,28 @@ from email.mime.multipart import MIMEMultipart
 from dotenv import load_dotenv
 
 from app.utils.alert_store import add_alert
+from app.utils.security_state import block_ip, is_ip_blocked
 
 load_dotenv()
+
+def schedule_auto_block(ip: str):
+    """Planifie un blocage automatique après 30s si l'IP n'est pas déjà bloquée."""
+    def apply_block():
+        if not is_ip_blocked(ip):
+            block_ip(ip)
+            add_alert(
+                "auto_remediation", 
+                "HIGH", 
+                ip, 
+                f"Action système automatique : L'IP {ip} a été bloquée après 30s.", 
+                source="System"
+            )
+            print(f"[ThreatMonitor] Auto-blocked IP: {ip}")
+    
+    timer = threading.Timer(30.0, apply_block)
+    timer.daemon = True
+    timer.start()
+
 
 LOG_FILE = "security_audit.log"
 CHECK_INTERVAL = 10  # secondes entre chaque vérification
@@ -108,6 +128,7 @@ def _analyze_line(line: str):
                     msg += f" Dernier compte ciblé : {last_email}"
                 
                 add_alert("brute_force", "CRITICAL", ip, msg, source="HTTP Log")
+                schedule_auto_block(ip)
                 
                 # Notify Admin
                 _send_email_alert("Alerte Brute Force - Administrateur", msg)
@@ -152,6 +173,7 @@ def _analyze_line(line: str):
                     _alerted_ips.add(alert_key)
                     msg = f"Accès interdit répété depuis {ip} : {count} erreurs 403 sur {path}."
                     add_alert("unauthorized_access", "HIGH", ip, msg, source="HTTP Log")
+                    schedule_auto_block(ip)
                     _ip_forbidden[ip] = []
 
     # Rate Limit (429) detection - ONLY on WARNING level to avoid duplicates
@@ -163,6 +185,7 @@ def _analyze_line(line: str):
             count = len(_ip_rate_limits[ip])
             msg = f"Abus de débit (Rate Limit) depuis {ip} : {count} dépassements de quota sur {path}."
             add_alert("rate_limit_abuse", "HIGH", ip, msg, source="HTTP Log")
+            schedule_auto_block(ip)
             
             # Notify Admin for Rate Limit
             _send_email_alert("Alerte Rate Limit - Administrateur", msg)
