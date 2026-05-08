@@ -24,6 +24,9 @@ services:
     volumes:
       - ./app:/app/app
       - ./security_audit.log:/app/security_audit.log
+    networks:
+      - backend_tier
+      - data_tier
 
   # Frontend Flask (Interface Client)
   frontend:
@@ -40,6 +43,9 @@ services:
       - ./bank_frontend/templates:/app/templates
       - ./bank_frontend/app.py:/app/app.py
       - ./security_audit.log:/app/security_audit.log
+    networks:
+      - frontend_tier
+      - backend_tier
 
   # Database pour Keycloak (Standard SQL)
   keycloak_db:
@@ -51,6 +57,8 @@ services:
       POSTGRES_PASSWORD: password
     volumes:
       - keycloak_db_data:/var/lib/postgresql/data
+    networks:
+      - data_tier
 
   # Serveur d'Identité Keycloak (OAuth2 / OpenID Connect)
   keycloak:
@@ -70,6 +78,9 @@ services:
       - KC_HTTP_ENABLED=true
     depends_on:
       - keycloak_db
+    networks:
+      - backend_tier
+      - data_tier
 
   # API Gateway (NGINX) - Le point d'entrée unique
   gateway:
@@ -86,10 +97,12 @@ services:
       - frontend
       - backend
       - keycloak
+    networks:
+      - frontend_tier
+      - backend_tier
 
   # --- SIEM MONITORING (ELK STACK) ---
 
-  # Moteur de recherche et stockage des logs
   elasticsearch:
     image: docker.elastic.co/elasticsearch/elasticsearch:8.12.0
     container_name: elasticsearch
@@ -105,8 +118,10 @@ services:
       - es_data:/usr/share/elasticsearch/data
     ports:
       - "9200:9200"
+    networks:
+      - data_tier
+      - monitoring_tier
 
-  # Visualisation et Dashboarding
   kibana:
     image: docker.elastic.co/kibana/kibana:8.12.0
     container_name: kibana
@@ -116,8 +131,9 @@ services:
       - "5601:5601"
     depends_on:
       - elasticsearch
+    networks:
+      - monitoring_tier
 
-  # Pipeline de traitement et parsing des logs
   logstash:
     image: docker.elastic.co/logstash/logstash:8.12.0
     container_name: logstash
@@ -129,8 +145,10 @@ services:
       - "5044:5044"
     depends_on:
       - elasticsearch
+    networks:
+      - monitoring_tier
+      - data_tier
 
-  # Collecteur léger de logs (Agent SIEM)
   filebeat:
     image: docker.elastic.co/beats/filebeat:8.12.0
     container_name: filebeat
@@ -145,6 +163,19 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock:ro
     depends_on:
       - logstash
+    networks:
+      - monitoring_tier
+      - backend_tier
+
+networks:
+  frontend_tier:
+    driver: bridge
+  backend_tier:
+    driver: bridge
+  monitoring_tier:
+    driver: bridge
+  data_tier:
+    internal: true
 
 volumes:
   mongo_data:

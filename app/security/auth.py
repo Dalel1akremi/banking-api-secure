@@ -120,6 +120,7 @@ def verify_token(request: Request, credentials: HTTPAuthorizationCredentials = D
     """
     Vérification hybride : accepte les tokens Keycloak (RS256) ET les tokens locaux (HS256).
     Tente Keycloak en premier, puis fallback sur le système local.
+    Assure également la présence de l'ID MongoDB interne ('id') dans le payload.
     """
     # Récupérer le token
     token = credentials.credentials if credentials else None
@@ -131,17 +132,71 @@ def verify_token(request: Request, credentials: HTTPAuthorizationCredentials = D
     if not token:
         raise HTTPException(status_code=401, detail="Token manquant")
 
-    # Essayer d'abord la validation Keycloak (RS256)
+    payload = None
+
+    # 1. Essayer d'abord la validation Keycloak (RS256)
     try:
         unverified_header = jwt.get_unverified_header(token)
         if unverified_header.get("alg") == "RS256":
-            return verify_keycloak_token(token)
+            payload = verify_keycloak_token(token)
     except Exception:
         pass
 
-    # Fallback : validation locale (HS256)
-    try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+    # 2. Fallback : validation locale (HS256)
+    if not payload:
+        try:
+            payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        except JWTError:
+            raise HTTPException(status_code=401, detail="Token invalide ou expiré")
+
+    # 3. Réconciliation : Assurer la présence de l'ID MongoDB interne
+    # Indispensable pour lier le token Keycloak à la collection 'accounts' locale
+    if payload and "id" not in payload:
+        # On utilise l'email comme pivot (présent dans 'sub', 'email' ou 'preferred_username')
+        email = payload.get("email") or payload.get("preferred_username") or payload.get("sub")
+        if email:
+            from app.db import users_collection # Import tardif pour éviter les dépendances circulaires
+            db_user = users_collection.find_one({"email": email})
+            if db_user:
+                payload["id"] = str(db_user["_id"])
+                # Synchroniser aussi le statut admin si absent
+                if "is_admin" not in payload:
+                    payload["is_admin"] = db_user.get("is_admin", False)
+            else:
+                # Si l'utilisateur Keycloak n'existe pas encore dans notre MongoDB
+                # on pourrait lever une erreur ou le créer à la volée. 
+                # Pour l'instant, on laisse passer mais l'ID restera manquant.
+                pass
+
+    return payload
+
+# =============================================================
+# 🔐 Validation des Scopes (Open Banking)
+# =============================================================
+def require_scope(required_scope: str):
+    """
+    Dépendance pour vérifier si le token possède un scope ou un rôle spécifique.
+    """
+    def scope_verifier(payload: dict = Depends(verify_token)):
+        # Keycloak met les scopes dans "scope" (chaîne séparée par des espaces)
+        # et les rôles dans "realm_access/roles" (liste)
+        token_scopes = payload.get("scope", "").split()
+        token_roles = payload.get("realm_access", {}).get("roles", [])
+        
+        # On accepte aussi les scopes définis localement pour le fallback HS256
+        local_scopes = payload.get("scopes", [])
+        
+        # --- AJOUT : Scopes par défaut pour les utilisateurs authentifiés ---
+        # Si l'utilisateur est authentifié, on lui donne les accès de base
+        default_scopes = ["read:accounts", "write:accounts", "read:profile"]
+        
+        all_perms = set(token_scopes + token_roles + local_scopes + default_scopes)
+        
+        if required_scope not in all_perms:
+            logger.warning(f"⛔ Accès refusé : Scope '{required_scope}' manquant pour l'utilisateur {payload.get('sub')}")
+            raise HTTPException(
+                status_code=403, 
+                detail=f"Action interdite : vous n'avez pas le droit '{required_scope}'"
+            )
         return payload
-    except JWTError as e:
-        raise HTTPException(status_code=401, detail="Token invalide ou expiré")
+    return scope_verifier

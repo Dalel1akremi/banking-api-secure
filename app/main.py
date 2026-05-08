@@ -18,7 +18,42 @@ from app.routes import account, payment, auth, user, email_verification, benefic
 from app.rate_limiter import limiter
 from fastapi.middleware.cors import CORSMiddleware
 
-app = FastAPI(title="Banking API Secure", root_path="/api")
+from fastapi.openapi.docs import get_swagger_ui_html, get_redoc_html
+from fastapi.openapi.utils import get_openapi
+from app.security.auth import verify_token
+from fastapi import Depends
+
+app = FastAPI(
+    title="Banking API Secure", 
+    root_path="/api",
+    docs_url=None, 
+    redoc_url=None, 
+    openapi_url=None
+)
+
+@app.get("/docs", include_in_schema=False)
+async def get_swagger_ui(request: Request, user=Depends(verify_token)):
+    token = request.query_params.get("token")
+    return get_swagger_ui_html(
+        openapi_url=f"/api/openapi.json?token={token}" if token else "/api/openapi.json", 
+        title=app.title + " - Swagger UI"
+    )
+
+@app.get("/redoc", include_in_schema=False)
+async def get_redoc(request: Request, user=Depends(verify_token)):
+    token = request.query_params.get("token")
+    return get_redoc_html(
+        openapi_url=f"/api/openapi.json?token={token}" if token else "/api/openapi.json", 
+        title=app.title + " - ReDoc"
+    )
+
+@app.get("/openapi.json", include_in_schema=False)
+async def get_open_api_endpoint(user=Depends(verify_token)):
+    return get_openapi(
+        title=app.title, 
+        version="1.0.0", 
+        routes=app.routes
+    )
 
 # Start threat monitor background thread
 from app.utils.threat_monitor import start_monitor

@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Request, BackgroundTasks
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
-from app.security.auth import verify_token
+from app.security.auth import verify_token, require_scope
 from app.db import accounts_collection, client, transactions_collection, users_collection
 from app.rate_limiter import limiter
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -128,6 +128,40 @@ class CheckbookRequest(BaseModel):
     type: str = Field(..., pattern=r"^(25|50)$")
     pin: str = Field(..., pattern=r"^\d{4}$")
     otp_code: str
+
+# --- Response Models (OWASP API Security) ---
+from typing import List
+
+class TransactionResponse(BaseModel):
+    type: str
+    amount: float
+    timestamp: datetime
+    account_number: Optional[str] = None
+    from_account: Optional[str] = None
+    to_account: Optional[str] = None
+    merchant: Optional[str] = None
+    category: Optional[str] = None
+    description: Optional[str] = None
+
+class AccountResponse(BaseModel):
+    account_number: str
+    balance: float
+    card_number: str # Masked: 4**********1234
+    card_expiry: str
+    card_status: str
+    card_subscription: str
+    online_payment_limit: float
+    atm_withdrawal_limit: float
+    contactless_payment: bool
+    internet_payments: bool
+    foreign_transactions: bool
+    domestic_withdrawals: bool
+    foreign_withdrawals: bool
+
+    @staticmethod
+    def mask_card(card_num: str) -> str:
+        if not card_num or len(card_num) < 10: return card_num
+        return f"{card_num[0]}**********{card_num[-4:]}"
 
 # ==============================
 # 🔐 PIN VERIFICATION HELPER
@@ -276,7 +310,7 @@ def generate_account_number():
 
 @router.post("/")
 @limiter.limit("5/minute")
-def create_account(request: Request, background_tasks: BackgroundTasks, account: Account, user=Depends(verify_token)):
+def create_account(request: Request, background_tasks: BackgroundTasks, account: Account, user=Depends(require_scope("write:accounts"))):
 
     account_number = generate_account_number()
     while accounts_collection.find_one({"account_number": account_number}):
@@ -333,13 +367,18 @@ def create_account(request: Request, background_tasks: BackgroundTasks, account:
 # 📄 GET ALL ACCOUNTS
 # ==============================
 
-@router.get("/")
-def get_accounts(user=Depends(verify_token)):
+@router.get("/", response_model=List[AccountResponse])
+def get_accounts(user=Depends(require_scope("read:accounts"))):
 
-    accounts = list(accounts_collection.find(
+    accounts_cursor = accounts_collection.find(
         {"owner_id": str(user["id"])},
-        {"_id": 0}
-    ))
+        {"_id": 0, "pin_hash": 0, "card_cvv": 0} # Exclure explicitement
+    )
+    
+    accounts = []
+    for acc in accounts_cursor:
+        acc["card_number"] = AccountResponse.mask_card(acc.get("card_number", ""))
+        accounts.append(acc)
 
     return accounts
 
@@ -347,20 +386,18 @@ def get_accounts(user=Depends(verify_token)):
 # 🔍 GET ONE ACCOUNT
 # ==============================
 
-@router.get("/{account_number}")
+@router.get("/{account_number}", response_model=AccountResponse)
 def get_account(account_number: str, user=Depends(verify_token)):
 
     acc = accounts_collection.find_one({
         "account_number": account_number,
         "owner_id": str(user["id"])
-    })
+    }, {"pin_hash": 0, "card_cvv": 0})
 
     if not acc:
         raise HTTPException(status_code=404, detail="Account not found")
 
-    acc["id"] = str(acc["_id"])
-    del acc["_id"]
-
+    acc["card_number"] = AccountResponse.mask_card(acc.get("card_number", ""))
     return acc
 
 # ==============================
@@ -619,11 +656,15 @@ def transfer(request: Request, data: Transfer, user=Depends(verify_token)):
 
     return {"message": "Transfer successful"}
 
+class TransactionListResponse(BaseModel):
+    account_number: str
+    transactions: List[TransactionResponse]
+
 # ==============================
 # 📊 TRANSACTIONS HISTORY
 # ==============================
 
-@router.get("/transactions/{account_number}")
+@router.get("/transactions/{account_number}", response_model=TransactionListResponse)
 def get_transactions(account_number: str, user=Depends(verify_token)):
 
     # vérifier que le compte appartient au user
