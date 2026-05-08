@@ -57,8 +57,8 @@ Pour générer le rapport requis par le cahier des charges :
 
 ## 🧪 Tests de Sécurité Inclus
 
-*   `test_ratelimit.py` : Simulation d'attaque Brute Force.
-*   `test.js` : Tests de charge et validation mTLS.
+*   `scripts/test_ratelimit.py` : Simulation d'attaque Brute Force pour tester les blocages SIEM.
+*   `scripts/test_performance.py` : Validation de l'impact de sécurité (mTLS, Gateway) sur la latence.
 
 ---
 

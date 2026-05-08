@@ -1,9 +1,0 @@
-fastapi
-uvicorn
-pymongo
-pydantic
-slowapi
-werkzeug
-python-dotenv
-python-dateutil
-google-genai
