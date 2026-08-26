@@ -94,7 +94,7 @@ Le pipeline d'ingestion Logstash applique les étapes suivantes :
     \item \textbf{Extraction structurée par Grok} : Découpage de chaque ligne par le motif standardisé de capture :
     \begin{tcolorbox}[colback=gray!8,colframe=gray!40,arc=1mm,boxrule=0.5pt,left=2pt,right=2pt,top=2pt,bottom=2pt]
     \footnotesize\ttfamily
-    [\%\{TIMESTAMP\_ISO8601:log\_time\}] | \%\{WORD:log\_level\} | IP: \%\{IP:client\_ip\} | METHOD: \%\{WORD:http\_method\} | PATH: \%\{URIPATH:request\_path\} | STATUS: \%\{NUMBER:http\_status:int\} | DURATION: \%\{NUMBER:latency\_ms:float\}ms
+    [\%\{TIMESTAMP\_ISO8601:log\_time\}] \textbar{} \%\{WORD:log\_level\} \textbar{} IP: \%\{IP:client\_ip\} \textbar{} METHOD: \%\{WORD:http\_method\} \textbar{} PATH: \%\{URIPATH:request\_path\} \textbar{} STATUS: \%\{NUMBER:http\_status:int\} \textbar{} DURATION: \%\{NUMBER:latency\_ms:float\}ms
     \end{tcolorbox}
     \item \textbf{Enrichissement et catégorisation} : Attribution automatique du champ \texttt{severity} selon le code HTTP et le statut de blocage.
     \item \textbf{Stockage et rétention} : Indexation journalière dans des index \texttt{security-audit-logs-YYYY.MM.DD}. La politique de rétention conserve les index de sécurité pendant 90 jours et les journaux financiers archivés pendant un an avec accès strictement réservé aux analystes autorisés (RBAC Elasticsearch).
