@@ -1,0 +1,147 @@
+\documentclass{mpssi_cls}
+
+% Packages pour le document
+\usepackage{booktabs,microtype,siunitx}
+\usepackage{amssymb,tcolorbox}
+\usepackage{fontawesome5}
+\usepackage{pifont}
+\usepackage{float}
+\usepackage{array}
+\usepackage{enumitem}
+\usepackage{xcolor}
+\usepackage{setspace}
+\usepackage[colorlinks=true,linkcolor={[HTML]{2F5DA8}},citecolor={[HTML]{2F5DA8}},urlcolor={[HTML]{2F5DA8}}]{hyperref}
+
+% Chemins d'accès aux images et figures
+\graphicspath{{mpssi_contenu_graphique/}{mpssi_contenu_graphique/figures/}{mpssi_contenu_graphique/logos/}{uploads/}{../documentation/uploads/}{documentation/uploads/}}
+\sisetup{detect-all,separate-uncertainty = true}
+
+% Algorithmes
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+
+% Macro personnalisée pour la description des scénarios d'utilisation
+\newcommand{\scenariotable}[8]{
+\begin{table}[!htbp]
+\centering
+\footnotesize
+\renewcommand{\arraystretch}{1.1}
+\begin{tabular}{|>{\raggedright\arraybackslash}p{3.8cm}|>{\raggedright\arraybackslash}p{10.7cm}|}
+\hline
+\textbf{Titre du scénario} & #1 \\ \hline
+\textbf{Acteur(s)} & #2 \\ \hline
+\textbf{Objectif} & #3 \\ \hline
+\textbf{Précondition} & #4 \\ \hline
+\textbf{Post-condition} & #5 \\ \hline
+\textbf{Scénario nominal} & #6 \\ \hline
+\textbf{Scénario alternatif} & #7 \\ \hline
+\textbf{Exigences suppl.} & #8 \\ \hline
+\end{tabular}
+\caption{Description détaillée : #1}
+\end{table}
+}
+
+% Chargement des métadonnées
+\input{mpssi_metadata}
+
+\addbibresource{mpssi_bib.bib}
+
+\title{\mpssiProjectTitle}
+
+\author{%
+\mpssiStudentName\textsuperscript{1} \quad \mpssiSupervisorName\textsuperscript{2}\\[2pt]
+\texttt{\mpssiStudentEmail} \quad
+\texttt{\mpssiSupervisorEmail}\\[3pt]
+{\scriptsize\textsuperscript{1}\,\textcolor[HTML]{A6CE39}{\faOrcid}\,\href{\mpssiStudentOrcid}{ORCID} \quad \textcolor[HTML]{0A66C2}{\faLinkedin}\,\href{\mpssiStudentLinkedin}{LinkedIn} \quad \textcolor[HTML]{181717}{\faGithub}\,\href{\mpssiStudentGithub}{GitHub}}\\[2pt]
+{\scriptsize\textsuperscript{2}\,\textcolor[HTML]{A6CE39}{\faOrcid}\,\href{\mpssiSupervisorOrcid}{ORCID} \quad \textcolor[HTML]{0A66C2}{\faLinkedin}\,\href{\mpssiSupervisorLinkedin}{LinkedIn} \quad \textcolor[HTML]{181717}{\faGithub}\,\href{\mpssiSupervisorGithub}{GitHub}}}
+\affiliation{Département Multimédia et Web, Institut Supérieur d'Informatique et de Multimédia de Gabès (ISIMG), Université de Gabès, Gabès, Tunisie}
+\doi{N\textsuperscript{o}~.....................}
+
+\keywords{Open Banking; Zero Trust; mTLS; SIEM; Keycloak; FastAPI; OWASP; API Security}
+
+\acronymes{
+    API: Application Programming Interface, 
+    BOLA: Broken Object Level Authorization, 
+    DAST: Dynamic Application Security Testing, 
+    ELK: Elasticsearch Logstash Kibana, 
+    JWT: JSON Web Token, 
+    mTLS: Mutual Transport Layer Security, 
+    OIDC: OpenID Connect, 
+    OTP: One-Time Password,
+    OWASP: Open Worldwide Application Security Project, 
+    RBAC: Role-Based Access Control, 
+    SIEM: Security Information and Event Management, 
+    SOAR: Security Orchestration Automation and Response,
+    TOTP: Time-based One-Time Password,
+    TPP: Third Party Providers, 
+    ZAP: Zed Attack Proxy
+}
+
+\begin{document}
+
+\pagenumbering{gobble}
+\pagestyle{empty}
+
+\mpssiPageGarde
+\clearpage
+\listoffigures
+\newpage
+\listoftables
+\clearpage
+
+\pagenumbering{arabic}
+\setcounter{page}{1}
+\pagestyle{plain}
+
+\maketitle
+\microtypesetup{protrusion=false}
+\microtypesetup{protrusion=true}
+
+\setlength{\parskip}{2pt}
+\setlength{\parindent}{15pt}
+\raggedbottom
+\onehalfspacing
+
+% Contrôle des lignes veuves et orphelines
+\widowpenalty=10000
+\clubpenalty=10000
+\interfootnotelinepenalty=10000
+
+% Suppression des espaces autour des figures et tableaux
+\setlength{\textfloatsep}{4pt plus 1pt minus 1pt}
+\setlength{\floatsep}{4pt plus 1pt minus 1pt}
+\setlength{\intextsep}{4pt plus 1pt minus 1pt}
+\setlength{\abovecaptionskip}{2pt}
+\setlength{\belowcaptionskip}{1pt}
+
+% Réduction des espaces autour des listes (itemize, enumerate)
+\setlist{nosep, topsep=1pt}
+
+% Réduction des espaces autour des équations
+\AtBeginDocument{
+  \setlength{\abovedisplayskip}{3pt}
+  \setlength{\belowdisplayskip}{3pt}
+  \setlength{\abovedisplayshortskip}{0pt}
+  \setlength{\belowdisplayshortskip}{2pt}
+}
+
+\input{mpssi_contenu_rapport}
+
+\clearpage
+\input{mpssi_contenu_annexe}
+
+\clearpage
+\ifdefined\printbibliography
+  \printbibliography
+\else
+  \begin{thebibliography}{10}
+  \bibitem{nist_zt} S. Rose, O. Borchert, S. Mitchell et S. Connelly, \textit{NIST Special Publication 800-207: Zero Trust Architecture}, NIST, 2020.
+  \bibitem{owasp2023} OWASP Foundation, \textit{OWASP API Security Top 10 --- 2023}, \url{https://owasp.org/API-Security/}, 2023.
+  \bibitem{psd2} Commission Européenne, \textit{Directive sur les services de paiement (DSP2)}, Directive (UE) 2015/2366, 2015.
+  \bibitem{oauth2} D. Hardt, éd., \textit{The OAuth 2.0 Authorization Framework}, RFC 6749, IETF, 2012.
+  \bibitem{keycloak} Red Hat, \textit{Keycloak --- Documentation officielle}, \url{https://www.keycloak.org/documentation}, 2026.
+  \bibitem{elastic} Elastic, \textit{Elasticsearch --- Documentation officielle}, \url{https://www.elastic.co/fr/elasticsearch}, 2026.
+  \end{thebibliography}
+\fi
+
+\end{document}
