@@ -1,0 +1,112 @@
+\NeedsTeXFormat{LaTeX2e}
+\ProvidesPackage{mpssi_style}[2026/05/13 Compatibilite page de garde MPSSI]
+
+\makeatletter
+\@ifclassloaded{mpssi_cls}{}{
+  \RequirePackage[utf8]{inputenc}
+  \RequirePackage[T1]{fontenc}
+  \RequirePackage[french]{babel}
+  \RequirePackage{graphicx}
+  \RequirePackage{geometry}
+  \RequirePackage{xcolor}
+  \RequirePackage{setspace}
+  \RequirePackage{array}
+  \RequirePackage{tikz}
+  \providecommand*\mpssiLoadMetadata{%
+    \@ifundefined{mpssiProjectTitle}{\input{mpssi_metadata}}{}%
+  }
+  \providecommand*\mpssiPageGardeSetup{%
+    \geometry{top=1.8cm,bottom=1.8cm,left=2cm,right=2cm}%
+    \pagestyle{empty}%
+    \setlength{\parindent}{0pt}%
+    \mpssiLoadMetadata%
+  }
+  \mpssiPageGardeSetup
+}
+\makeatother
+
+\newcommand*\mpssiPageGarde{%
+\begingroup\hfuzz=25pt
+\begin{titlepage}
+\begin{tikzpicture}[remember picture,overlay]
+  \node[anchor=north east,inner sep=0pt] at (current page.north east)
+    {\includegraphics[height=0.24\paperheight]{mpssi_contenu_graphique/logos/border_TR.png}};
+  \node[anchor=south west,inner sep=0pt] at (current page.south west)
+    {\includegraphics[height=0.24\paperheight]{mpssi_contenu_graphique/logos/border_BL.png}};
+\end{tikzpicture}
+\centering
+
+\noindent\makebox[\textwidth]{%
+\begin{minipage}[c]{0.17\textwidth}
+\raggedright
+\includegraphics[width=0.72\textwidth]{mpssi_contenu_graphique/isimg_logo.jpg}
+\end{minipage}%
+\hfill
+\begin{minipage}[c]{0.60\textwidth}
+\centering
+{\small République Tunisienne\par}
+{\small Ministère de l'Enseignement Supérieur et de la Recherche Scientifique\par}
+{\small Université de Gabès\par}
+\vspace{0.3cm}
+{\normalsize\textbf{Institut Supérieur d'Informatique et de Multimédia de Gabès}\par}
+{\normalsize\textbf{Département Multimédia \& Web}\par}
+\end{minipage}%
+\hfill
+\begin{minipage}[c]{0.17\textwidth}
+\raggedleft
+\includegraphics[width=0.68\textwidth]{mpssi_contenu_graphique/logos/logo_REP_TUN.png}
+\end{minipage}%
+}
+
+\vspace{0.5cm}
+\centering
+{\normalsize \textbf{Code mémoire :} \ldots\ldots\ldots\par}
+
+\vspace{0.8cm}
+\centering
+{\Large\bfseries MÉMOIRE DE MASTÈRE\par}
+\vspace{0.35cm}
+{\normalsize Présenté en vue de l'obtention du\par}
+\vspace{0.25cm}
+{\large\bfseries DIPLÔME DE MASTÈRE PROFESSIONNEL EN SÉCURITÉ DES SYSTÈMES INFORMATIQUES -- MPSSI\par}
+
+\vspace{1cm}
+{\large\bfseries Intitulé\par}
+\vspace{0.35cm}
+\begin{tikzpicture}
+  \node[fill=gray!25,minimum width=0.88\textwidth,minimum height=1.6cm,anchor=center] at (0.12,0.12) {};
+  \node[draw=black,line width=0.9pt,fill=white,inner xsep=12pt,inner ysep=12pt,minimum width=0.88\textwidth,text width=0.82\textwidth,align=center,anchor=center] at (0,0)
+    {{\Large\bfseries \mpssiProjectTitle}};
+\end{tikzpicture}
+
+\vspace{1cm}
+\centering
+{\normalsize\textbf{Réalisé par}\par}
+\vspace{0.25cm}
+{\large \mpssiStudentName\par}
+\vspace{0.5cm}
+{\normalsize\textbf{Sous la direction de}\par}
+\vspace{0.25cm}
+{\large \mpssiSupervisorName\par}
+
+\vspace{0.9cm}
+{\normalsize Soutenu publiquement le jj mois 2026 devant le jury composé de :\par}
+
+\vspace{0.5cm}
+\renewcommand{\arraystretch}{1.35}
+\begin{tabular}{>{\bfseries}p{2.7cm}p{4cm}p{4.2cm}p{2.2cm}}
+Président : & Dr. Prénom NOM & Grade & Etablissemnt \\
+Rapporteur : & Dr. Prénom NOM & Grade & Etablissemnt \\
+Encadrant : & Dr. Prénom NOM & Grade & Etablissemnt \\
+\end{tabular}
+
+\vfill
+{\normalsize\textbf{Année Universitaire 2025--2026}\par}
+\vspace{0.5cm}
+{\footnotesize Institut Supérieur d'Informatique et de Multimédia de Gabès, Campus universitaire -- BP 122, 6033 Cité El Amel 4, Gabès, TUNISIE\par}
+{\footnotesize Téléphone : (00216) 75 394 229 \quad Fax : (00216) 75 394 309\par}
+{\footnotesize Email : isimg@isimg.rnu.tn \quad Web : http://www.isimg.rnu.tn\par}
+
+\end{titlepage}%
+\endgroup
+}
