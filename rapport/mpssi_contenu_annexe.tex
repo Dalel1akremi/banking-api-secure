@@ -1,0 +1,193 @@
+\clearpage
+\begin{center}
+\Huge\bfseries ANNEXES
+\end{center}
+\addcontentsline{toc}{section}{ANNEXES}
+\vspace{0.8cm}
+
+% ============================================================
+\section*{Annexe A : Spécifications de Sécurité et Configuration de la Passerelle NGINX}
+\addcontentsline{toc}{subsection}{Annexe A : Spécifications de Sécurité et Configuration de la Passerelle NGINX}
+% ============================================================
+Cette annexe détaille les configurations cryptographiques, la gestion des en-têtes HTTP de durcissement, la régulation de débit et le filtrage mTLS appliqués au niveau de la passerelle d'API NGINX.
+
+\subsection*{A.1 Politique de durcissement SSL/TLS}
+Pour garantir la confidentialité et l'intégrité des flux conformément aux exigences du profil FAPI 1.0 Advanced, la passerelle NGINX applique les paramètres suivants :
+\begin{itemize}[leftmargin=*]
+    \item \textbf{Protocoles autorisés} : Activation exclusive des versions TLS v1.2 et TLS v1.3. Les protocoles obsolètes (SSLv3, TLS v1.0, TLS v1.1) sont explicitement désactivés.
+    \item \textbf{Suites de chiffrement} : Utilisation prioritaire de suites de chiffrement offrant la confidentialité persistante (\textit{Perfect Forward Secrecy} -- PFS), telles que \texttt{ECDHE-ECDSA-AES256-GCM-SHA384} et \texttt{ECDHE-RSA-AES128-GCM-SHA256}.
+    \item \textbf{Gestion des clés} : Clés RSA de longueur minimale 4096 bits et courbes elliptiques standardisées P-256 / secp256r1.
+\end{itemize}
+
+\subsection*{A.2 Filtrage mTLS pour les partenaires TPP et intégrité de l'adresse source}
+La vérification de l'identité des Prestataires Tiers (TPP) au niveau de la couche transport repose sur :
+\begin{itemize}[leftmargin=*]
+    \item \textbf{Autorité de Certification (CA) dédiée} : Les certificats clients présentés par les TPP doivent être émis par la CA privée de la banque (\texttt{ssl\_client\_certificate /etc/nginx/certs/ca.crt}).
+    \item \textbf{Profondeur de vérification} : Validation de la chaîne de confiance jusqu'à la racine (\texttt{ssl\_verify\_client on}, \texttt{ssl\_verify\_depth 2}).
+    \item \textbf{Protection contre l'usurpation d'adresse IP} : NGINX transmet l'adresse réseau réelle du client en écrasant l'en-tête \texttt{X-Real-IP} avec la variable \texttt{\$remote\_addr}, empêchant ainsi toute injection malveillante d'adresses falsifiées dans les flux amont.
+    \item \textbf{Gestion des rejets} : Rejet immédiat au niveau TLS avec émission d'un code de statut HTTP \texttt{400 Bad Request} en cas de certificat client manquant, révoqué ou non conforme.
+\end{itemize}
+
+\subsection*{A.3 Régulation de débit (Rate Limiting)}
+La prévention des attaques par déni de service applicatif s'appuie sur l'algorithme du seau percé (\textit{Leaky Bucket}) :
+\begin{itemize}[leftmargin=*]
+    \item \textbf{Taux nominal} : Limite de 10 requêtes par seconde (\texttt{10r/s}) par adresse IP source.
+    \item \textbf{Gestion des pics (\textit{Burst})} : Tolérance d'un pic temporaire de 20 requêtes avec traitement immédiat (\texttt{nodelay}).
+    \item \textbf{Action en cas de saturation} : Rejet immédiat de la requête avec un code HTTP \texttt{429 Too Many Requests}, consigné pour incrémentation du score de menace $T_{decay}(x,t)$.
+\end{itemize}
+
+\subsection*{A.4 En-têtes HTTP de durcissement de sécurité}
+Chaque réponse transmise par NGINX intègre les en-têtes de sécurité standardisés présentés dans le Tableau~\ref{tab:annexe_headers}.
+
+\begin{table}[!htbp]
+\centering
+\footnotesize
+\begin{tabular}{|>{\raggedright\arraybackslash}p{3.8cm}|>{\raggedright\arraybackslash}p{5.0cm}|>{\raggedright\arraybackslash}p{5.2cm}|}
+\hline
+\textbf{En-tête HTTP} & \textbf{Valeur configurée} & \textbf{Objectif de sécurité} \\ \hline
+\texttt{Strict-Transport-Security} & \texttt{max-age=31536000;} \newline \texttt{includeSubDomains} & Force l'usage exclusif du protocole HTTPS pendant une durée d'un an (HSTS). \\ \hline
+\texttt{X-Content-Type-Options} & \texttt{nosniff} & Empêche le détournement de type MIME par les navigateurs clients. \\ \hline
+\texttt{X-Frame-Options} & \texttt{DENY} & Bloque l'inclusion de l'application dans des cadres ou iframes (anti-Clickjacking). \\ \hline
+\texttt{Content-Security-Policy} & \texttt{default-src 'self';} \newline \texttt{script-src 'self'} & Restreint l'exécution de scripts et le chargement de ressources aux domaines approuvés. \\ \hline
+\texttt{Referrer-Policy} & \texttt{strict-origin-when-cross-origin} & Protège la divulgation des chemins d'accès sensibles dans l'en-tête Referer. \\ \hline
+\end{tabular}
+\caption{Politique des en-têtes de durcissement HTTP configurés sur la passerelle NGINX.}
+\label{tab:annexe_headers}
+\end{table}
+
+L'application systématique des directives énumérées dans le Tableau~\ref{tab:annexe_headers} neutralise les vecteurs d'attaque courants ciblant les navigateurs clients (injections XSS indirectes, détournements de contexte MIME et attaques par détournement de clic).
+
+\clearpage
+% ============================================================
+\section*{Annexe B : Spécification du Pipeline d'Ingestion SIEM \& Dictionnaire de Données}
+\addcontentsline{toc}{subsection}{Annexe B : Spécification du Pipeline d'Ingestion SIEM \& Dictionnaire de Données}
+% ============================================================
+
+\subsection*{B.1 Dictionnaire des champs d'événements de sécurité}
+Chaque événement d'audit ingéré par la pile ELK est normalisé selon le dictionnaire de données défini dans le Tableau~\ref{tab:annexe_siem_dict}.
+
+\begin{table}[!htbp]
+\centering
+\small
+\begin{tabular}{|l|l|l|p{5.5cm}|}
+\hline
+\textbf{Nom du champ} & \textbf{Type Elasticsearch} & \textbf{Source d'origine} & \textbf{Description et Exemple} \\ \hline
+\texttt{@timestamp} & \texttt{date} & Logstash & Horodatage ISO 8601 UTC de l'événement. \\ \hline
+\texttt{client\_ip} & \texttt{ip} & NGINX / FastAPI & Adresse IP d'origine du client ou TPP. \\ \hline
+\texttt{http\_method} & \texttt{keyword} & Requête HTTP & Verbe HTTP utilisé (\texttt{GET}, \texttt{POST}, \texttt{PUT}, \texttt{DELETE}). \\ \hline
+\texttt{request\_path} & \texttt{keyword} & Requête HTTP & Chemin d'accès relatif à la ressource ciblée. \\ \hline
+\texttt{http\_status} & \texttt{integer} & Réponse HTTP & Code de statut HTTP retourné (200, 401, 403, 429). \\ \hline
+\texttt{severity} & \texttt{keyword} & Threat Monitor & Niveau de sévérité (\texttt{INFO}, \texttt{WARNING}, \texttt{CRITICAL}). \\ \hline
+\texttt{user\_id} & \texttt{keyword} & JWT Keycloak & Identifiant pseudonymisé du client bancaire. \\ \hline
+\texttt{latency\_ms} & \texttt{float} & Middleware API & Temps de traitement interne de la requête en ms. \\ \hline
+\end{tabular}
+\caption{Dictionnaire des données de sécurité de l'index Elasticsearch.}
+\label{tab:annexe_siem_dict}
+\end{table}
+
+Ce schéma de données structuré garantit l'homogénéité des index Elasticsearch et accélère les requêtes d'agrégation sous Kibana Discover, autorisant une corrélation instantanée par IP source ou par code d'erreur HTTP.
+
+\subsection*{B.2 Modèle d'ingestion Logstash et filtres Grok}
+Le pipeline d'ingestion Logstash applique les étapes suivantes :
+\begin{enumerate}[leftmargin=*]
+    \item \textbf{Collecte continue} : Lecture du fichier \texttt{security\_audit.log} par Filebeat et transmission sécurisée vers Logstash (port 5044).
+    \item \textbf{Extraction structurée par Grok} : Découpage de chaque ligne par le motif standardisé de capture :
+    \begin{tcolorbox}[colback=gray!8,colframe=gray!40,arc=1mm,boxrule=0.5pt,left=2pt,right=2pt,top=2pt,bottom=2pt]
+    \footnotesize\ttfamily
+    [\%\{TIMESTAMP\_ISO8601:log\_time\}] | \%\{WORD:log\_level\} | IP: \%\{IP:client\_ip\} | METHOD: \%\{WORD:http\_method\} | PATH: \%\{URIPATH:request\_path\} | STATUS: \%\{NUMBER:http\_status:int\} | DURATION: \%\{NUMBER:latency\_ms:float\}ms
+    \end{tcolorbox}
+    \item \textbf{Enrichissement et catégorisation} : Attribution automatique du champ \texttt{severity} selon le code HTTP et le statut de blocage.
+    \item \textbf{Stockage et rétention} : Indexation journalière dans des index \texttt{security-audit-logs-YYYY.MM.DD}. La politique de rétention conserve les index de sécurité pendant 90 jours et les journaux financiers archivés pendant un an avec accès strictement réservé aux analystes autorisés (RBAC Elasticsearch).
+\end{enumerate}
+
+\clearpage
+% ============================================================
+\section*{Annexe C : Protocole d'Audit Dynamique (DAST) \& Matrice de Tests OWASP ZAP}
+\addcontentsline{toc}{subsection}{Annexe C : Protocole d'Audit Dynamique (DAST) \& Matrice de Tests OWASP ZAP}
+% ============================================================
+
+\subsection*{C.1 Plan de test et matrice de couverture par endpoint}
+L'évaluation dynamique par OWASP ZAP (version 2.14.0 exécutée sous conteneur Docker le 15 mars 2026, durée 272~s) a couvert l'ensemble des 10 endpoints exposés par l'API bancaire selon la matrice détaillée dans le Tableau~\ref{tab:annexe_zap_matrix}.
+
+\begin{table}[!htbp]
+\centering
+\small
+\begin{tabular}{|l|l|p{6.5cm}|}
+\hline
+\textbf{Endpoint d'API} & \textbf{Méthode} & \textbf{Vecteurs d'attaque simulés par OWASP ZAP} \\ \hline
+\texttt{/api/auth/login} & \texttt{POST} & Injection SQL, force brute de mot de passe, falsification de jeton. \\ \hline
+\texttt{/api/auth/2fa} & \texttt{POST} & Contournement OTP, rejeu de code temporaire expiré. \\ \hline
+\texttt{/api/accounts/\{id\}} & \texttt{GET} & BOLA (changement d'identifiant de compte), injection de paramètres. \\ \hline
+\texttt{/api/payment/transfer} & \texttt{POST} & Manipulation de solde, rejeu de transaction, injection de payload XSS. \\ \hline
+\texttt{/api/admin/users} & \texttt{GET/PUT} & BFLA (accès non autorisé), élévation de privilèges. \\ \hline
+\texttt{/api/admin/alerts/stream} & \texttt{GET} & Injection SSE, contournement de session d'administration. \\ \hline
+\texttt{/api/beneficiary} & \texttt{GET/POST} & Pollution de paramètres, injection d'identifiant tiers. \\ \hline
+\texttt{/api/locations} & \texttt{GET} & Traversée de répertoires, injection de commandes. \\ \hline
+\texttt{/api/budget} & \texttt{GET/POST} & Manipulation de montants, validation de types de données. \\ \hline
+\texttt{/api/financial-hub} & \texttt{GET} & Fuite d'informations sensibles, exposition de métadonnées. \\ \hline
+\end{tabular}
+\caption{Matrice des endpoints bancaires et vecteurs d'attaque simulés lors de l'audit DAST.}
+\label{tab:annexe_zap_matrix}
+\end{table}
+
+Comme l'atteste le Tableau~\ref{tab:annexe_zap_matrix}, chaque point d'accès a été éprouvé face aux vecteurs d'attaque pertinents selon sa nature fonctionnelle, confirmant l'absence de vulnérabilités critiques exploitables à distance.
+
+\subsection*{C.2 Critères d'acceptation et seuils d'intégration continue (CI/CD)}
+Pour autoriser la promotion d'un livrable en environnement de production, les critères d'acceptation sécuritaires suivants sont définis :
+\begin{itemize}[leftmargin=*]
+    \item \textbf{0 alerte de criticité Élevée (High) ou Critique} : Toute découverte de vulnérabilité BOLA, injection ou défaut d'authentification invalide immédiatement le déploiement.
+    \item \textbf{0 alerte de criticité Moyenne (Medium)} : Toute défaillance de configuration TLS ou exposition non maîtrisée de ressource requiert une correction obligatoire.
+    \item \textbf{Tolérance maximale de 3 alertes de criticité Basse (Low)} : Acceptation conditionnelle de remarques mineures d'optimisation d'en-têtes HTTP de réponse.
+\end{itemize}
+
+\subsection*{C.3 Synthèse du rapport brut OWASP ZAP}
+Le scan complet produit par la commande \texttt{zap-baseline.py -t http://banking\_backend:8000 -r zap\_report.html} a analysé 10 endpoints d'API, émis 128 requêtes d'exploration et d'injection active, et validé un score global satisfaisant (0 High, 0 Medium, 2 Low, 4 Informational). Le rapport complet est archivé dans \texttt{documentation/zap\_report.html}.
+
+\clearpage
+% ============================================================
+\section*{Annexe D : Algorithme Formel et Automate de la Réponse Active}
+\addcontentsline{toc}{subsection}{Annexe D : Algorithme Formel et Automate de la Réponse Active}
+% ============================================================
+
+\subsection*{D.1 Algorithme d'évaluation du score et de déclenchement du blocage}
+L'Algorithme~\ref{alg:threat_response} formalise la logique décisionnelle exécutée en continu par le module \texttt{ThreatMonitor} lors de l'analyse des flux de sécurité.
+
+\begin{algorithm}[!htbp]
+\caption{Évaluation du score dynamique de menace $T_{decay}(x, t)$ et gestion du blocage applicatif}
+\label{alg:threat_response}
+\begin{algorithmic}[1]
+\Require Adresse IP source $x$, Code de statut HTTP $code$, Seuil critique $S$, Facteur d'atténuation $\lambda$
+\Ensure Mise à jour de l'état de sécurité $SecurityState$
+\State $t_{\text{current}} \gets \text{HorodatageActuel}()$
+\If{$x \in \text{SecurityState.WhitelistedIPs}$}
+    \State \textbf{return} \Comment{Ignorer les adresses internes de confiance}
+\EndIf
+\State $T_{\text{prev}} \gets \text{ObtenirScorePrecedent}(x)$
+\State $t_{\text{last}} \gets \text{ObtenirDernierHorodatage}(x)$
+\State $T_{\text{decayed}} \gets T_{\text{prev}} \cdot e^{-\lambda (t_{\text{current}} - t_{\text{last}})}$ \Comment{Application de l'atténuation temporelle}
+\State $w \gets 0.0$
+\If{$code = 401 \lor code = 422$}
+    \State $w \gets 1.0$ \Comment{Échec d'authentification / Force brute}
+\ElsIf{$code = 403$}
+    \State $w \gets 0.7$ \Comment{Accès interdit / Exploration de ressources}
+\ElsIf{$code = 429$}
+    \State $w \gets 0.5$ \Comment{Dépassement de quota de débit}
+\EndIf
+\State $T_{\text{new}}(x) \gets T_{\text{decayed}} + w$
+\State $\text{SauvegarderScore}(x, T_{\text{new}}(x), t_{\text{current}})$
+\If{$T_{\text{new}}(x) \ge S \land x \notin \text{SecurityState.BlockedIPs}$}
+    \State $\text{EmettreAlerteSSE}(x, T_{\text{new}}(x), \text{"CRITICAL"})$
+    \State $\text{LancerMinuteurSecurite}(x, \text{duree} = 30\text{s})$
+\EndIf
+\end{algorithmic}
+\end{algorithm}
+
+\subsection*{D.2 Machine à états de la gestion d'une adresse IP source}
+La gestion du cycle de vie sécuritaire d'une adresse IP au sein de \texttt{SecurityState} s'appuie sur cinq états distincts :
+\begin{itemize}[leftmargin=*]
+    \item \textbf{État Sain (\textit{Clean})} : L'adresse IP émet des requêtes nominales ($T_{decay}(x, t) < S$). Toutes les requêtes sont acceptées.
+    \item \textbf{État Suspect} : L'adresse enregistre des erreurs isolées ($0 < T_{decay}(x, t) < S$). Le score s'incrémente avec décroissance temporelle.
+    \item \textbf{État Compte à Rebours (\textit{Countdown})} : Le seuil $S$ est franchi ($T_{decay}(x, t) \ge S$). Une alerte SSE est émise et un compte à rebours de 30 secondes s'active sur le tableau de bord d'administration.
+    \item \textbf{État Bloqué (\textit{Blocked})} : À l'échéance des 30 secondes sans annulation manuelle par l'analyste, l'adresse IP est inscrite dans le registre des adresses bloquées. Toutes ses requêtes sont immédiatement rejetées avec un code HTTP 403 pendant $t_{unblock} = 15\text{ minutes}$.
+    \item \textbf{État Liste Blanche (\textit{Whitelisted})} : Adresses IP d'infrastructure interne (passerelle NGINX, boucle locale) exemptées de tout blocage.
+\end{itemize}
