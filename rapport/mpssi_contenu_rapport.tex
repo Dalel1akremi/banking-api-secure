@@ -262,12 +262,14 @@ où $t_{last}$ est l'horodatage du dernier événement suspect de la source $x$,
 
 La fonction $w(e)$ représente le coefficient de pondération associé à la sévérité du code d'erreur HTTP. Elle est définie de manière à refléter le niveau de dangerosité de chaque type d'événement :
 \begin{equation}
-w(e) = \begin{cases}
-1{,}0 & \text{si } code \in \{401, 422\} \quad \text{(authentification échouée / force brute)} \\
-0{,}7 & \text{si } code = 403 \quad \text{(accès interdit / exploration de ressources)} \\
-0{,}5 & \text{si } code = 429 \quad \text{(dépassement de quota / abus de débit)} \\
-0{,}0 & \text{pour tout code de succès nominal } (2xx,\, 3xx)
-\end{cases}
+w(e) = \left\{
+\begin{array}{ll}
+1{,}0 & \text{si } code \in \{401, 422\} \quad \text{(échec auth. / force brute),} \\[3pt]
+0{,}7 & \text{si } code = 403 \quad \text{(accès interdit / sonde BOLA),} \\[3pt]
+0{,}5 & \text{si } code = 429 \quad \text{(dépassement de quota de débit),} \\[3pt]
+0{,}0 & \text{pour tout code de succès nominal } (2xx,\, 3xx).
+\end{array}
+\right.
 \label{eq:threat_weights}
 \end{equation}
 
