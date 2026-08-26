@@ -1,0 +1,25 @@
+﻿=== PAGE 1 ===
+Corrections restant ├á effectuer
+Priorit├® 1 - ├ëquation du score : Recomposer integralement l'├®quation (2), page 16/39. Elle d├®passe
+actuellement la marge droite et la d├®finition de w(e) est tronqu├®e.
+Priorit├® 1 - Validation du score : Justifier les poids et le seuil S = 3 sur un trafic comportant des cas
+l├®gitimes et malveillants, puis fournir taux de d├®tection, faux positifs, faux negatifs et d├®lais de d├®tection
+et de blocage.
+Priorit├® 1 - Int├®grit├® des journaux : Ajouter un chainage cryptographique, un HMAC ou une signature,
+un horodatage fiable ou un stockage WORM. Les expressions non-r├®pudiation et int├®grit├® ne sont pas
+justifiees par un simple fichier append-only.
+Priorit├® 1 - Performance : Documenter l'outil de charge, la concurrence, la dur├®e, l'├®chauffement, les
+r├®p├®titions et les versions. Ajouter moyenne, m├®diane, p95, p99 et une mesure de dispersion. Sourcer le
+seuil de 200 ms.
+Priorit├® 2 - ZAP : Ajouter la date, la dur├®e, le contexte, les r├┤les, les r├¿gles actives et la preuve brute du
+scan. ├ëviter les conclusions g├®n├®rales fond├®es uniquement sur l'absence d'alertes critiques.
+Priorit├® 2 - Module Gemini : Fournir un protocole d'├®valuation, des exemples d'entr├®es/sorties, des
+crit├¿res de qualit├® et les erreurs observ├®es, ou retirer ce module des contributions valid├®es.
+Priorit├® 2 - Figures 2 et 3 : Ajouter Flask, Threat Monitor, SecurityState et le stockage partage dans la
+vue d'architecture. S├®parer navigateur, frontend et backend TPP dans la sequence OAuth et ajouter les
+branches d'erreur.
+Priorit├® 2 - Figures 5 et 6 : Choisir clairement OTP par courriel ou TOTP, ou fournir deux parcours.
+Retirer password_hash du mod├¿le m├®tier si l'identit├® est g├®r├®e par Keycloak.
+Priorit├® 3 - Tableaux : Introduire et commenter explicitement les Tableaux 1 ├á 3, 5 ├á 8 et 10.
+Page 1
+
