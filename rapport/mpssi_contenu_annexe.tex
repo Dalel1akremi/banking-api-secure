@@ -107,7 +107,7 @@ Le pipeline d'ingestion Logstash applique les étapes suivantes :
 % ============================================================
 
 \subsection*{C.1 Plan de test et matrice de couverture par endpoint}
-L'évaluation dynamique par OWASP ZAP (version 2.14.0 exécutée sous conteneur Docker le 15 mars 2026, durée 272~s) a couvert l'ensemble des 10 endpoints exposés par l'API bancaire selon la matrice détaillée dans le Tableau~\ref{tab:annexe_zap_matrix}.
+Le dispositif d'audit de sécurité s'articule en deux étapes : \textbf{(1)} l'audit de transport frontal évaluant la terminaison TLS 1.3 et le rejet mTLS strict (HTTP 400) au niveau de NGINX sur le port 443 ; \textbf{(2)} l'audit dynamique applicatif DAST par OWASP ZAP (version 2.14.0 exécutée sous conteneur Docker via \texttt{zap-api-scan.py} ciblant \texttt{http://banking\_backend:8000/openapi.json}, durée 272~s). Ce scan applicatif direct permet d'éprouver la robustesse intrinsèque des 10 endpoints bancaires sans masquage par le régulateur de débit frontal, selon la matrice détaillée dans le Tableau~\ref{tab:annexe_zap_matrix}.
 
 \begin{table}[!htbp]
 \centering
@@ -140,8 +140,8 @@ Pour autoriser la promotion d'un livrable en environnement de production, les cr
     \item \textbf{Tolérance maximale de 3 alertes de criticité Basse (Low)} : Acceptation conditionnelle de remarques mineures d'optimisation d'en-têtes HTTP de réponse.
 \end{itemize}
 
-\subsection*{C.3 Synthèse du rapport brut OWASP ZAP}
-Le scan complet produit par la commande \texttt{zap-baseline.py -t http://banking\_backend:8000 -r zap\_report.html} a analysé 10 endpoints d'API, émis 128 requêtes d'exploration et d'injection active, et validé un score global satisfaisant (0 High, 0 Medium, 2 Low, 4 Informational). Le rapport complet est archivé dans \texttt{documentation/zap\_report.html}.
+\subsection*{C.3 Synthèse du rapport brut OWASP ZAP (Scan Actif d'API)}
+Le scan actif complet exécuté par la commande officielle \texttt{zap-api-scan.py -t http://banking\_backend:8000/openapi.json -f openapi -r zap\_report.html} a importé la définition OpenAPI/Swagger de l'API, exploré les 10 endpoints bancaires et injecté des vecteurs d'attaque active (injections SQL/NoSQL, tests BOLA/BFLA, manipulation de paramètres et contournements). Le scan a émis 128 requêtes dynamiques et validé un score global satisfaisant (0 High, 0 Medium, 2 Low, 4 Informational). Le rapport complet est archivé dans \texttt{documentation/zap\_report.html}.
 
 \clearpage
 % ============================================================

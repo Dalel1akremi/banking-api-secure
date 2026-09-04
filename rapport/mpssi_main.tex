@@ -19,10 +19,13 @@
 % Algorithmes
 \usepackage{algorithm}
 \usepackage{algpseudocode}
+\usepackage{float}             % placement [H] strict pour les tables
+\usepackage[section]{placeins} % \FloatBarrier automatique aux sections
 
 % Macro personnalisée pour la description des scénarios d'utilisation
-\newcommand{\scenariotable}[8]{
-\begin{table}[!htbp]
+\newcommand{\scenariotable}[8]{%
+\FloatBarrier
+\begin{table}[H]
 \centering
 \footnotesize
 \renewcommand{\arraystretch}{1.1}
@@ -39,6 +42,7 @@
 \end{tabular}
 \caption{Description détaillée : #1}
 \end{table}
+\FloatBarrier
 }
 
 % Chargement des métadonnées
@@ -79,20 +83,42 @@
 
 \begin{document}
 
+% -------------------------------------------------------
+% Page de garde : JAMAIS comptée
+% -------------------------------------------------------
 \pagenumbering{gobble}
 \pagestyle{empty}
 
 \mpssiPageGarde
 \clearpage
-\tableofcontents
-\clearpage
-\listoffigures
-\newpage
-\listoftables
-\clearpage
 
+% -------------------------------------------------------
+% Pages préliminaires (TDM, LOF, LOT) :
+%   - Numérotation arabe CONTINUE à partir de 1
+%   - Comptées dans le total, mais numéro NON affiché
+%   → Le corps commencera à la page qui suit la dernière
+%     page préliminaire (ex. page 6 si 5 pages prélim.)
+% -------------------------------------------------------
 \pagenumbering{arabic}
 \setcounter{page}{1}
+\pagestyle{empty}
+
+\tableofcontents
+\thispagestyle{empty}
+\clearpage
+
+\listoffigures
+\thispagestyle{empty}
+\newpage
+
+\listoftables
+\thispagestyle{empty}
+\clearpage
+
+% -------------------------------------------------------
+% Corps du document : numérotation arabe AFFICHÉE
+% (le compteur continue depuis les pages préliminaires)
+% -------------------------------------------------------
 \pagestyle{plain}
 
 \maketitle
