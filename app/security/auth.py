@@ -16,7 +16,8 @@ logger = logging.getLogger("audit_logger")
 # =============================================================
 SECRET_KEY = os.getenv("SECRET_KEY", "supersecret")
 ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 30
+ACCESS_TOKEN_EXPIRE_MINUTES = 480  # 8 heures — assez long pour une session utilisateur normale
+
 
 # =============================================================
 # 🔐 Configuration Keycloak (OAuth2 / OpenID Connect)

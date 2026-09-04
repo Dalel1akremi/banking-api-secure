@@ -157,10 +157,24 @@
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ message: text })
             });
+
+            // Session expirée ou non authentifié → rediriger vers login
+            if (res.status === 401 || res.status === 403) {
+                addMessage("⚠️ Votre session a expiré. Vous allez être redirigé vers la page de connexion...", 'bot');
+                setTimeout(() => { window.location.href = '/'; }, 2000);
+                return;
+            }
+
+            // Erreur serveur
+            if (!res.ok) {
+                addMessage("⚠️ Une erreur est survenue côté serveur. Réessayez dans un instant.", 'bot');
+                return;
+            }
+
             const data = await res.json();
-            addMessage(data.reply || "Désolé, j'ai rencontré un problème.", 'bot');
+            addMessage(data.reply || "Désolé, je n'ai pas pu traiter votre demande.", 'bot');
         } catch(e) {
-            addMessage("Une erreur réseau est survenue.", 'bot');
+            addMessage("⚠️ Impossible de joindre le serveur. Vérifiez votre connexion internet.", 'bot');
         }
     };
 
