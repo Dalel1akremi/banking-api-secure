@@ -41,6 +41,7 @@ services:
       - TZ=Africa/Tunis
     volumes:
       - ./bank_frontend/templates:/app/templates
+      - ./bank_frontend/static:/app/static
       - ./bank_frontend/app.py:/app/app.py
       - ./security_audit.log:/app/security_audit.log
     networks:
