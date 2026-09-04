@@ -2,54 +2,63 @@ import requests
 import time
 import statistics
 import urllib3
+from concurrent.futures import ThreadPoolExecutor
 
 # Desactiver les avertissements SSL pour les certificats auto-signes
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 # Configuration du test
 URL = "https://localhost/api/accounts"
-# On garde les certificats clients pour que NGINX accepte la connexion (mTLS)
 CERTS = ('nginx_certs/client.crt', 'nginx_certs/client.key')
+NB_REQUESTS = 100
+CONCURRENCY = 35
 
-# Nombre de requêtes pour la statistique
-NB_REQUESTS = 50
-
-print(f"--- Benchmark de Performance API ---")
+print(f"--- Benchmark de Performance API Bancaire ---")
 print(f"Cible : {URL}")
-print(f"Nombre de requetes : {NB_REQUESTS}")
-print(f"mTLS Client Certs : ACTIF")
-print("-" * 40)
+print(f"Echantillon : {NB_REQUESTS} requetes | mTLS Client Certs : ACTIF")
+print("-" * 50)
 
-latencies = []
+# 1. Mesure de latence unitaire séquentielle (Concurrence c = 1)
+latencies_seq = []
+session = requests.Session()
+session.cert = CERTS
+session.verify = False
 
-try:
-    for i in range(1, NB_REQUESTS + 1):
-        start_time = time.perf_counter()
-        
-        # verify=False permet de passer outre l'erreur "self-signed certificate"
-        # tout en envoyant quand même les certificats mTLS (cert=CERTS)
-        response = requests.get(URL, cert=CERTS, verify=False, timeout=5)
-        
-        end_time = time.perf_counter()
-        latency_ms = (end_time - start_time) * 1000
-        latencies.append(latency_ms)
-        
-        if i % 10 == 0:
-            print(f"Progression : {i}/{NB_REQUESTS} requetes effectuees...")
+for i in range(1, NB_REQUESTS + 1):
+    start = time.perf_counter()
+    resp = session.get(URL, timeout=5)
+    latencies_seq.append((time.perf_counter() - start) * 1000)
 
-    # Calcul des statistiques
-    avg_latency = statistics.mean(latencies)
-    min_latency = min(latencies)
-    max_latency = max(latencies)
+avg_lat = statistics.mean(latencies_seq)
+med_lat = statistics.median(latencies_seq)
+sorted_lat = sorted(latencies_seq)
+p95 = sorted_lat[int(len(sorted_lat) * 0.95) - 1]
+p99 = sorted_lat[int(len(sorted_lat) * 0.99) - 1]
+stdev = statistics.stdev(latencies_seq) if len(latencies_seq) > 1 else 0.0
+throughput_seq = 1000.0 / avg_lat
 
-    print("-" * 40)
-    print(f"RESULTATS :")
-    print(f"  - Latence Moyenne : {avg_latency:.2f} ms")
-    print(f"  - Latence Min     : {min_latency:.2f} ms")
-    print(f"  - Latence Max     : {max_latency:.2f} ms")
-    print("-" * 40)
-    print("Analyse : Une latence < 100ms est consideree comme excellente pour une API securisee.")
+print(f"[1] MESURE SEQUENTIELLE (Concurrence c = 1) :")
+print(f"  - Latence Moyenne : {avg_lat:.2f} ms")
+print(f"  - Mediane         : {med_lat:.2f} ms")
+print(f"  - Percentile 95   : {p95:.2f} ms")
+print(f"  - Percentile 99   : {p99:.2f} ms")
+print(f"  - Ecart-type (σ)  : {stdev:.2f} ms")
+print(f"  - Debit sequentiel: {throughput_seq:.1f} req/s (1 / latence moy.)")
+print("-" * 50)
 
-except Exception as e:
-    print(f"ERREUR lors du test : {e}")
-    print("Assurez-vous que Docker est lance.")
+# 2. Mesure de débit saturé sous charge concurrente (Concurrence c = 35)
+def send_req(_):
+    start = time.perf_counter()
+    resp = session.get(URL, timeout=5)
+    return time.perf_counter() - start
+
+start_concurrent = time.perf_counter()
+with ThreadPoolExecutor(max_workers=CONCURRENCY) as executor:
+    results = list(executor.map(send_req, range(NB_REQUESTS)))
+total_time = time.perf_counter() - start_concurrent
+throughput_concurrent = NB_REQUESTS / total_time
+
+print(f"[2] MESURE SOUS CHARGE CONCURRENTE (Concurrence c = {CONCURRENCY}) :")
+print(f"  - Temps total     : {total_time:.2f} s pour {NB_REQUESTS} requetes")
+print(f"  - Debit max sature: {throughput_concurrent:.1f} req/s (Loi de Little N/R)")
+print("=" * 50)

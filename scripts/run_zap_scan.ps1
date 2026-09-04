@@ -10,14 +10,14 @@ if (-not (Test-Path $ReportPath)) {
     New-Item -ItemType Directory -Path $ReportPath
 }
 
-# 2. Lancer le scan via Docker
-Write-Host "Execution du scan (Docker)..." -ForegroundColor Yellow
+# 2. Lancer le scan d'API actif via Docker (zap-api-scan.py avec definition OpenAPI)
+Write-Host "Execution du scan actif d'API (Docker)..." -ForegroundColor Yellow
 
 docker run --rm `
     --network $NetworkName `
     -v "$($ReportPath):/zap/wrk/:rw" `
     ghcr.io/zaproxy/zaproxy:stable `
-    zap-baseline.py -t $TargetURL -r zap_report.html
+    zap-api-scan.py -t http://banking_backend:8000/openapi.json -f openapi -r zap_report.html
 
 if ($LASTEXITCODE -eq 0) {
     Write-Host "SUCCESS: Scan termine." -ForegroundColor Green
