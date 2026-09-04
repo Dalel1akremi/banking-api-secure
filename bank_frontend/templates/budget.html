@@ -168,7 +168,21 @@
     <div class="page-header flex-between">
         <div>
             <h1>📊 Budget Mensuel</h1>
-            <p>Suivi de vos dépenses pour <strong>{{ month }}</strong> — Compte ****{{ account_number[-4:] }}</p>
+            <div style="display: flex; align-items: center; gap: 10px; margin-top: 6px; flex-wrap: wrap;">
+                <span style="color: var(--text-muted); font-size: 14px;">Compte sélectionné :</span>
+                {% if accounts and accounts|length > 1 %}
+                <select onchange="window.location.href='/budget/' + this.value" style="padding: 5px 12px; background: rgba(30, 41, 59, 0.85); border: 1px solid rgba(99, 102, 241, 0.4); border-radius: 8px; color: #38bdf8; font-weight: 600; font-size: 14px; cursor: pointer; outline: none; box-shadow: 0 2px 4px rgba(0,0,0,0.2);">
+                    {% for a in accounts %}
+                    <option value="{{ a.account_number }}" {% if a.account_number == account_number %}selected{% endif %}>
+                        Compte ****{{ a.account_number[-4:] }} (Solde: {{ "%.2f"|format(a.balance|float) }} DT)
+                    </option>
+                    {% endfor %}
+                </select>
+                {% else %}
+                <strong style="color: #38bdf8;">Compte ****{{ account_number[-4:] }}</strong>
+                {% endif %}
+                <span style="color: var(--text-muted); font-size: 13px;">— Suivi pour <strong>{{ month }}</strong></span>
+            </div>
         </div>
         <button class="btn" onclick="openModal('modal-add-budget')" style="width:auto; padding:12px 24px; background:linear-gradient(135deg,#6366f1,#8b5cf6); border:none;">
             ➕ Nouveau Budget

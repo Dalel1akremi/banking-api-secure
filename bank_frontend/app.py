@@ -776,7 +776,8 @@ def bills():
     # Sort all bills by timestamp descending
     paid_bills.sort(key=lambda x: x.get("timestamp", ""), reverse=True)
     
-    return render_template("bills.html", accounts=accounts, paid_bills=paid_bills)
+    selected_account = session.get('last_account')
+    return render_template("bills.html", accounts=accounts, paid_bills=paid_bills, selected_account=selected_account)
 
 @app.route("/pay_bill", methods=["POST"])
 @limiter.limit("10 per minute")
@@ -801,6 +802,7 @@ def pay_bill():
     }, headers=get_headers())
 
     if res.status_code == 200:
+        session['last_account'] = account_number
         flash(f"Facture {provider} payée avec succès !", "success")
     else:
         try:
@@ -1822,6 +1824,9 @@ def budget_selector():
     if res.status_code == 200:
         accounts = res.json()
         if accounts:
+            active = session.get('last_account')
+            if active and any(a.get('account_number') == active for a in accounts):
+                return redirect(f"/budget/{active}")
             return redirect(f"/budget/{accounts[0]['account_number']}")
     flash("Veuillez d'abord ouvrir un compte pour accéder au budget.", "info")
     return redirect("/dashboard")
@@ -1829,14 +1834,18 @@ def budget_selector():
 @app.route("/budget/<account_number>")
 def budget_page(account_number):
     if "token" not in session: return redirect("/")
+    session['last_account'] = account_number
     res = requests.get(f"{BASE_API_URL}/budgets/{account_number}", headers=get_headers())
     if res.status_code == 200:
         data = res.json()
         acc_res = requests.get(f"{BASE_API_URL}/accounts/{account_number}", headers=get_headers())
         account = acc_res.json() if acc_res.status_code == 200 else {"account_number": account_number, "balance": 0}
+        all_accs_res = requests.get(f"{BASE_API_URL}/accounts/", headers=get_headers())
+        accounts = all_accs_res.json() if all_accs_res.status_code == 200 else [account]
         return render_template("budget.html",
             account=account,
             account_number=account_number,
+            accounts=accounts,
             budgets=data.get("budgets", []),
             total_spent=data.get("total_spent_this_month", 0),
             month=data.get("month", ""),
