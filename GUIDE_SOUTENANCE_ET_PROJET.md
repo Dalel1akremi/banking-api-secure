@@ -23,7 +23,7 @@
 >
 > *Face à l'effacement des frontières classiques des réseaux bancaires, nous combinons une barrière cryptographique au niveau transport (**mTLS**), une gestion stricte des identités et des consentements (**Keycloak / OAuth2 PKCE / JWT RS256**), et un automate de défense active (**SOAR / pile ELK**) capable d'isoler une adresse IP hostile en moins de 30 secondes grâce à un score dynamique de menace à décroissance temporelle ($T_{decay}$).*
 >
-> *Les tests ont prouvé l'efficacité de notre solution : **0 vulnérabilité critique** détectée sous OWASP ZAP et une latence globale de **72,3 ms**, nettement inférieure au seuil maximal de 200 ms imposé par les normes bancaires européennes."*
+> *Les tests ont prouvé l'efficacité de notre solution : **0 vulnérabilité critique** détectée sous OWASP ZAP et une latence globale de **72,3 ms**, garantissant le principe de parité de service DSP2 (RTS UE 2018/389 Art. 32/36) et restant très largement sous les seuils de recommandation de l'industrie Open Banking (200 ms)."*
 
 ---
 
@@ -140,15 +140,15 @@ Sur un jeu d'évaluation de 1000 sessions (800 légitimes et 200 attaques simul�
 
 | Métrique | Valeur de votre projet | Norme / Référence légale | Ce que cela prouve |
 |---|:---:|---|---|
-| **Latence totale de l'API** | **`72,3 ms`** | **Max 200 ms** (Directive DSP2 / EBA RTS Art. 36) | L'API est ultra-rapide et presque 3× sous le plafond légal. |
+| **Latence totale de l'API** | **`72,3 ms`** | Parité DSP2 RTS (Art. 32/36) & Benchmark Open Banking (200 ms) | L'API est ultra-rapide et respecte l'équivalence de service légale. |
+| **Débit séquentiel ($c=1$)** | **`13,8 req/s`** | $1 / \text{latence}$ ($1 / 0{,}0723\text{ s}$) | Vitesse unitaire d'un client unique qui attend chaque réponse. |
+| **Débit saturé ($c=35$ clients)** | **`465 req/s`** | Loi de Little ($X = N / R$) | Capacité maximale de l'API sous charge concurrente. |
 | **Surcoût de la sécurité** | `34,1 ms` | --- | L'ajout de mTLS + JWT + SIEM n'alourdit pas les transactions. |
 | **Surcoût du Threat Monitor** | **`4,2 ms`** | --- | L'analyse de menace en temps réel est quasi-invisible pour l'utilisateur. |
-| **Audit OWASP ZAP (DAST)** | **`0 High, 0 Medium`** | Référentiel OWASP API Top 10 | Aucune faille d'injection, BOLA ou élévation de privilège. |
 | **F1-Score Détection SOAR** | **`98,51 %`** | Matrice de confusion ($N=1000$) | Détection hautement fiable avec quasi-zéro faux négatif. |
-| **Délai de blocage total** | **`31 secondes`** | --- | 1 s de calcul + 30 s de minuteur de sécurité. |
-| **Audit OWASP ZAP (DAST)** | **`0 High, 0 Medium`** | Référentiel OWASP API Top 10 | Aucune faille d'injection, BOLA ou élévation de privilège. |
 | **Délai de réaction SOAR** | **`< 1 seconde`** | --- | Détection instantanée dès franchissement du seuil $S=3{,}0$. |
 | **Délai de blocage total** | **`31 secondes`** | --- | 1 s de calcul + 30 s de minuteur de sécurité. |
+| **Audit OWASP ZAP (DAST)** | **`0 High, 0 Medium`** | Référentiel OWASP API Top 10 | Aucune faille d'injection, BOLA ou élévation de privilège. |
 
 ---
 
@@ -166,8 +166,14 @@ Sur un jeu d'évaluation de 1000 sessions (800 légitimes et 200 attaques simul�
 ### ❓ Question 4 : *"Pourquoi MongoDB pour une banque alors qu'on utilise souvent du SQL ?"*
 > **Votre réponse :** *"Dans notre architecture, nous avons une séparation hybride : PostgreSQL est utilisé pour Keycloak (ACID relationnel pour l'IAM), et MongoDB pour les données de l'API. Dans MongoDB, nous garantissons l'intégrité grâce au typage strict `Decimal` via Pydantic (aucun arrondi flottant), à l'exclusion du stockage de CVV (conformité PCI-DSS), et aux transactions multi-documents ACID de MongoDB. En environnement industriel de production, ce cœur métier peut être branché sur un SGBD relationnel classique ou distribué."*
 
-### ❓ Question 5 : *"Un simple fichier de logs append-only garantit-il la non-répudiation ?"*
-> **Votre réponse :** *"Dans notre prototype, le mode ajout seul (`append-only`) évite l'écrasement accidentel. Cependant, comme nous l'avons précisé dans notre rapport, une vraie conformité bancaire de production requiert un **chaînage cryptographique HMAC-SHA256 (arbre de Merkle)**, un stockage immuable sur support **WORM** (Write Once Read Many, comme AWS S3 Object Lock) et un **horodatage certifié par un tiers de confiance TSA (RFC 3161)**."*
+### ❓ Question 5 : *"Un code HMAC ou un fichier append-only garantit-il la non-répudiation des logs ?"*
+> **Votre réponse :** *"Non, et c'est un piège cryptographique classique ! Le mode ajout seul (`append-only`) évite seulement les écrasements accidentels, et un code **HMAC est symétrique** : comme la clé secrète est connue du serveur, un administrateur ou un attaquant ayant compromis la machine pourrait recalculer des HMAC valides pour des logs falsifiés.*
+>
+> *Pour obtenir une vraie **non-répudiation juridique** (conforme PCI-DSS et ISO 27001), il faut la combinaison de 4 piliers :*
+> 1. *Un **chaînage cryptographique unidirectionnel (Merkle Hash Chain)** : chaque ligne intègre le hachage SHA-256 de la ligne précédente.*
+> 2. *Une **signature numérique asymétrique (ECDSA / RSA-PSS)** dont la clé privée est scellée dans un boîtier matériel durci (**HSM - Hardware Security Module**).*
+> 3. *Un **horodatage qualifié par un tiers de confiance (TSA certifiée RFC 3161 / eIDAS)**.*
+> 4. *Un **stockage physique immuable WORM** (Write Once, Read Many / AWS S3 Object Lock en mode Compliance) interdisant toute suppression, même par le compte Root."*
 
 ### ❓ Question 6 : *"Quelles sont les 3 différences entre votre prototype et la cible de production ?"*
 > **Votre réponse :**
