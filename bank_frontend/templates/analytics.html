@@ -4,64 +4,209 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Analyse des Finances - API Bank</title>
+    <meta name="description" content="Analyse financière, graphiques de dépenses et suivi budgétaire - API Bank">
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Chart.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-        body { background-color: #0f172a; color: #f8fafc; font-family: 'Inter', sans-serif; margin: 0; padding: 0; }
-        nav { display: flex; justify-content: space-between; align-items: center; padding: 15px 30px; background: rgba(30, 41, 59, 0.8); backdrop-filter: blur(10px); border-bottom: 1px solid rgba(255, 255, 255, 0.05); }
-        .nav-links a { color: #cbd5e1; text-decoration: none; margin-left: 20px; font-size: 14px; font-weight: 500; transition: color 0.2s; }
-        .nav-links a:hover { color: #fff; }
-        .brand { font-size: 20px; font-weight: 800; color: #fff; }
+        .analytics-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 24px;
+            margin-bottom: 28px;
+        }
+        @media (max-width: 900px) {
+            .analytics-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+        .chart-wrapper {
+            position: relative;
+            height: 320px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .category-breakdown-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 16px;
+        }
+        .category-breakdown-table th {
+            text-align: left;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-muted);
+            padding: 10px 14px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        .category-breakdown-table td {
+            padding: 14px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+            font-size: 14px;
+            color: var(--text-main);
+        }
+        .cat-badge-dot {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+        .progress-track {
+            background: rgba(255, 255, 255, 0.06);
+            border-radius: 999px;
+            height: 8px;
+            overflow: hidden;
+            width: 100%;
+        }
+        .progress-fill {
+            height: 100%;
+            border-radius: 999px;
+            transition: width 0.8s ease;
+        }
+        .advice-box {
+            background: linear-gradient(135deg, rgba(99, 102, 241, 0.1), rgba(16, 185, 129, 0.05));
+            border: 1px solid rgba(99, 102, 241, 0.25);
+            border-radius: 16px;
+            padding: 20px;
+            display: flex;
+            align-items: flex-start;
+            gap: 16px;
+            margin-top: 24px;
+        }
     </style>
 </head>
 <body>
 
 {% include 'nav.html' %}
 
-<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-    
-    <div class="flex items-center justify-between mb-8">
-        <div>
-            <h1 class="text-3xl font-extrabold text-white tracking-tight">Analyse de vos Finances</h1>
-            <p class="text-slate-400 mt-2">Compte **** **** **** {{ account.account_number[-4:] }}</p>
+<div class="page-container">
+
+    {% set active_page = 'analytics' %}
+    {% set page_title = 'Analytique Financière' %}
+    {% include 'account_subnav.html' %}
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        <div id="flash-container">
+        {% for category, message in messages %}
+          <div class="alert alert-{{ 'success' if category == 'success' else 'error' }}">{{ message }}</div>
+        {% endfor %}
         </div>
-        <a href="/account/{{ account.account_number }}" class="bg-slate-700/50 hover:bg-slate-700 text-white px-4 py-2 rounded-xl text-sm font-medium transition-colors border border-slate-600/50 flex items-center gap-2">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
-            Retour au compte
-        </a>
+      {% endif %}
+    {% endwith %}
+
+    <!-- KPI Metrics Row -->
+    <div class="kpi-grid">
+        <div class="kpi-card">
+            <div class="kpi-header">
+                <span class="kpi-title">Solde Compte</span>
+                <div class="kpi-icon" style="background: rgba(56, 189, 248, 0.15); color: #38bdf8;">💳</div>
+            </div>
+            <div class="kpi-value" id="kpi-balance">{{ "%.2f" | format(account.balance | float) }} <span style="font-size: 14px; color: var(--text-muted);">DT</span></div>
+            <div class="kpi-subtext">Compte **** {{ account.account_number[-4:] }}</div>
+        </div>
+
+        <div class="kpi-card">
+            <div class="kpi-header">
+                <span class="kpi-title">Total Entrées (6 mois)</span>
+                <div class="kpi-icon" style="background: rgba(16, 185, 129, 0.15); color: #10b981;">📈</div>
+            </div>
+            <div class="kpi-value" style="color: #34d399;" id="kpi-inflow">0.00 <span style="font-size: 14px; color: var(--text-muted);">DT</span></div>
+            <div class="kpi-subtext">Salaires, virements & crédits</div>
+        </div>
+
+        <div class="kpi-card">
+            <div class="kpi-header">
+                <span class="kpi-title">Total Dépenses (6 mois)</span>
+                <div class="kpi-icon" style="background: rgba(239, 68, 68, 0.15); color: #ef4444;">📉</div>
+            </div>
+            <div class="kpi-value" style="color: #f87171;" id="kpi-outflow">0.00 <span style="font-size: 14px; color: var(--text-muted);">DT</span></div>
+            <div class="kpi-subtext">Achats, factures & retraits</div>
+        </div>
+
+        <div class="kpi-card">
+            <div class="kpi-header">
+                <span class="kpi-title">Flux Net & Épargne</span>
+                <div class="kpi-icon" style="background: rgba(168, 85, 247, 0.15); color: #c084fc;">⚖️</div>
+            </div>
+            <div class="kpi-value" id="kpi-net">0.00 <span style="font-size: 14px; color: var(--text-muted);">DT</span></div>
+            <div class="kpi-subtext" id="kpi-net-sub">Solde des flux nets</div>
+        </div>
     </div>
 
-    <!-- Chart.js CDN -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        
-        <!-- Dépenses par Catégorie -->
-        <div class="bg-slate-800/50 border border-slate-700/50 rounded-2xl p-6 shadow-xl backdrop-blur-sm relative overflow-hidden">
-            <div class="absolute top-0 right-0 w-32 h-32 bg-indigo-500/10 rounded-full blur-3xl -mr-10 -mt-10"></div>
-            <h2 class="text-xl font-bold text-white mb-6 flex items-center gap-2">
-                <svg class="w-5 h-5 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z"></path></svg>
-                Répartition des dépenses
-            </h2>
-            <div class="relative h-80 flex justify-center items-center">
+    <!-- Charts 2-Column Layout -->
+    <div class="analytics-grid">
+        <!-- Doughnut: Répartition par Catégorie -->
+        <div class="panel-glass">
+            <div class="flex-between" style="margin-bottom: 18px;">
+                <h3 style="display: flex; align-items: center; gap: 8px; font-size: 17px; margin: 0;">
+                    <span style="color: #818cf8;">🍩</span> Répartition des Dépenses
+                </h3>
+                <span style="font-size: 12px; color: var(--text-muted);">Par catégorie de budget</span>
+            </div>
+            <div class="chart-wrapper">
                 <canvas id="categoryChart"></canvas>
             </div>
-            <p class="text-center text-sm text-slate-400 mt-4">Toutes vos dépenses catégorisées.</p>
+            <p style="text-align: center; font-size: 12px; color: var(--text-muted); margin-top: 14px;">
+                Survolez les tranches pour afficher le montant et le pourcentage.
+            </p>
         </div>
 
-        <!-- Historique Revenus / Dépenses -->
-        <div class="bg-slate-800/50 border border-slate-700/50 rounded-2xl p-6 shadow-xl backdrop-blur-sm relative overflow-hidden">
-             <div class="absolute top-0 right-0 w-32 h-32 bg-emerald-500/10 rounded-full blur-3xl -mr-10 -mt-10"></div>
-            <h2 class="text-xl font-bold text-white mb-6 flex items-center gap-2">
-                <svg class="w-5 h-5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z"></path></svg>
-                Évolution (6 derniers mois)
-            </h2>
-            <div class="relative h-80">
+        <!-- Line: Évolution 6 derniers mois -->
+        <div class="panel-glass">
+            <div class="flex-between" style="margin-bottom: 18px;">
+                <h3 style="display: flex; align-items: center; gap: 8px; font-size: 17px; margin: 0;">
+                    <span style="color: #34d399;">📊</span> Évolution des Flux (6 Derniers Mois)
+                </h3>
+                <span style="font-size: 12px; color: var(--text-muted);">Revenus vs Dépenses</span>
+            </div>
+            <div class="chart-wrapper">
                 <canvas id="historyChart"></canvas>
             </div>
-            <p class="text-center text-sm text-slate-400 mt-4">Comparatif mensuel de vos entrées et sorties.</p>
+            <p style="text-align: center; font-size: 12px; color: var(--text-muted); margin-top: 14px;">
+                Comparatif dynamique mois par mois.
+            </p>
+        </div>
+    </div>
+
+    <!-- Category Detailed Breakdown Table -->
+    <div class="panel-glass">
+        <div class="flex-between" style="margin-bottom: 8px;">
+            <h3 style="display: flex; align-items: center; gap: 8px; font-size: 17px; margin: 0;">
+                <span style="color: #fbbf24;">📑</span> Détail Budgétaire par Catégorie
+            </h3>
+            <span style="font-size: 12px; color: var(--text-muted);">Classement par volume de dépenses</span>
         </div>
 
+        <div style="overflow-x: auto;">
+            <table class="category-breakdown-table">
+                <thead>
+                    <tr>
+                        <th>Catégorie</th>
+                        <th>Montant Débité</th>
+                        <th style="width: 35%;">Part dans le Budget</th>
+                        <th style="text-align: right;">Pourcentage</th>
+                    </tr>
+                </thead>
+                <tbody id="category-table-body">
+                    <!-- Populated dynamically via JS -->
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Smart Advice Callout -->
+        <div class="advice-box">
+            <div style="font-size: 28px;">💡</div>
+            <div>
+                <div style="font-weight: 700; color: #fff; font-size: 14px; margin-bottom: 4px;">Conseil d'Optimisation Budgétaire</div>
+                <div style="font-size: 13px; color: #cbd5e1; line-height: 1.5;" id="dynamic-advice-text">
+                    L'analyse de vos flux montre une gestion saine. Définir des plafonds automatiques et des virements programmés vers votre tirelire peut vous faire économiser jusqu'à 15% supplémentaires chaque mois.
+                </div>
+            </div>
+        </div>
     </div>
 
 </div>
@@ -76,26 +221,77 @@
         
         Chart.defaults.color = '#94a3b8'; 
         Chart.defaults.font.family = "'Inter', sans-serif";
+
+        const categoryPalette = {
+            'Alimentation': '#10b981',
+            'alimentation': '#10b981',
+            'Logement': '#3b82f6',
+            'logement': '#3b82f6',
+            'Transport': '#f59e0b',
+            'transport': '#f59e0b',
+            'Santé': '#ec4899',
+            'sante': '#ec4899',
+            'Loisirs': '#8b5cf6',
+            'loisirs': '#8b5cf6',
+            'Shopping': '#06b6d4',
+            'shopping': '#06b6d4',
+            'Factures': '#ef4444',
+            'bills': '#ef4444',
+            'Autres': '#64748b',
+            'autres': '#64748b'
+        };
+
+        const defaultColors = ['#6366f1', '#10b981', '#f59e0b', '#ec4899', '#3b82f6', '#8b5cf6', '#14b8a6', '#64748b'];
+
+        // --- Calculate KPIs from history data ---
+        let totalIncome = 0;
+        let totalExpense = 0;
+        if (analyticsData.history && analyticsData.history.income) {
+            totalIncome = analyticsData.history.income.reduce((a, b) => a + Number(b), 0);
+        }
+        if (analyticsData.history && analyticsData.history.expense) {
+            totalExpense = analyticsData.history.expense.reduce((a, b) => a + Number(b), 0);
+        }
+
+        const netFlow = totalIncome - totalExpense;
+        document.getElementById('kpi-inflow').innerHTML = `${totalIncome.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})} <span style="font-size: 14px; color: var(--text-muted);">DT</span>`;
+        document.getElementById('kpi-outflow').innerHTML = `${totalExpense.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})} <span style="font-size: 14px; color: var(--text-muted);">DT</span>`;
         
+        const netElem = document.getElementById('kpi-net');
+        const netSub = document.getElementById('kpi-net-sub');
+        if (netFlow >= 0) {
+            netElem.style.color = '#34d399';
+            netElem.innerHTML = `+${netFlow.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})} <span style="font-size: 14px; color: var(--text-muted);">DT</span>`;
+            netSub.textContent = "Capacité d'épargne positive (+)";
+        } else {
+            netElem.style.color = '#f87171';
+            netElem.innerHTML = `${netFlow.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})} <span style="font-size: 14px; color: var(--text-muted);">DT</span>`;
+            netSub.textContent = "Dépenses supérieures aux entrées (-)";
+        }
+
+        // --- Doughnut Chart ---
         const ctxCategory = document.getElementById('categoryChart').getContext('2d');
-        const catLabels = analyticsData.categories.labels;
-        const catData = analyticsData.categories.data;
+        const catLabels = (analyticsData.categories && analyticsData.categories.labels) ? analyticsData.categories.labels : [];
+        const catData = (analyticsData.categories && analyticsData.categories.data) ? analyticsData.categories.data : [];
         
         const filteredLabels = [];
         const filteredData = [];
-        const backgroundColors = ['#ef4444', '#14b8a6', '#8b5cf6', '#f59e0b', '#64748b', '#ec4899'];
         const filteredColors = [];
 
-        for(let i=0; i<catData.length; i++) {
-            if (catData[i] > 0) {
+        let totalCategorySum = 0;
+        for (let i = 0; i < catData.length; i++) {
+            const val = parseFloat(catData[i]) || 0;
+            if (val > 0) {
                 filteredLabels.push(catLabels[i]);
-                filteredData.push(catData[i]);
-                filteredColors.push(backgroundColors[i % backgroundColors.length]);
+                filteredData.push(val);
+                totalCategorySum += val;
+                const col = categoryPalette[catLabels[i]] || defaultColors[i % defaultColors.length];
+                filteredColors.push(col);
             }
         }
 
         if (filteredData.length === 0) {
-            filteredLabels.push("Aucune dépense");
+            filteredLabels.push("Aucune dépense enregistrée");
             filteredData.push(1);
             filteredColors.push('#334155');
         }
@@ -109,50 +305,64 @@
                     backgroundColor: filteredColors,
                     borderWidth: 2,
                     borderColor: '#1e293b',
-                    hoverOffset: 4
+                    hoverOffset: 6
                 }]
             },
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
                 plugins: {
-                    legend: { position: 'bottom', labels: { padding: 20, usePointStyle: true } },
+                    legend: { 
+                        position: 'bottom', 
+                        labels: { 
+                            padding: 16, 
+                            usePointStyle: true,
+                            font: { family: "'Inter', sans-serif", size: 12 }
+                        } 
+                    },
                     tooltip: {
+                        backgroundColor: 'rgba(15, 23, 42, 0.95)',
+                        padding: 12,
+                        cornerRadius: 8,
                         callbacks: {
                             label: function(context) {
                                 let label = context.label || '';
-                                if (label !== "Aucune dépense") {
+                                if (label !== "Aucune dépense enregistrée") {
                                     let value = context.parsed || 0;
-                                    return label + ': ' + value.toLocaleString() + ' TND';
+                                    let pct = totalCategorySum > 0 ? ((value / totalCategorySum) * 100).toFixed(1) : 0;
+                                    return ` ${label}: ${value.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})} DT (${pct}%)`;
                                 }
-                                return label;
+                                return ` ${label}`;
                             }
                         }
                     }
                 },
-                cutout: '70%'
+                cutout: '68%'
             }
         });
 
+        // --- Line Chart History ---
         const ctxHistory = document.getElementById('historyChart').getContext('2d');
-        
-        // Création de gradients pour un effet visuel premium
         const gradientIncome = ctxHistory.createLinearGradient(0, 0, 0, 300);
-        gradientIncome.addColorStop(0, 'rgba(16, 185, 129, 0.4)');
+        gradientIncome.addColorStop(0, 'rgba(16, 185, 129, 0.35)');
         gradientIncome.addColorStop(1, 'rgba(16, 185, 129, 0.0)');
         
         const gradientExpense = ctxHistory.createLinearGradient(0, 0, 0, 300);
-        gradientExpense.addColorStop(0, 'rgba(239, 68, 68, 0.4)');
+        gradientExpense.addColorStop(0, 'rgba(239, 68, 68, 0.35)');
         gradientExpense.addColorStop(1, 'rgba(239, 68, 68, 0.0)');
+
+        const historyLabels = (analyticsData.history && analyticsData.history.labels) ? analyticsData.history.labels : ['Mois 1', 'Mois 2', 'Mois 3', 'Mois 4', 'Mois 5', 'Mois 6'];
+        const historyIncome = (analyticsData.history && analyticsData.history.income) ? analyticsData.history.income : [0, 0, 0, 0, 0, 0];
+        const historyExpense = (analyticsData.history && analyticsData.history.expense) ? analyticsData.history.expense : [0, 0, 0, 0, 0, 0];
 
         new Chart(ctxHistory, {
             type: 'line',
             data: {
-                labels: analyticsData.history.labels,
+                labels: historyLabels,
                 datasets: [
                     { 
-                        label: 'Revenus', 
-                        data: analyticsData.history.income, 
+                        label: 'Entrées (DT)', 
+                        data: historyIncome, 
                         borderColor: '#10b981', 
                         backgroundColor: gradientIncome,
                         borderWidth: 3,
@@ -161,12 +371,12 @@
                         pointBorderWidth: 2,
                         pointRadius: 4,
                         pointHoverRadius: 6,
-                        tension: 0.4,
+                        tension: 0.35,
                         fill: true
                     },
                     { 
-                        label: 'Dépenses', 
-                        data: analyticsData.history.expense, 
+                        label: 'Sorties (DT)', 
+                        data: historyExpense, 
                         borderColor: '#ef4444', 
                         backgroundColor: gradientExpense,
                         borderWidth: 3,
@@ -175,7 +385,7 @@
                         pointBorderWidth: 2,
                         pointRadius: 4,
                         pointHoverRadius: 6,
-                        tension: 0.4,
+                        tension: 0.35,
                         fill: true
                     }
                 ]
@@ -192,21 +402,18 @@
                         position: 'top',
                         labels: {
                             usePointStyle: true,
-                            padding: 20,
-                            font: { family: "'Inter', sans-serif", size: 13 }
+                            padding: 16,
+                            font: { family: "'Inter', sans-serif", size: 12 }
                         }
                     },
                     tooltip: {
-                        backgroundColor: 'rgba(15, 23, 42, 0.9)',
-                        titleColor: '#f8fafc',
-                        bodyColor: '#cbd5e1',
-                        borderColor: 'rgba(255,255,255,0.1)',
-                        borderWidth: 1,
+                        backgroundColor: 'rgba(15, 23, 42, 0.95)',
                         padding: 12,
+                        cornerRadius: 8,
                         callbacks: {
                             label: function(context) {
                                 let value = context.parsed.y || 0;
-                                return ' ' + context.dataset.label + ': ' + value.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) + ' TND';
+                                return ` ${context.dataset.label}: ${value.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})} DT`;
                             }
                         }
                     }
@@ -214,19 +421,63 @@
                 scales: {
                     y: { 
                         beginAtZero: true, 
-                        grid: { color: 'rgba(255, 255, 255, 0.05)', drawBorder: false }, 
+                        grid: { color: 'rgba(255, 255, 255, 0.05)' }, 
                         ticks: { 
-                            font: { family: "'Inter', sans-serif" },
-                            callback: function(value) { return value + ' TND'; } 
+                            callback: function(value) { return value + ' DT'; } 
                         } 
                     },
                     x: { 
-                        grid: { display: false, drawBorder: false },
-                        ticks: { font: { family: "'Inter', sans-serif" } }
+                        grid: { display: false }
                     }
                 }
             }
         });
+
+        // --- Populate Detailed Category Table ---
+        const tableBody = document.getElementById('category-table-body');
+        if (filteredData.length > 0 && filteredLabels[0] !== "Aucune dépense enregistrée") {
+            // Sort categories by amount descending
+            const catRows = [];
+            for (let i = 0; i < filteredLabels.length; i++) {
+                catRows.push({
+                    label: filteredLabels[i],
+                    amount: filteredData[i],
+                    color: filteredColors[i]
+                });
+            }
+            catRows.sort((a, b) => b.amount - a.amount);
+
+            catRows.forEach(row => {
+                const pct = totalCategorySum > 0 ? ((row.amount / totalCategorySum) * 100).toFixed(1) : 0;
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td style="font-weight: 600;">
+                        <span class="cat-badge-dot" style="background: ${row.color};"></span>
+                        ${row.label}
+                    </td>
+                    <td style="font-family: monospace; font-weight: 700; color: #fff;">
+                        ${row.amount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})} DT
+                    </td>
+                    <td>
+                        <div class="progress-track">
+                            <div class="progress-fill" style="width: ${pct}%; background: ${row.color};"></div>
+                        </div>
+                    </td>
+                    <td style="text-align: right; font-weight: 700; color: ${row.color}; font-family: monospace;">
+                        ${pct}%
+                    </td>
+                `;
+                tableBody.appendChild(tr);
+            });
+        } else {
+            tableBody.innerHTML = `
+                <tr>
+                    <td colspan="4" style="text-align: center; color: var(--text-muted); padding: 30px;">
+                        Aucune dépense répertoriée pour ce compte à ce jour.
+                    </td>
+                </tr>
+            `;
+        }
     });
 </script>
 

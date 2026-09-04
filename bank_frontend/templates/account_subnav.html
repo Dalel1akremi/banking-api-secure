@@ -1,0 +1,55 @@
+<!-- Shared Account Sub-navigation & Header -->
+<div class="account-subnav-container">
+    <div class="account-subnav-header">
+        <div class="account-breadcrumbs">
+            <a href="/dashboard" class="crumb-link">🏠 Comptes</a>
+            <span class="crumb-separator">/</span>
+            <a href="/account/{{ account.account_number }}" class="crumb-link">Compte **** {{ account.account_number[-4:] }}</a>
+            <span class="crumb-separator">/</span>
+            <span class="crumb-current">{{ page_title or 'Espace Compte' }}</span>
+        </div>
+        <div class="account-balance-pill">
+            <span class="balance-label">Solde disponible :</span>
+            <span class="balance-val">{{ "%.2f" | format(account.balance | float) }} DT</span>
+        </div>
+    </div>
+
+    <div class="account-subnav-tabs">
+        <a href="/account/{{ account.account_number }}" class="subnav-tab {{ 'active' if active_page == 'overview' else '' }}">
+            <span class="subnav-icon">📊</span>
+            <span class="subnav-label">Aperçu</span>
+        </a>
+        <a href="/account/{{ account.account_number }}/analytics" class="subnav-tab {{ 'active' if active_page == 'analytics' else '' }}">
+            <span class="subnav-icon">📈</span>
+            <span class="subnav-label">Analytiques</span>
+        </a>
+        <a href="/account/{{ account.account_number }}/qr-payment" class="subnav-tab {{ 'active' if active_page == 'qr_payment' else '' }}">
+            <span class="subnav-icon">📲</span>
+            <span class="subnav-label">Paiement QR</span>
+        </a>
+        <a href="/account/{{ account.account_number }}/services" class="subnav-tab {{ 'active' if active_page == 'services' else '' }}">
+            <span class="subnav-icon">⚙️</span>
+            <span class="subnav-label">Services</span>
+        </a>
+        <a href="/account/{{ account.account_number }}/scheduled-payments" class="subnav-tab {{ 'active' if active_page == 'scheduled_payments' else '' }}">
+            <span class="subnav-icon">📅</span>
+            <span class="subnav-label">Prélèvements</span>
+        </a>
+        <a href="/account/{{ account.account_number }}/credit-request" class="subnav-tab {{ 'active' if active_page == 'credit' else '' }}">
+            <span class="subnav-icon">🏦</span>
+            <span class="subnav-label">Crédit</span>
+        </a>
+        <a href="/account/{{ account.account_number }}/savings" class="subnav-tab {{ 'active' if active_page == 'savings' else '' }}">
+            <span class="subnav-icon">💰</span>
+            <span class="subnav-label">Épargne</span>
+        </a>
+        <a href="/account/{{ account.account_number }}/card" class="subnav-tab {{ 'active' if active_page == 'card' else '' }}">
+            <span class="subnav-icon">💳</span>
+            <span class="subnav-label">Carte Visa</span>
+        </a>
+        <a href="/account/{{ account.account_number }}/rib" class="subnav-tab {{ 'active' if active_page == 'rib' else '' }}">
+            <span class="subnav-icon">📄</span>
+            <span class="subnav-label">Mon RIB</span>
+        </a>
+    </div>
+</div>

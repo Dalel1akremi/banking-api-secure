@@ -159,6 +159,12 @@
 {% include 'nav.html' %}
 
 <div class="page-container">
+    {% if account %}
+    {% set active_page = 'budget' %}
+    {% set page_title = 'Budget Mensuel' %}
+    {% include 'account_subnav.html' %}
+    {% endif %}
+
     <div class="page-header flex-between">
         <div>
             <h1>📊 Budget Mensuel</h1>
@@ -319,37 +325,65 @@
         }
 
         const btn = document.getElementById('btn-save-budget');
+        const origText = btn.innerText;
         btn.innerText = '⏳ Enregistrement...';
         btn.disabled = true;
 
-        const res = await fetch('/api/budget/set', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ account_number: ACCOUNT_NUMBER, category, monthly_limit: limit })
-        });
+        try {
+            const res = await fetch('/set_budget', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ account_number: ACCOUNT_NUMBER, category, monthly_limit: limit })
+            });
 
-        if (res.ok) {
-            window.location.reload();
-        } else {
-            const data = await res.json();
+            if (res.ok) {
+                window.location.reload();
+            } else {
+                let errMsg = "Erreur lors de l'enregistrement.";
+                try {
+                    const data = await res.json();
+                    if (data && data.detail) errMsg = data.detail;
+                    else if (data && data.message) errMsg = data.message;
+                } catch {
+                    const text = await res.text();
+                    if (text) errMsg = text;
+                }
+                errEl.style.display = 'block';
+                errEl.innerText = errMsg;
+                btn.innerText = origText;
+                btn.disabled = false;
+            }
+        } catch (e) {
             errEl.style.display = 'block';
-            errEl.innerText = data.detail || 'Erreur lors de l\'enregistrement.';
-            btn.innerText = 'Enregistrer';
+            errEl.innerText = "Erreur de communication avec le serveur.";
+            btn.innerText = origText;
             btn.disabled = false;
         }
     }
 
     async function deleteBudget(category) {
         if (!confirm(`Supprimer le budget "${category}" ?`)) return;
-        const res = await fetch('/api/budget/delete', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ account_number: ACCOUNT_NUMBER, category })
-        });
-        if (res.ok) {
-            window.location.reload();
-        } else {
-            alert('Erreur lors de la suppression.');
+        try {
+            const res = await fetch('/delete_budget', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ account_number: ACCOUNT_NUMBER, category })
+            });
+            if (res.ok) {
+                window.location.reload();
+            } else {
+                let errMsg = 'Erreur lors de la suppression.';
+                try {
+                    const data = await res.json();
+                    if (data && data.detail) errMsg = data.detail;
+                } catch {
+                    const text = await res.text();
+                    if (text) errMsg = text;
+                }
+                alert(errMsg);
+            }
+        } catch (e) {
+            alert('Erreur réseau.');
         }
     }
 

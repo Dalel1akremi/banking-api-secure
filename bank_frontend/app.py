@@ -1832,7 +1832,10 @@ def budget_page(account_number):
     res = requests.get(f"{BASE_API_URL}/budgets/{account_number}", headers=get_headers())
     if res.status_code == 200:
         data = res.json()
+        acc_res = requests.get(f"{BASE_API_URL}/accounts/{account_number}", headers=get_headers())
+        account = acc_res.json() if acc_res.status_code == 200 else {"account_number": account_number, "balance": 0}
         return render_template("budget.html",
+            account=account,
             account_number=account_number,
             budgets=data.get("budgets", []),
             total_spent=data.get("total_spent_this_month", 0),
@@ -1840,6 +1843,7 @@ def budget_page(account_number):
         )
     return redirect("/dashboard")
 
+@app.route("/set_budget", methods=["POST"])
 @app.route("/api/budget/set", methods=["POST"])
 @limiter.limit("10 per minute")
 def api_set_budget():
@@ -1848,6 +1852,7 @@ def api_set_budget():
     res = requests.post(f"{BASE_API_URL}/budgets/", headers=get_headers(), json=data)
     return (res.content, res.status_code, {"Content-Type": "application/json"})
 
+@app.route("/delete_budget", methods=["POST"])
 @app.route("/api/budget/delete", methods=["POST"])
 @limiter.limit("10 per minute")
 def api_delete_budget():

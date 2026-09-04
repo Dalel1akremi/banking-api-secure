@@ -4,281 +4,431 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Services Bancaires - API Bank</title>
+    <meta name="description" content="Services bancaires en ligne, recharge téléphonique, commande de chéquiers et paiements marchands.">
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='faceid.css') }}">
     <style>
-        body { background-color: #0f172a; color: #f8fafc; font-family: 'Inter', sans-serif; margin: 0; padding: 0; }
-        nav { display: flex; justify-content: space-between; align-items: center; padding: 15px 30px; background: rgba(30, 41, 59, 0.8); backdrop-filter: blur(10px); border-bottom: 1px solid rgba(255, 255, 255, 0.05); }
-        .nav-links a { color: #cbd5e1; text-decoration: none; margin-left: 20px; font-size: 14px; font-weight: 500; transition: color 0.2s; }
-        .nav-links a:hover { color: #fff; }
-        .brand { font-size: 20px; font-weight: 800; color: #fff; }
+        .service-panel-card {
+            max-width: 780px;
+            margin: 0 auto;
+        }
+        /* Operator Pills */
+        .operator-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+            margin-bottom: 18px;
+        }
+        .operator-card {
+            background: rgba(15, 23, 42, 0.7);
+            border: 2px solid rgba(255, 255, 255, 0.08);
+            border-radius: 14px;
+            padding: 16px 10px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .operator-card:hover {
+            border-color: rgba(99, 102, 241, 0.4);
+            transform: translateY(-2px);
+        }
+        .operator-card.selected {
+            border-color: #ec4899;
+            background: rgba(236, 72, 153, 0.12);
+            box-shadow: 0 4px 15px rgba(236, 72, 153, 0.25);
+        }
+        .operator-logo {
+            font-size: 24px;
+            margin-bottom: 6px;
+        }
+        .operator-name {
+            font-size: 13px;
+            font-weight: 700;
+            color: #fff;
+        }
+        /* Checkbook Cards */
+        .checkbook-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 18px;
+            margin-bottom: 20px;
+        }
+        .checkbook-option {
+            background: rgba(15, 23, 42, 0.8);
+            border: 2px solid rgba(255, 255, 255, 0.08);
+            border-radius: 16px;
+            padding: 22px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .checkbook-option:hover {
+            border-color: rgba(245, 158, 11, 0.4);
+        }
+        .checkbook-option.selected {
+            border-color: #f59e0b;
+            background: rgba(245, 158, 11, 0.1);
+            box-shadow: 0 4px 20px rgba(245, 158, 11, 0.2);
+        }
+        .checkbook-pages {
+            font-size: 22px;
+            font-weight: 800;
+            color: #fff;
+            margin-bottom: 4px;
+        }
+        .checkbook-fee {
+            font-size: 13px;
+            color: #f59e0b;
+            font-weight: 600;
+        }
     </style>
 </head>
 <body>
 
 {% include 'nav.html' %}
 
-<div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-    
-    <div class="flex items-center justify-between mb-10">
-        <div>
-            <h1 class="text-3xl font-extrabold text-white tracking-tight">Services Bancaires</h1>
-            <p class="text-slate-400 mt-2">Compte **** **** **** {{ account.account_number[-4:] }}</p>
-        </div>
-        <a href="/account/{{ account.account_number }}" class="bg-slate-700/50 hover:bg-slate-700 text-white px-4 py-2 rounded-xl text-sm font-medium transition-colors border border-slate-600/50 flex items-center gap-2">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
-            Retour au compte
-        </a>
-    </div>
+<div class="page-container">
 
-    <!-- Flash Messages (Tailwind formatted for this page) -->
+    {% set active_page = 'services' %}
+    {% set page_title = 'Services Bancaires' %}
+    {% include 'account_subnav.html' %}
+
     {% with messages = get_flashed_messages(with_categories=true) %}
       {% if messages %}
-        <div class="mb-8 space-y-4">
+        <div id="flash-container">
         {% for category, message in messages %}
-          {% if category == 'success' %}
-          <div class="bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 px-4 py-3 rounded-xl flex items-center gap-3">
-              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
-              {{ message }}
-          </div>
-          {% else %}
-          <div class="bg-red-500/10 border border-red-500/20 text-red-400 px-4 py-3 rounded-xl flex items-center gap-3">
-              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
-              {{ message }}
-          </div>
-          {% endif %}
+          <div class="alert alert-{{ 'success' if category == 'success' else 'error' }}">{{ message }}</div>
         {% endfor %}
         </div>
       {% endif %}
     {% endwith %}
 
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-        
-        <!-- Recharge Téléphonique -->
-        <div class="bg-slate-800/50 border border-slate-700/50 rounded-2xl p-6 shadow-xl backdrop-blur-sm relative overflow-hidden group hover:border-pink-500/50 transition-all duration-300">
-            <div class="absolute top-0 right-0 w-32 h-32 bg-pink-500/10 rounded-full blur-3xl -mr-10 -mt-10 transition-transform group-hover:scale-150"></div>
-            
-            <h2 class="text-xl font-bold text-white mb-6 flex items-center gap-3">
-                <div class="p-2 bg-pink-500/20 rounded-lg text-pink-400">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"></path></svg>
-                </div>
-                Recharge Téléphonique
-            </h2>
-
-            <form action="/process_phone_recharge" method="POST" class="space-y-4 relative z-10">
-                <input type="hidden" name="account_number" value="{{ account.account_number }}">
-                
-                <div>
-                    <label class="block text-sm font-medium text-slate-300 mb-1">Opérateur</label>
-                    <select name="operator" required class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-pink-500 outline-none">
-                        <option value="Ooredoo">Ooredoo</option>
-                        <option value="Orange">Orange</option>
-                        <option value="Tunisie Telecom">Tunisie Telecom</option>
-                    </select>
-                </div>
-
-                <div>
-                    <label class="block text-sm font-medium text-slate-300 mb-1">Numéro de téléphone (8 chiffres)</label>
-                    <input type="text" name="phone_number" required pattern="\d{8}" placeholder="Ex: 22123456" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white placeholder-slate-500 focus:ring-2 focus:ring-pink-500 outline-none font-mono">
-                </div>
-
-                <div>
-                    <label class="block text-sm font-medium text-slate-300 mb-1">Montant de la recharge (TND)</label>
-                    <input type="number" name="amount" required min="1" max="500" step="1" placeholder="Montant" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white placeholder-slate-500 focus:ring-2 focus:ring-pink-500 outline-none font-mono">
-                </div>
-
-                <div class="grid grid-cols-2 gap-4">
-                    <div>
-                        <label class="block text-sm font-medium text-slate-300 mb-1">Code PIN (4 chiffres)</label>
-                        <input type="password" name="pin" required pattern="\d{4}" maxlength="4" placeholder="••••" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white text-center tracking-widest placeholder-slate-500 focus:ring-2 focus:ring-pink-500 outline-none">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-slate-300 mb-1">Code OTP (2FA)</label>
-                        <div class="flex gap-2">
-                            <input type="text" name="otp_code" required maxlength="6" placeholder="000000" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white text-center tracking-widest placeholder-slate-500 focus:ring-2 focus:ring-pink-500 outline-none">
-                            <button type="button" class="request-otp-btn bg-slate-700 hover:bg-slate-600 text-white px-3 py-2 rounded-lg text-sm transition-colors whitespace-nowrap">Demander OTP</button>
-                        </div>
-                    </div>
-                </div>
-
-                <button type="submit" class="w-full mt-4 bg-pink-600 hover:bg-pink-700 text-white font-bold py-3 rounded-lg transition-colors flex justify-center items-center gap-2 shadow-lg shadow-pink-500/20">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
-                    Recharger Maintenant
-                </button>
-            </form>
+    <!-- Segmented Navigation for Services -->
+    <div class="segmented-tabs-wrapper">
+        <div class="segmented-tabs">
+            <button class="segmented-tab active" onclick="switchService('recharge', this)" id="tab-recharge-btn">
+                <span>📱</span> Recharge Téléphonique
+            </button>
+            <button class="segmented-tab" onclick="switchService('cheque', this)" id="tab-cheque-btn">
+                <span>📑</span> Chéquier & Documents
+            </button>
+            <button class="segmented-tab" onclick="switchService('merchant', this)" id="tab-merchant-btn">
+                <span>🛍️</span> Paiement Commerçant
+            </button>
         </div>
+    </div>
 
-        <!-- Demande de Chéquier -->
-        <div class="bg-slate-800/50 border border-slate-700/50 rounded-2xl p-6 shadow-xl backdrop-blur-sm relative overflow-hidden group hover:border-amber-500/50 transition-all duration-300">
-            <div class="absolute top-0 left-0 w-32 h-32 bg-amber-500/10 rounded-full blur-3xl -ml-10 -mt-10 transition-transform group-hover:scale-150"></div>
-            
-            <h2 class="text-xl font-bold text-white mb-6 flex items-center gap-3">
-                <div class="p-2 bg-amber-500/20 rounded-lg text-amber-400">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
-                </div>
-                Demande de Chéquier
-            </h2>
-
-            <form action="/request_checkbook" method="POST" class="space-y-4 relative z-10">
-                <input type="hidden" name="account_number" value="{{ account.account_number }}">
-                
+    <!-- ==================== 1. RECHARGE MOBILE ==================== -->
+    <div id="service-recharge" class="service-view">
+        <div class="panel-glass service-panel-card">
+            <div class="flex-between" style="margin-bottom: 20px;">
                 <div>
-                    <label class="block text-sm font-medium text-slate-300 mb-1">Type de chéquier</label>
-                    <div class="grid grid-cols-2 gap-4">
-                        <label class="flex flex-col items-center justify-center p-4 border border-slate-700 rounded-xl cursor-pointer hover:bg-slate-800 transition-colors bg-slate-900">
-                            <input type="radio" name="type" value="25" required class="sr-only peer">
-                            <div class="peer-checked:text-amber-400 text-slate-400 font-bold text-lg mb-1">25 Pages</div>
-                            <div class="text-xs text-slate-500">Frais d'émission: 2.5 DT</div>
-                            <div class="absolute inset-0 border-2 border-transparent peer-checked:border-amber-500 rounded-xl pointer-events-none"></div>
-                        </label>
-                        <label class="flex flex-col items-center justify-center p-4 border border-slate-700 rounded-xl cursor-pointer hover:bg-slate-800 transition-colors bg-slate-900 relative">
-                            <input type="radio" name="type" value="50" required class="sr-only peer">
-                            <div class="peer-checked:text-amber-400 text-slate-400 font-bold text-lg mb-1">50 Pages</div>
-                            <div class="text-xs text-slate-500">Frais d'émission: 5.0 DT</div>
-                            <div class="absolute inset-0 border-2 border-transparent peer-checked:border-amber-500 rounded-xl pointer-events-none"></div>
-                        </label>
-                    </div>
+                    <h3 style="display: flex; align-items: center; gap: 8px; margin: 0; color: #fff;">
+                        <span style="color: #ec4899;">📱</span> Recharge Téléphonique Instantanée
+                    </h3>
+                    <p style="font-size: 13px; color: var(--text-muted); margin-top: 4px;">
+                        Rechargez votre ligne mobile ou celle d'un proche en quelques secondes.
+                    </p>
                 </div>
+                <span class="status-pill purple">⚡ Immédiat</span>
+            </div>
 
-                <div class="grid grid-cols-2 gap-4 pt-2">
-                    <div>
-                        <label class="block text-sm font-medium text-slate-300 mb-1">Code PIN (4 chiffres)</label>
-                        <input type="password" name="pin" required pattern="\d{4}" maxlength="4" placeholder="••••" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white text-center tracking-widest placeholder-slate-500 focus:ring-2 focus:ring-amber-500 outline-none">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-slate-300 mb-1">Code OTP (2FA)</label>
-                        <div class="flex gap-2">
-                            <input type="text" name="otp_code" required maxlength="6" placeholder="000000" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white text-center tracking-widest placeholder-slate-500 focus:ring-2 focus:ring-amber-500 outline-none">
-                            <button type="button" class="request-otp-btn bg-slate-700 hover:bg-slate-600 text-white px-3 py-2 rounded-lg text-sm transition-colors whitespace-nowrap">Demander OTP</button>
-                        </div>
-                    </div>
-                </div>
-
-                <button type="submit" class="w-full mt-4 bg-amber-600 hover:bg-amber-700 text-white font-bold py-3 rounded-lg transition-colors flex justify-center items-center gap-2 shadow-lg shadow-amber-500/20">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path></svg>
-                    Confirmer la Demande
-                </button>
-            </form>
-        </div>
-
-        <!-- Paiement Marchand -->
-        <div class="bg-slate-800/50 border border-slate-700/50 rounded-2xl p-6 shadow-xl backdrop-blur-sm relative overflow-hidden group hover:border-emerald-500/50 transition-all duration-300 md:col-span-2">
-            <div class="absolute top-0 right-0 w-32 h-32 bg-emerald-500/10 rounded-full blur-3xl -mr-10 -mt-10 transition-transform group-hover:scale-150"></div>
-            
-            <h2 class="text-xl font-bold text-white mb-6 flex items-center gap-3">
-                <div class="p-2 bg-emerald-500/20 rounded-lg text-emerald-400">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"></path></svg>
-                </div>
-                Paiement Marchand (Categorisé)
-            </h2>
-
-            <form action="/process_merchant_payment" method="POST" class="grid grid-cols-1 md:grid-cols-2 gap-6 relative z-10">
+            <form action="/process_phone_recharge" method="POST">
                 <input type="hidden" name="account_number" value="{{ account.account_number }}">
-                
-                <div class="space-y-4">
-                    <div>
-                        <label class="block text-sm font-medium text-slate-300 mb-1">Nom du Marchand</label>
-                        <input type="text" name="merchant" required placeholder="Ex: Monoprix, Pharmacie, etc." class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-emerald-500 outline-none">
+                <input type="hidden" name="operator" id="selected-operator" value="Ooredoo">
+
+                <!-- Operator Selector -->
+                <label class="form-label-modern">1. Choisissez l'opérateur</label>
+                <div class="operator-grid">
+                    <div class="operator-card selected" onclick="selectOperator('Ooredoo', this)">
+                        <div class="operator-logo">🔴</div>
+                        <div class="operator-name">Ooredoo</div>
                     </div>
-                    <div>
-                        <label class="block text-sm font-medium text-slate-300 mb-1">N° Compte Marchand </label>
-                        <input type="text" name="merchant_account" pattern="\d{10}" placeholder="Ex: 1234567890" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-emerald-500 outline-none font-mono">
+                    <div class="operator-card" onclick="selectOperator('Orange', this)">
+                        <div class="operator-logo">🟠</div>
+                        <div class="operator-name">Orange</div>
                     </div>
-                    <div>
-                        <label class="block text-sm font-medium text-slate-300 mb-1">Catégorie de Budget</label>
-                        <select name="category" required class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-emerald-500 outline-none">
-                            <option value="sante">💊 Santé</option>
-                            <option value="alimentation">🛒 Alimentation</option>
-                            <option value="transport">🚗 Transport</option>
-                            <option value="logement">🏠 Logement</option>
-                            <option value="loisirs">🎬 Loisirs</option>
-                            <option value="shopping">🛍️ Shopping</option>
-                            <option value="autres">📦 Autres</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-slate-300 mb-1">Montant (TND)</label>
-                        <input type="number" name="amount" required step="0.01" min="0.1" placeholder="0.00" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-emerald-500 outline-none font-mono">
+                    <div class="operator-card" onclick="selectOperator('Tunisie Telecom', this)">
+                        <div class="operator-logo">🔵</div>
+                        <div class="operator-name">Tunisie Telecom</div>
                     </div>
                 </div>
 
-                <div class="space-y-4">
-                    <div class="grid grid-cols-2 gap-4">
+                <!-- Phone number -->
+                <div class="form-group-modern">
+                    <label class="form-label-modern">2. Numéro de téléphone (8 chiffres)</label>
+                    <input type="tel" name="phone_number" required pattern="\d{8}" maxlength="8"
+                           placeholder="Ex: 22123456" class="form-input-modern"
+                           style="font-family: monospace; font-size: 16px; letter-spacing: 2px;">
+                </div>
+
+                <!-- Amount -->
+                <div class="form-group-modern">
+                    <label class="form-label-modern">3. Montant de la recharge (TND)</label>
+                    <input type="number" name="amount" id="recharge-amount-input" required min="1" max="500" step="1"
+                           placeholder="Ex: 10" class="form-input-modern"
+                           style="font-family: monospace; font-size: 16px; font-weight: 700;">
+                    <div style="display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap;">
+                        <button type="button" class="preset-btn" onclick="setRechargeAmount(5)">5 DT</button>
+                        <button type="button" class="preset-btn" onclick="setRechargeAmount(10)">10 DT</button>
+                        <button type="button" class="preset-btn" onclick="setRechargeAmount(20)">20 DT</button>
+                        <button type="button" class="preset-btn" onclick="setRechargeAmount(30)">30 DT</button>
+                        <button type="button" class="preset-btn" onclick="setRechargeAmount(50)">50 DT</button>
+                    </div>
+                </div>
+
+                <!-- Security Verification -->
+                <div style="background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(255,255,255,0.06); border-radius: 12px; padding: 18px; margin-top: 24px; margin-bottom: 20px;">
+                    <div style="font-size: 13px; font-weight: 700; color: #fff; margin-bottom: 12px; display: flex; align-items: center; gap: 6px;">
+                        <span>🔐</span> Authentification Sécurisée
+                    </div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px;">
                         <div>
-                            <label class="block text-sm font-medium text-slate-300 mb-1">Code PIN</label>
-                            <input type="password" name="pin" required pattern="\d{4}" maxlength="4" placeholder="••••" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white text-center tracking-widest outline-none focus:ring-2 focus:ring-emerald-500">
+                            <label class="form-label-modern">Code PIN (4 chiffres)</label>
+                            <input type="password" name="pin" required pattern="\d{4}" maxlength="4" placeholder="••••"
+                                   class="form-input-modern" style="text-align: center; letter-spacing: 4px; font-size: 16px;">
                         </div>
                         <div>
-                            <label class="block text-sm font-medium text-slate-300 mb-1">Code OTP</label>
-                            <div class="flex gap-2">
-                                <input type="text" name="otp_code" required maxlength="6" placeholder="000000" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white text-center tracking-widest outline-none focus:ring-2 focus:ring-emerald-500">
-                                <button type="button" class="request-otp-btn bg-slate-700 hover:bg-slate-600 text-white px-3 py-2 rounded-lg text-sm transition-colors whitespace-nowrap">Demander OTP</button>
+                            <label class="form-label-modern">Code OTP</label>
+                            <div style="display: flex; gap: 6px;">
+                                <input type="text" name="otp_code" required maxlength="6" placeholder="000000"
+                                       class="form-input-modern" style="text-align: center; letter-spacing: 2px; font-size: 15px;">
+                                <button type="button" class="request-otp-btn btn-secondary-modern" style="padding: 8px 12px; font-size: 11px; white-space: nowrap;">
+                                    Demander
+                                </button>
                             </div>
                         </div>
                     </div>
-                    <div class="flex items-center gap-2 py-2">
-                        <input type="checkbox" name="is_online" id="is_online" class="w-4 h-4 rounded border-slate-700 bg-slate-900 text-emerald-500 focus:ring-emerald-500">
-                        <label for="is_online" class="text-sm text-slate-300">Paiement en ligne</label>
+                </div>
+
+                <button type="submit" class="btn-gradient-primary" style="width: 100%; padding: 14px; font-size: 15px;">
+                    ⚡ Effectuer la Recharge
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- ==================== 2. COMMANDE DE CHÉQUIER ==================== -->
+    <div id="service-cheque" class="service-view" style="display: none;">
+        <div class="panel-glass service-panel-card">
+            <div class="flex-between" style="margin-bottom: 20px;">
+                <div>
+                    <h3 style="display: flex; align-items: center; gap: 8px; margin: 0; color: #fff;">
+                        <span style="color: #f59e0b;">📑</span> Commande de Chéquier
+                    </h3>
+                    <p style="font-size: 13px; color: var(--text-muted); margin-top: 4px;">
+                        Commandez votre nouveau chéquier en quelques clics sans déplacement.
+                    </p>
+                </div>
+                <span class="status-pill warning">📍 Retrait agence</span>
+            </div>
+
+            <form action="/request_checkbook" method="POST">
+                <input type="hidden" name="account_number" value="{{ account.account_number }}">
+                <input type="hidden" name="type" id="selected-checkbook-type" value="25">
+
+                <label class="form-label-modern">Sélectionnez le format</label>
+                <div class="checkbook-grid">
+                    <div class="checkbook-option selected" onclick="selectCheckbook('25', this)">
+                        <div style="font-size: 28px; margin-bottom: 8px;">📖</div>
+                        <div class="checkbook-pages">25 Pages</div>
+                        <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 6px;">Format Standard Particulier</div>
+                        <div class="checkbook-fee">Frais d'émission : 2.500 DT</div>
                     </div>
-                    <div class="flex gap-4">
-                        <button type="submit" class="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 rounded-lg transition-colors flex justify-center items-center gap-2 shadow-lg shadow-emerald-500/20">
-                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                            Valider par PIN
-                        </button>
-                        <button type="button" id="btn-pay-faceid" class="flex-1 bg-slate-700 hover:bg-slate-600 text-white font-bold py-3 rounded-lg transition-colors flex justify-center items-center gap-2 border border-emerald-500/30">
-                            <svg class="w-5 h-5 text-emerald-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 3H7a2 2 0 0 0-2 2v1a2 2 0 0 0 2 2h1M16 3h1a2 2 0 0 1 2 2v1a2 2 0 0 1-2 2h-1M16 21h1a2 2 0 0 0 2-2v-1a2 2 0 0 0-2-2h-1M8 21H7a2 2 0 0 1-2-2v-1a2 2 0 0 1 2-2h1M10 11h.01M14 11h.01M10 15a3.5 3.5 0 0 0 4 0"></path></svg>
-                            Face ID
-                        </button>
+
+                    <div class="checkbook-option" onclick="selectCheckbook('50', this)">
+                        <div style="font-size: 28px; margin-bottom: 8px;">📚</div>
+                        <div class="checkbook-pages">50 Pages</div>
+                        <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 6px;">Format Étendu Professionnel</div>
+                        <div class="checkbook-fee">Frais d'émission : 5.000 DT</div>
                     </div>
-                    <p class="text-[10px] text-center text-slate-500 uppercase tracking-widest mt-2">Paiement sécurisé crypté</p>
+                </div>
+
+                <div style="background: rgba(245, 158, 11, 0.08); border: 1px solid rgba(245, 158, 11, 0.2); border-radius: 12px; padding: 14px; margin-bottom: 20px; font-size: 13px; color: #cbd5e1;">
+                    ℹ️ <strong>Modalités de mise à disposition :</strong> Votre chéquier sera imprimé et disponible sous 3 à 5 jours ouvrés à votre agence bancaire principale. Un SMS de confirmation vous sera transmis dès réception.
+                </div>
+
+                <!-- Security Verification -->
+                <div style="background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(255,255,255,0.06); border-radius: 12px; padding: 18px; margin-bottom: 20px;">
+                    <div style="font-size: 13px; font-weight: 700; color: #fff; margin-bottom: 12px; display: flex; align-items: center; gap: 6px;">
+                        <span>🔐</span> Validation de la Commande
+                    </div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px;">
+                        <div>
+                            <label class="form-label-modern">Code PIN (4 chiffres)</label>
+                            <input type="password" name="pin" required pattern="\d{4}" maxlength="4" placeholder="••••"
+                                   class="form-input-modern" style="text-align: center; letter-spacing: 4px; font-size: 16px;">
+                        </div>
+                        <div>
+                            <label class="form-label-modern">Code OTP</label>
+                            <div style="display: flex; gap: 6px;">
+                                <input type="text" name="otp_code" required maxlength="6" placeholder="000000"
+                                       class="form-input-modern" style="text-align: center; letter-spacing: 2px; font-size: 15px;">
+                                <button type="button" class="request-otp-btn btn-secondary-modern" style="padding: 8px 12px; font-size: 11px; white-space: nowrap;">
+                                    Demander
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <button type="submit" class="btn-gradient-warning" style="width: 100%; padding: 14px; font-size: 15px; color: #000; font-weight: 800;">
+                    📑 Confirmer la Commande de Chéquier
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- ==================== 3. PAIEMENT MARCHAND ==================== -->
+    <div id="service-merchant" class="service-view" style="display: none;">
+        <div class="panel-glass service-panel-card">
+            <div class="flex-between" style="margin-bottom: 20px;">
+                <div>
+                    <h3 style="display: flex; align-items: center; gap: 8px; margin: 0; color: #fff;">
+                        <span style="color: #10b981;">🛍️</span> Paiement Marchand & Commerce Électronique
+                    </h3>
+                    <p style="font-size: 13px; color: var(--text-muted); margin-top: 4px;">
+                        Réglez vos achats auprès de partenaires ou e-commerçants enregistrés.
+                    </p>
+                </div>
+                <span class="status-pill success">🛡️ 3D-Secure</span>
+            </div>
+
+            <form action="/process_merchant_payment" method="POST" id="merchant-payment-form">
+                <input type="hidden" name="account_number" value="{{ account.account_number }}">
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                    <div class="form-group-modern">
+                        <label class="form-label-modern">Nom de l'Enseigne / Marchand</label>
+                        <input type="text" name="merchant" required placeholder="Ex: Monoprix, Pharmacie Centrale..." class="form-input-modern">
+                    </div>
+                    <div class="form-group-modern">
+                        <label class="form-label-modern">N° Compte Marchand (10 chiffres)</label>
+                        <input type="text" name="merchant_account" pattern="\d{10}" placeholder="Ex: 1234567890 (Optionnel)" class="form-input-modern" style="font-family: monospace;">
+                    </div>
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                    <div class="form-group-modern">
+                        <label class="form-label-modern">Catégorie Budgétaire</label>
+                        <select name="category" required class="form-select-modern">
+                            <option value="alimentation">🛒 Alimentation</option>
+                            <option value="sante">💊 Santé</option>
+                            <option value="transport">🚗 Transport</option>
+                            <option value="logement">🏠 Logement</option>
+                            <option value="loisirs">🎬 Loisirs</option>
+                            <option value="shopping" selected>🛍️ Shopping</option>
+                            <option value="autres">📦 Autres</option>
+                        </select>
+                    </div>
+                    <div class="form-group-modern">
+                        <label class="form-label-modern">Montant (TND)</label>
+                        <input type="number" name="amount" required step="0.01" min="0.1" placeholder="0.00" class="form-input-modern" style="font-family: monospace; font-size: 16px; font-weight: 700;">
+                    </div>
+                </div>
+
+                <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 20px;">
+                    <input type="checkbox" name="is_online" id="is_online" style="width: 18px; height: 18px; cursor: pointer; accent-color: #10b981;">
+                    <label for="is_online" style="font-size: 13px; color: #cbd5e1; cursor: pointer;">Transaction e-commerce (Achat en ligne)</label>
+                </div>
+
+                <!-- Security Verification -->
+                <div style="background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(255,255,255,0.06); border-radius: 12px; padding: 18px; margin-bottom: 20px;">
+                    <div style="font-size: 13px; font-weight: 700; color: #fff; margin-bottom: 12px; display: flex; align-items: center; gap: 6px;">
+                        <span>🔐</span> Validation de Sécurité
+                    </div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px;">
+                        <div>
+                            <label class="form-label-modern">Code PIN (4 chiffres)</label>
+                            <input type="password" name="pin" pattern="\d{4}" maxlength="4" placeholder="••••"
+                                   class="form-input-modern" style="text-align: center; letter-spacing: 4px; font-size: 16px;">
+                        </div>
+                        <div>
+                            <label class="form-label-modern">Code OTP</label>
+                            <div style="display: flex; gap: 6px;">
+                                <input type="text" name="otp_code" maxlength="6" placeholder="000000"
+                                       class="form-input-modern" style="text-align: center; letter-spacing: 2px; font-size: 15px;">
+                                <button type="button" class="request-otp-btn btn-secondary-modern" style="padding: 8px 12px; font-size: 11px; white-space: nowrap;">
+                                    Demander
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div style="display: flex; gap: 12px;">
+                    <button type="submit" class="btn-gradient-success" style="flex: 1; padding: 14px;">
+                        🔒 Payer par Code PIN
+                    </button>
+                    <button type="button" id="btn-pay-faceid" class="btn-secondary-modern" style="flex: 1; padding: 14px; border-color: rgba(16, 185, 129, 0.4); color: #34d399;">
+                        👁️ Payer avec Face ID
+                    </button>
                 </div>
             </form>
         </div>
-
     </div>
+
 </div>
 
 <script src="{{ url_for('static', filename='faceid.js') }}"></script>
 <script>
+    function switchService(service, btn) {
+        document.querySelectorAll('.service-view').forEach(v => v.style.display = 'none');
+        document.querySelectorAll('.segmented-tab').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        document.getElementById(`service-${service}`).style.display = 'block';
+    }
+
+    function selectOperator(op, card) {
+        document.querySelectorAll('.operator-card').forEach(c => c.classList.remove('selected'));
+        card.classList.add('selected');
+        document.getElementById('selected-operator').value = op;
+    }
+
+    function setRechargeAmount(amt) {
+        document.getElementById('recharge-amount-input').value = amt;
+    }
+
+    function selectCheckbook(type, card) {
+        document.querySelectorAll('.checkbook-option').forEach(c => c.classList.remove('selected'));
+        card.classList.add('selected');
+        document.getElementById('selected-checkbook-type').value = type;
+    }
+
     // Logic for FaceID Payment
     const btnPayFaceID = document.getElementById('btn-pay-faceid');
     if (btnPayFaceID) {
         btnPayFaceID.addEventListener('click', async () => {
-            // Check if essential fields are filled
-            const merchant = document.querySelector('input[name="merchant"]').value;
-            const amount = document.querySelector('input[name="amount"]').value;
+            const form = document.getElementById('merchant-payment-form');
+            const merchant = form.querySelector('input[name="merchant"]').value.trim();
+            const amount = form.querySelector('input[name="amount"]').value.trim();
             if (!merchant || !amount) {
-                alert("Veuillez remplir le nom du marchand et le montant avant de valider.");
+                alert("Veuillez renseigner le nom du marchand et le montant avant le scan.");
                 return;
             }
 
-            // 1. Démarrer le scan IA RÉELLE
             const descriptor = await window.faceid.scan();
             if (!descriptor) return;
 
-            // 2. Soumission AJAX du formulaire (au lieu de form.submit standard)
-            const form = btnPayFaceID.closest('form');
             const formData = new FormData(form);
             const payload = {};
             formData.forEach((value, key) => payload[key] = value);
-            
-            // Bypass PIN/OTP for FaceID by using the face descriptor as the "key"
             payload['pin'] = "0000";
             payload['otp_code'] = "000000";
             payload['face_descriptor'] = JSON.stringify(descriptor);
 
             try {
-                const res = await fetch(form.action || window.location.href, {
+                const res = await fetch(form.action, {
                     method: "POST",
                     headers: { "Content-Type": "application/x-www-form-urlencoded" },
                     body: new URLSearchParams(payload)
                 });
 
                 if (res.ok) {
-                    window.faceid.showResult(true, "Paiement validé !");
+                    window.faceid.showResult(true, "Paiement marchand validé !");
                     setTimeout(() => window.location.reload(), 1500);
                 } else {
-                    window.faceid.showResult(false, "Identité non reconnue");
+                    window.faceid.showResult(false, "Reconnaissance faciale échouée");
                 }
             } catch (err) {
                 window.faceid.showResult(false, "Erreur réseau");
@@ -286,37 +436,24 @@
         });
     }
 
-    function bindOTPButtons() {
-        document.querySelectorAll('.request-otp-btn').forEach(btn => {
-            if (btn.getAttribute('data-bound')) return;
-            btn.setAttribute('data-bound', 'true');
-            btn.addEventListener('click', async (e) => {
-                e.preventDefault();
-                btn.disabled = true;
-                const originalText = btn.innerText;
-                btn.innerText = "...";
-                try {
-                    const res = await fetch("/request_auth_otp", { method: "POST" });
-                    const data = await res.json();
-                    if (res.ok) {
-                        alert(data.message || "Code envoyé !");
-                    } else {
-                        let msg = "Erreur lors de l'envoi";
-                        if (data && data.detail) {
-                            msg = typeof data.detail === 'string' ? data.detail : JSON.stringify(data.detail);
-                        }
-                        alert("❌ " + msg);
-                    }
-                } catch(err) {
-                    alert("Erreur réseau");
-                }
-                btn.innerText = originalText;
-                btn.disabled = false;
-            });
+    // OTP Buttons binding
+    document.querySelectorAll('.request-otp-btn').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+            e.preventDefault();
+            btn.disabled = true;
+            const orig = btn.textContent;
+            btn.textContent = '...';
+            try {
+                const res = await fetch("/request_auth_otp", { method: "POST" });
+                const data = await res.json();
+                alert(res.ok ? (data.message || "Code envoyé !") : (data.detail || "Erreur"));
+            } catch(err) {
+                alert("Erreur réseau");
+            }
+            btn.textContent = orig;
+            btn.disabled = false;
         });
-    }
-    document.addEventListener('DOMContentLoaded', bindOTPButtons);
-    bindOTPButtons();
+    });
 </script>
 
 <script src="{{ url_for('static', filename='chatbot.js') }}"></script>
