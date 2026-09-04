@@ -430,15 +430,13 @@
 </div>
 
 <script>
-    // Set default deadline to 6 months from now
-    const now = new Date();
-    now.setMonth(now.getMonth() + 6);
-    document.getElementById('goal-deadline-input').value = now.toISOString().split('T')[0];
-
+    // Declare modal functions globally so onclick="" attributes can call them
     function openActionModal(type) {
         document.getElementById('action-type').value = type;
         const title = type === 'deposit' ? '📥 Épargner dans la Tirelire' : '📤 Retirer vers le Compte';
-        const help = type === 'deposit' ? "Les fonds seront transférés de votre compte courant vers la tirelire." : "L'argent sera transféré de la tirelire vers votre compte principal.";
+        const help = type === 'deposit'
+            ? "Les fonds seront transférés de votre compte courant vers la tirelire."
+            : "L'argent sera transféré de la tirelire vers votre compte principal.";
         document.getElementById('action-title').innerText = title;
         document.getElementById('action-help').innerText = help;
         document.getElementById('action-modal').classList.add('open');
@@ -465,26 +463,38 @@
         }
     });
 
-    // Bind OTP Buttons
-    document.querySelectorAll('.request-otp-btn').forEach(btn => {
-        btn.addEventListener('click', async (e) => {
-            e.preventDefault();
-            btn.disabled = true;
-            const orig = btn.textContent;
-            btn.textContent = '...';
-            try {
-                const res = await fetch("/request_auth_otp", { method: "POST" });
-                const data = await res.json();
-                alert(res.ok ? (data.message || "Code envoyé !") : (data.detail || "Erreur"));
-            btn.textContent = orig;
-            btn.disabled = false;
-        });
-    });
+    document.addEventListener('DOMContentLoaded', function() {
+        // Set default deadline to 6 months from now
+        const deadlineInput = document.getElementById('goal-deadline-input');
+        if (deadlineInput) {
+            const d = new Date();
+            d.setMonth(d.getMonth() + 6);
+            deadlineInput.value = d.toISOString().split('T')[0];
+        }
 
-    // Apply progress bar widths dynamically to avoid IDE CSS errors
-    document.addEventListener('DOMContentLoaded', () => {
+        // Apply progress bar widths
         document.querySelectorAll('.progress-fill[data-percentage]').forEach(el => {
             el.style.width = (el.getAttribute('data-percentage') || '0') + '%';
+        });
+
+        // Bind OTP Buttons
+        document.querySelectorAll('.request-otp-btn').forEach(btn => {
+            btn.addEventListener('click', async (e) => {
+                e.preventDefault();
+                btn.disabled = true;
+                const orig = btn.textContent;
+                btn.textContent = '...';
+                try {
+                    const res = await fetch("/request_auth_otp", { method: "POST" });
+                    const data = await res.json();
+                    alert(res.ok ? (data.message || "Code envoyé !") : (data.detail || "Erreur"));
+                } catch (err) {
+                    alert("Erreur réseau. Veuillez réessayer.");
+                } finally {
+                    btn.textContent = orig;
+                    btn.disabled = false;
+                }
+            });
         });
     });
 </script>

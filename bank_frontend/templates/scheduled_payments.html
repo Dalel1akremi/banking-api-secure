@@ -29,6 +29,10 @@
             font-size: 20px;
             flex-shrink: 0;
         }
+        .freq-monthly  { background: rgba(99, 102, 241, 0.15); color: #818cf8; }
+        .freq-weekly   { background: rgba(59, 130, 246, 0.15);  color: #60a5fa; }
+        .freq-quarterly{ background: rgba(168, 85, 247, 0.15);  color: #c084fc; }
+        .freq-once     { background: rgba(148, 163, 184, 0.15); color: #94a3b8; }
         .timeline-track {
             height: 6px;
             border-radius: 999px;
@@ -159,11 +163,7 @@
             <div class="flex-between" style="align-items: flex-start; flex-wrap: wrap; gap: 16px;">
                 <!-- Left: Frequency Icon + Info -->
                 <div style="display: flex; align-items: center; gap: 16px; min-width: 260px;">
-                    <div class="freq-icon-box" style="
-                        {% if p.frequency == 'monthly' %}background: rgba(99, 102, 241, 0.15); color: #818cf8;
-                        {% elif p.frequency == 'weekly' %}background: rgba(59, 130, 246, 0.15); color: #60a5fa;
-                        {% elif p.frequency == 'quarterly' %}background: rgba(168, 85, 247, 0.15); color: #c084fc;
-                        {% else %}background: rgba(148, 163, 184, 0.15); color: #94a3b8;{% endif %}">
+                    <div class="freq-icon-box freq-{{ p.frequency if p.frequency in ['monthly','weekly','quarterly'] else 'once' }}">
                         {% if p.frequency == 'monthly' %}📅
                         {% elif p.frequency == 'weekly' %}📆
                         {% elif p.frequency == 'quarterly' %}🗓️
@@ -232,7 +232,7 @@
             <!-- Progress Bar until next execution -->
             {% if p.status == 'active' %}
             <div class="timeline-track">
-                <div class="timeline-bar-fill" style="width: {{ p.progress_pct }}%;"></div>
+                <div class="timeline-bar-fill" data-width="{{ p.progress_pct }}"></div>
             </div>
             <div class="flex-between" style="font-size: 11px; color: var(--text-muted); margin-top: 5px;">
                 <span>Dernière exécution</span>
@@ -342,6 +342,12 @@
 <script>
     document.getElementById('start-date-input').min = new Date().toISOString().split('T')[0];
     document.getElementById('start-date-input').value = new Date().toISOString().split('T')[0];
+
+    document.addEventListener('DOMContentLoaded', () => {
+        document.querySelectorAll('.timeline-bar-fill[data-width]').forEach(el => {
+            el.style.width = (el.getAttribute('data-width') || '0') + '%';
+        });
+    });
 
     function openAddModal() {
         document.getElementById('add-modal').classList.add('open');
