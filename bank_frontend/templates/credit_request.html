@@ -94,6 +94,23 @@
             color: #fff;
             box-shadow: 0 0 12px rgba(99, 102, 241, 0.5);
         }
+        .step-circle.rejected {
+            background: rgba(239, 68, 68, 0.15);
+            border-color: #ef4444;
+            color: #f87171;
+        }
+        .step-label {
+            font-size: 11px;
+            margin-top: 6px;
+            font-weight: 600;
+            color: #cbd5e1;
+        }
+        .step-label.rejected {
+            color: #f87171;
+        }
+        .step-label.approved {
+            color: #34d399;
+        }
         .step-line {
             position: absolute;
             top: 26px;
@@ -387,20 +404,19 @@
                     <div class="stepper-container">
                         <div class="stepper-step">
                             <div class="step-circle {{ 'done' if current_idx >= 0 else '' }}">✓</div>
-                            <div style="font-size: 11px; margin-top: 6px; color: #cbd5e1; font-weight: 600;">Dépôt</div>
+                            <div class="step-label">Dépôt</div>
                         </div>
                         <div class="stepper-step">
                             <div class="step-circle {{ 'done' if current_idx > 1 else ('current' if current_idx == 1 else '') }}">
                                 {{ '✓' if current_idx > 1 else '2' }}
                             </div>
-                            <div style="font-size: 11px; margin-top: 6px; color: #cbd5e1; font-weight: 600;">Étude Risque</div>
+                            <div class="step-label">Étude Risque</div>
                         </div>
                         <div class="stepper-step">
-                            <div class="step-circle {{ 'done' if c.status == 'approved' else ('step-circle' if current_idx < 2 else 'current') }}"
-                                 style="{{ 'border-color: #ef4444; color: #f87171;' if c.status == 'rejected' else '' }}">
+                            <div class="step-circle {{ 'done' if c.status == 'approved' else ('rejected' if c.status == 'rejected' else ('current' if current_idx == 2 else '')) }}">
                                 {{ '✓' if c.status == 'approved' else ('✕' if c.status == 'rejected' else '3') }}
                             </div>
-                            <div style="font-size: 11px; margin-top: 6px; font-weight: 600; color: {{ '#f87171' if c.status == 'rejected' else ('#34d399' if c.status == 'approved' else '#cbd5e1') }};">
+                            <div class="step-label {{ 'rejected' if c.status == 'rejected' else ('approved' if c.status == 'approved' else '') }}">
                                 {{ 'Refusé' if c.status == 'rejected' else 'Décision' }}
                             </div>
                         </div>

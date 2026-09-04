@@ -232,7 +232,7 @@
 
                         <!-- Progress bar -->
                         <div class="progress-track" style="height: 10px;">
-                            <div class="progress-fill" style="width: {{ pct if pct < 100 else 100 }}%; background: linear-gradient(90deg, #6366f1, #10b981);"></div>
+                            <div class="progress-fill" data-percentage="{{ (pct if pct < 100 else 100) | round | int }}" style="background: linear-gradient(90deg, #6366f1, #10b981);"></div>
                         </div>
 
                         <div class="flex-between" style="font-size: 11px; color: var(--text-muted); margin-top: 8px;">
@@ -476,11 +476,15 @@
                 const res = await fetch("/request_auth_otp", { method: "POST" });
                 const data = await res.json();
                 alert(res.ok ? (data.message || "Code envoyé !") : (data.detail || "Erreur"));
-            } catch (err) {
-                alert("Erreur réseau");
-            }
             btn.textContent = orig;
             btn.disabled = false;
+        });
+    });
+
+    // Apply progress bar widths dynamically to avoid IDE CSS errors
+    document.addEventListener('DOMContentLoaded', () => {
+        document.querySelectorAll('.progress-fill[data-percentage]').forEach(el => {
+            el.style.width = (el.getAttribute('data-percentage') || '0') + '%';
         });
     });
 </script>
