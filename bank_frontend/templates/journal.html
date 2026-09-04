@@ -158,10 +158,10 @@
         {% if activities %}
             {% for act in activities %}
             {% set is_fail = act.status == 'FAILURE' %}
-            <div class="log-row" data-type="{{ act.action_type | action_fr }}" data-status="{{ act.status | status_fr }}">
+            <div class="log-row" data-type="{{ act.action_type }}" data-status="{{ act.status }}">
                 <div class="log-icon {{ 'failure' if is_fail else 'success' }}">
                     {% if act.action_type == 'DEPOSIT' %}&#128176;
-                    {% elif act.action_type == 'WITHDRAW' %}&#128184;
+                    {% elif act.action_type in ['WITHDRAW', 'WITHDRAWAL'] %}&#128184;
                     {% elif act.action_type == 'PAYMENT' %}&#128717;
                     {% elif act.action_type == 'BILL_PAYMENT' %}&#128161;
                     {% elif act.action_type == 'TRANSFER_OUT' %}&rarr;
@@ -172,9 +172,9 @@
                     {% else %}&#128203;{% endif %}
                 </div>
                 {% set trans = {
-                    'DEPOSIT': 'Dépôt', 'WITHDRAW': 'Retirer', 'PAYMENT': 'Paiement',
+                    'DEPOSIT': 'Dépôt', 'WITHDRAW': 'Retirer', 'WITHDRAWAL': 'Retrait', 'PAYMENT': 'Paiement',
                     'BILL_PAYMENT': 'Paiement Facture',
-                    'TRANSFER_OUT': 'Transfert', 'TRANSFER_IN': 'Transfert Entrant',
+                    'TRANSFER': 'Transfert', 'TRANSFER_OUT': 'Transfert Émis', 'TRANSFER_IN': 'Transfert Reçu',
                     'ACCOUNT_CREATION': 'Création du compte', 'ACCOUNT_LOCKED': 'Compte Verrouillé',
                     'PIN_VERIFICATION': 'Vérification PIN', 'CARD_STATUS_CHANGE': 'Statut Carte',
                     'ACCOUNT_DELETION': 'Suppression Compte', 'CARD_RENEWAL': 'Renouvellement Carte',
@@ -216,6 +216,11 @@
                 <p style="font-size: 13px; margin-top: 8px;">Effectuez des transactions pour voir apparaître les logs.</p>
             </div>
         {% endif %}
+            <div id="no-filter-match" style="display:none; text-align:center; padding: 50px 20px; color: var(--text-muted);">
+                <div style="font-size: 36px; margin-bottom: 10px;">🔍</div>
+                <p style="font-size: 15px; font-weight:600; color: #cbd5e1;">Aucun log trouvé pour cette catégorie</p>
+                <p style="font-size: 13px; margin-top: 4px;">Essayez un autre filtre ou cliquez sur "Tous".</p>
+            </div>
         </div>
     </div>
 
@@ -228,27 +233,36 @@
 
 <script>
     function filterLogs(type, btn) {
-        // Update button states
         document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
 
         const rows = document.querySelectorAll('#log-table-body .log-row');
+        let matchCount = 0;
         rows.forEach(row => {
-            const rowType = row.dataset.type || '';
-            const rowStatus = row.dataset.status || '';
+            const rowType = (row.dataset.type || '').toUpperCase();
+            const rowStatus = (row.dataset.status || '').toUpperCase();
 
             let show = false;
             if (type === 'ALL') {
                 show = true;
             } else if (type === 'FAILURE') {
-                show = rowStatus === 'FAILURE';
+                show = (rowStatus === 'FAILURE');
             } else if (type === 'TRANSFER') {
-                show = rowType.startsWith('TRANSFER');
+                show = rowType.includes('TRANSFER');
+            } else if (type === 'WITHDRAW') {
+                show = (rowType === 'WITHDRAW' || rowType === 'WITHDRAWAL');
             } else {
-                show = rowType === type;
+                show = (rowType === type);
             }
+
             row.style.display = show ? '' : 'none';
+            if (show) matchCount++;
         });
+
+        const emptyMsg = document.getElementById('no-filter-match');
+        if (emptyMsg) {
+            emptyMsg.style.display = (matchCount === 0 && rows.length > 0) ? 'block' : 'none';
+        }
     }
 </script>
 
