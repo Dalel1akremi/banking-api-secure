@@ -115,6 +115,13 @@ def is_card_expired(expiry_str: str) -> bool:
     except:
         return True
 
+def handle_unauthorized_account_access(account_number):
+    client_ip = request.headers.get("X-Real-IP") or request.headers.get("X-Forwarded-For", "").split(',')[0] or request.remote_addr
+    logger.warning(f"SECURITY_ALERT | IDOR_ATTEMPT | IP: {client_ip} | Account: {account_number} | Action: Force Logout")
+    session.clear()
+    flash("⛔ Alerte de sécurité (IDOR) : Tentative d'accès non autorisé au compte d'un tiers. Vous avez été automatiquement déconnecté par mesure de sécurité.", "error")
+    return redirect("/")
+
 @app.route("/", methods=["GET", "POST"])
 @limiter.limit("5 per minute")
 def login():
@@ -363,7 +370,7 @@ def account_details(account_number):
         
     acc_res = requests.get(f"{BASE_API_URL}/accounts/{account_number}", headers=get_headers())
     if acc_res.status_code != 200:
-        return redirect("/dashboard")
+        return handle_unauthorized_account_access(account_number)
     account = acc_res.json()
     session['last_account'] = account_number
     
@@ -391,7 +398,7 @@ def card_details(account_number):
         
     acc_res = requests.get(f"{BASE_API_URL}/accounts/{account_number}", headers=get_headers())
     if acc_res.status_code != 200:
-        return redirect("/dashboard")
+        return handle_unauthorized_account_access(account_number)
     account = acc_res.json()
     
     # Fetch card-specific activities (filter by account_number)
@@ -662,8 +669,7 @@ def account_rib(account_number):
     if "token" not in session: return redirect("/")
     res = requests.get(f"{BASE_API_URL}/accounts/{account_number}/rib", headers=get_headers())
     if res.status_code != 200:
-        flash("Impossible de charger le RIB.", "error")
-        return redirect(f"/account/{account_number}")
+        return handle_unauthorized_account_access(account_number)
     rib_data = res.json()
     return render_template("rib.html", rib=rib_data, account_number=account_number)
 
@@ -673,8 +679,7 @@ def download_rib_pdf(account_number):
     
     res = requests.get(f"{BASE_API_URL}/accounts/{account_number}/rib", headers=get_headers())
     if res.status_code != 200:
-        flash("Erreur lors de la récupération des données du RIB.", "error")
-        return redirect(f"/account/{account_number}/rib")
+        return handle_unauthorized_account_access(account_number)
         
     rib = res.json()
     
@@ -724,8 +729,7 @@ def download_receipt(account_number, index):
     # Check access to account
     acc_res = requests.get(f"{BASE_API_URL}/accounts/{account_number}", headers=headers)
     if acc_res.status_code != 200:
-        flash("Accès non autorisé", "error")
-        return redirect("/dashboard")
+        return handle_unauthorized_account_access(account_number)
 
     tx_res = requests.get(f"{BASE_API_URL}/accounts/transactions/{account_number}", headers=headers)
     if tx_res.status_code != 200:
@@ -1190,7 +1194,7 @@ def account_analytics(account_number):
     # Get account details
     acc_res = requests.get(f"{BASE_API_URL}/accounts/{account_number}", headers=get_headers())
     if acc_res.status_code != 200:
-        return redirect("/dashboard")
+        return handle_unauthorized_account_access(account_number)
     account = acc_res.json()
     
     # Get analytics data
@@ -1210,7 +1214,7 @@ def account_services(account_number):
     
     acc_res = requests.get(f"{BASE_API_URL}/accounts/{account_number}", headers=get_headers())
     if acc_res.status_code != 200:
-        return redirect("/dashboard")
+        return handle_unauthorized_account_access(account_number)
     account = acc_res.json()
     
     return render_template("services.html", account=account)
@@ -1279,7 +1283,7 @@ def qr_payment(account_number):
     if "token" not in session: return redirect("/")
     acc_res = requests.get(f"{BASE_API_URL}/accounts/{account_number}", headers=get_headers())
     if acc_res.status_code != 200:
-        return redirect("/dashboard")
+        return handle_unauthorized_account_access(account_number)
     account = acc_res.json()
     return render_template("qr_payment.html", account=account)
 
@@ -1442,7 +1446,8 @@ def execute_due_payments(account_number: str, headers: dict):
 def scheduled_payments(account_number):
     if "token" not in session: return redirect("/")
     acc_res = requests.get(f"{BASE_API_URL}/accounts/{account_number}", headers=get_headers())
-    if acc_res.status_code != 200: return redirect("/dashboard")
+    if acc_res.status_code != 200:
+        return handle_unauthorized_account_access(account_number)
     account = acc_res.json()
 
     # Execute any due payments silently
@@ -1602,7 +1607,8 @@ def calc_monthly_payment(amount: float, duration: int, rate_annual: float = 0.07
 def credit_request(account_number):
     if "token" not in session: return redirect("/")
     acc_res = requests.get(f"{BASE_API_URL}/accounts/{account_number}", headers=get_headers())
-    if acc_res.status_code != 200: return redirect("/dashboard")
+    if acc_res.status_code != 200:
+        return handle_unauthorized_account_access(account_number)
     account = acc_res.json()
 
     all_credits = load_credits()
@@ -1686,7 +1692,8 @@ def save_savings(data):
 def account_savings(account_number):
     if "token" not in session: return redirect("/")
     acc_res = requests.get(f"{BASE_API_URL}/accounts/{account_number}", headers=get_headers())
-    if acc_res.status_code != 200: return redirect("/dashboard")
+    if acc_res.status_code != 200:
+        return handle_unauthorized_account_access(account_number)
     account = acc_res.json()
 
     data = load_savings()

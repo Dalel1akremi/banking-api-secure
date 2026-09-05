@@ -389,13 +389,20 @@ def get_accounts(user=Depends(require_scope("read:accounts"))):
 @router.get("/{account_number}", response_model=AccountResponse)
 def get_account(account_number: str, user=Depends(verify_token)):
 
+    # Vérification IDOR : Est-ce que le compte existe mais appartient à un tiers ?
+    existing = accounts_collection.find_one({"account_number": account_number})
+    if existing and str(existing.get("owner_id")) != str(user["id"]):
+        from app.security.logger import log_activity
+        log_activity(str(user["id"]), account_number, "IDOR_ATTEMPT", "BLOCKED", {"detail": "Tentative d'accès non autorisé à un compte tiers"})
+        raise HTTPException(status_code=403, detail="Accès non autorisé : ce compte appartient à un autre utilisateur (IDOR)")
+
     acc = accounts_collection.find_one({
         "account_number": account_number,
         "owner_id": str(user["id"])
     }, {"pin_hash": 0, "card_cvv": 0})
 
     if not acc:
-        raise HTTPException(status_code=404, detail="Account not found")
+        raise HTTPException(status_code=404, detail="Compte introuvable ou accès non autorisé")
 
     acc["card_number"] = AccountResponse.mask_card(acc.get("card_number", ""))
     return acc
