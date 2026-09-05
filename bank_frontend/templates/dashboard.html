@@ -65,7 +65,13 @@
             <p>Sélectionnez un compte pour consulter son historique ou effectuer une opération.</p>
         </div>
         <form method="POST" action="/create_account">
-            <button type="submit" class="btn" style="width: auto; padding: 12px 24px;">+ Ouvrir un Compte</button>
+            {% if accounts|length >= 3 %}
+            <button type="button" class="btn" disabled style="width: auto; padding: 12px 24px; opacity: 0.6; cursor: not-allowed; background: #475569;" title="Limite de 3 comptes atteinte">
+                🔒 Limite atteinte (3/3 comptes)
+            </button>
+            {% else %}
+            <button type="submit" class="btn" style="width: auto; padding: 12px 24px;">+ Ouvrir un Compte ({{ accounts|length }}/3)</button>
+            {% endif %}
         </form>
     </div>
 

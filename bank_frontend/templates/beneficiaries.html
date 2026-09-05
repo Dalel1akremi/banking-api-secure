@@ -100,8 +100,9 @@
                     <p style="font-size: 11px; color: #a0aec0; margin-top: 5px;">Pour les comptes internes, le nom doit correspondre exactement au titulaire.</p>
                 </div>
                 <div class="input-group">
-                    <label>Numéro de Compte ou RIB</label>
-                    <input type="text" name="account_number" required placeholder="10 à 20 chiffres" maxlength="20" pattern="\d{10,20}">
+                    <label>Numéro de Compte (10 chiffres)</label>
+                    <input type="text" name="account_number" required placeholder="Exactement 10 chiffres (ex: 8567836065)" maxlength="10" minlength="10" pattern="^\d{10}$" title="Le numéro de compte doit comporter exactement 10 chiffres (sans lettres ni symboles)" oninput="this.value = this.value.replace(/[^0-9]/g, '')">
+                    <p style="font-size: 11px; color: #a0aec0; margin-top: 5px;">Seuls les chiffres sont autorisés (exactement 10 chiffres).</p>
                 </div>
 
                 <hr style="border-color: var(--card-border); margin: 20px 0;">

@@ -222,6 +222,11 @@ def is_card_expired(expiry_str: str) -> bool:
     except:
         return True
 
+def is_valid_account_number(acc):
+    if not acc:
+        return False
+    return bool(re.match(r"^\d{10}$", str(acc).strip()))
+
 def handle_unauthorized_account_access(account_number):
     client_ip = request.headers.get("X-Real-IP") or request.headers.get("X-Forwarded-For", "").split(',')[0] or request.remote_addr
     logger.warning(f"SECURITY_ALERT | IDOR_ATTEMPT | IP: {client_ip} | Account: {account_number} | Action: Force Logout")
@@ -463,10 +468,24 @@ def create_account():
     if "token" not in session:
         return redirect("/")
     
+    # Vérification préalable du nombre de comptes existants (max 3)
+    acc_check = requests.get(f"{BASE_API_URL}/accounts/", headers=get_headers())
+    if acc_check.status_code == 200:
+        existing_accounts = acc_check.json()
+        if len(existing_accounts) >= 3:
+            flash("🔒 Limite atteinte : Vous ne pouvez pas posséder plus de 3 comptes bancaires.", "error")
+            return redirect("/dashboard")
+    
     # Send a request to the backend with an initial balance of 0
     res = requests.post(f"{BASE_API_URL}/accounts/", json={"balance": 0.0}, headers=get_headers())
-    if res.status_code != 200:
-        flash("Erreur lors de la création du compte.")
+    if res.status_code == 200:
+        flash("Nouveau compte bancaire ouvert avec succès !", "success")
+    else:
+        try:
+            detail = res.json().get("detail", "Erreur lors de la création du compte.")
+        except Exception:
+            detail = "Erreur lors de la création du compte."
+        flash(detail, "error")
         
     return redirect("/dashboard")
 
@@ -474,6 +493,10 @@ def create_account():
 def account_details(account_number):
     if "token" not in session:
         return redirect("/")
+        
+    if not is_valid_account_number(account_number):
+        flash("⛔ Format de compte invalide : Le numéro de compte doit comporter exactement 10 chiffres (aucun symbole ou lettre autorisé).", "error")
+        return redirect("/dashboard")
         
     acc_res = requests.get(f"{BASE_API_URL}/accounts/{account_number}", headers=get_headers())
     if acc_res.status_code != 200:
@@ -575,8 +598,13 @@ def withdraw():
 @limiter.limit("10 per minute")
 def process_transfer():
     if "token" not in session: return redirect("/")
-    from_account = request.form.get("from_account")
-    to_account = request.form.get("to_account")
+    from_account = request.form.get("from_account", "").strip()
+    to_account = request.form.get("to_account", "").strip()
+    
+    if not is_valid_account_number(from_account) or not is_valid_account_number(to_account):
+        flash("⛔ Format invalide : Les numéros de compte émetteur et destinataire doivent comporter exactement 10 chiffres (sans lettres ni symboles).", "error")
+        return redirect(f"/account/{from_account}" if from_account else "/dashboard")
+        
     amount = float(request.form.get("amount", 0))
     pin = request.form.get("pin", "")
     otp_code = request.form.get("otp_code", "")
@@ -737,10 +765,14 @@ def beneficiaries():
     if "token" not in session: return redirect("/")
     
     if request.method == "POST":
-        account_number = request.form.get("account_number")
-        alias = request.form.get("alias")
+        account_number = request.form.get("account_number", "").strip()
+        alias = request.form.get("alias", "").strip()
         current_password = request.form.get("current_password")
         otp_code = request.form.get("otp_code")
+        
+        if not is_valid_account_number(account_number):
+            flash("⛔ Format de compte invalide : Le numéro de compte bénéficiaire doit comporter exactement 10 chiffres (sans lettres ni symboles).", "error")
+            return redirect("/beneficiaries")
         
         res = requests.post(f"{BASE_API_URL}/beneficiaries/", json={
             "account_number": account_number,

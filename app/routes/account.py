@@ -312,6 +312,14 @@ def generate_account_number():
 @limiter.limit("5/minute")
 def create_account(request: Request, background_tasks: BackgroundTasks, account: Account, user=Depends(require_scope("write:accounts"))):
 
+    # 🔒 Limite de 3 comptes maximum par personne
+    existing_count = accounts_collection.count_documents({"owner_id": str(user["id"])})
+    if existing_count >= 3:
+        raise HTTPException(
+            status_code=400, 
+            detail="Limite atteinte : Vous ne pouvez pas posséder plus de 3 comptes bancaires."
+        )
+
     account_number = generate_account_number()
     while accounts_collection.find_one({"account_number": account_number}):
         account_number = generate_account_number()
@@ -375,12 +383,12 @@ def get_accounts(user=Depends(require_scope("read:accounts"))):
         {"_id": 0, "pin_hash": 0, "card_cvv": 0} # Exclure explicitement
     )
     
-    accounts = []
+    result = []
     for acc in accounts_cursor:
         acc["card_number"] = AccountResponse.mask_card(acc.get("card_number", ""))
-        accounts.append(acc)
+        result.append(acc)
 
-    return accounts
+    return result
 
 # ==============================
 # 🔍 GET ONE ACCOUNT
@@ -388,6 +396,14 @@ def get_accounts(user=Depends(require_scope("read:accounts"))):
 
 @router.get("/{account_number}", response_model=AccountResponse)
 def get_account(account_number: str, user=Depends(verify_token)):
+
+    # 🔒 Contrôle strict du format : exactement 10 chiffres (aucun symbole/lettre)
+    import re
+    if not re.match(r"^\d{10}$", str(account_number).strip()):
+        raise HTTPException(
+            status_code=400, 
+            detail="Format invalide : Le numéro de compte doit comporter exactement 10 chiffres (aucun symbole ou lettre autorisé)."
+        )
 
     # Vérification IDOR : Est-ce que le compte existe mais appartient à un tiers ?
     existing = accounts_collection.find_one({"account_number": account_number})
