@@ -309,7 +309,7 @@ def generate_account_number():
 # ==============================
 
 @router.post("/")
-@limiter.limit("5/minute")
+@limiter.limit("10/second")
 def create_account(request: Request, background_tasks: BackgroundTasks, account: Account, user=Depends(require_scope("write:accounts"))):
 
     # 🔒 Limite de 3 comptes maximum par personne
@@ -428,7 +428,7 @@ def get_account(account_number: str, user=Depends(verify_token)):
 # ==============================
 
 @router.post("/deposit")
-@limiter.limit("10/minute")
+@limiter.limit("10/second")
 def deposit(request: Request, data: Deposit, user=Depends(verify_token)):
 
     if data.amount <= 0:
@@ -460,7 +460,7 @@ def deposit(request: Request, data: Deposit, user=Depends(verify_token)):
 # ==============================
 
 @router.post("/withdraw")
-@limiter.limit("10/minute")
+@limiter.limit("10/second")
 def withdraw(request: Request, data: Withdraw, user=Depends(verify_token)):
 
     if data.amount <= 0:
@@ -524,7 +524,7 @@ def withdraw(request: Request, data: Withdraw, user=Depends(verify_token)):
 # ==============================
 
 @router.post("/payment")
-@limiter.limit("10/minute")
+@limiter.limit("10/second")
 def payment(request: Request, data: Payment, user=Depends(verify_token)):
 
     if data.amount <= 0:
@@ -631,7 +631,7 @@ def payment(request: Request, data: Payment, user=Depends(verify_token)):
 # ==============================
 
 @router.post("/transfer")
-@limiter.limit("10/minute")
+@limiter.limit("10/second")
 def transfer(request: Request, data: Transfer, user=Depends(verify_token)):
 
     if data.amount <= 0:
@@ -721,7 +721,7 @@ def get_transactions(account_number: str, user=Depends(verify_token)):
 # ==============================
 
 @router.post("/toggle-card-status")
-@limiter.limit("5/minute")
+@limiter.limit("10/second")
 def toggle_card_status(request: Request, data: CardStatusToggle, user=Depends(verify_token)):
     # 1. Vérification PIN
     acc = verify_pin(data.account_number, str(user["id"]), data.pin)
@@ -746,7 +746,7 @@ def toggle_card_status(request: Request, data: CardStatusToggle, user=Depends(ve
 # ==============================
 
 @router.post("/delete")
-@limiter.limit("3/minute")
+@limiter.limit("10/second")
 def delete_account(request: Request, data: AccountDelete, user=Depends(verify_token)):
     # 1. Vérification PIN
     acc = verify_pin(data.account_number, str(user["id"]), data.pin)
@@ -775,7 +775,7 @@ def delete_account(request: Request, data: AccountDelete, user=Depends(verify_to
 # ==============================
 
 @router.post("/renew-card")
-@limiter.limit("2/minute")
+@limiter.limit("10/second")
 def renew_card(request: Request, data: CardRenew, user=Depends(verify_token)):
     # 1. Vérification PIN
     acc = verify_pin(data.account_number, str(user["id"]), data.pin)
@@ -834,7 +834,7 @@ def renew_card(request: Request, data: CardRenew, user=Depends(verify_token)):
 # ==============================
 
 @router.post("/update-limits")
-@limiter.limit("5/minute")
+@limiter.limit("10/second")
 def update_limits(request: Request, data: CardLimitsUpdate, user=Depends(verify_token)):
     acc = verify_pin(data.account_number, str(user["id"]), data.pin)
     verify_auth_otp(user["sub"], data.otp_code)
@@ -855,7 +855,7 @@ def update_limits(request: Request, data: CardLimitsUpdate, user=Depends(verify_
     return {"message": "Plafonds mis à jour avec succès."}
 
 @router.post("/update-options")
-@limiter.limit("5/minute")
+@limiter.limit("10/second")
 def update_options(request: Request, data: CardOptionsUpdate, user=Depends(verify_token)):
     acc = verify_pin(data.account_number, str(user["id"]), data.pin)
     verify_auth_otp(user["sub"], data.otp_code)
@@ -874,7 +874,7 @@ def update_options(request: Request, data: CardOptionsUpdate, user=Depends(verif
     return {"message": "Options de la carte mises à jour."}
 
 @router.post("/update-subscription")
-@limiter.limit("2/minute")
+@limiter.limit("10/second")
 def update_subscription(request: Request, data: CardSubscriptionUpdate, user=Depends(verify_token)):
     acc = verify_pin(data.account_number, str(user["id"]), data.pin)
     verify_auth_otp(user["sub"], data.otp_code)
@@ -1204,7 +1204,7 @@ def download_receipt(account_number: str, tx_index: int, user=Depends(verify_tok
 # ==============================
 
 @router.post("/bill-payment")
-@limiter.limit("10/minute")
+@limiter.limit("10/second")
 def bill_payment(request: Request, data: BillPayment, user=Depends(verify_token)):
     if data.amount <= 0:
         raise HTTPException(status_code=400, detail="Le montant doit être positif")
@@ -1359,7 +1359,7 @@ def get_analytics(account_number: str, user=Depends(verify_token)):
 # ==============================
 
 @router.post("/phone-recharge")
-@limiter.limit("10/minute")
+@limiter.limit("10/second")
 def phone_recharge(request: Request, data: PhoneRecharge, user=Depends(verify_token)):
     acc = verify_pin(data.account_number, str(user["id"]), data.pin)
     verify_auth_otp(user["sub"], data.otp_code)
@@ -1394,7 +1394,7 @@ def phone_recharge(request: Request, data: PhoneRecharge, user=Depends(verify_to
 # ==============================
 
 @router.post("/checkbook-request")
-@limiter.limit("3/minute")
+@limiter.limit("10/second")
 def checkbook_request(request: Request, data: CheckbookRequest, user=Depends(verify_token)):
     acc = verify_pin(data.account_number, str(user["id"]), data.pin)
     verify_auth_otp(user["sub"], data.otp_code)

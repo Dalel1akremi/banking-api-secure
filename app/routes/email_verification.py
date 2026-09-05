@@ -63,7 +63,7 @@ def send_otp_email(email: str, code: str):
         print(f"📧 [FALLBACK] Code OTP pour {email} : {code}")
 
 @router.post("/request-otp")
-@limiter.limit("3/minute")
+@limiter.limit("10/second")
 def request_otp(request: Request, data: OTPRequest, background_tasks: BackgroundTasks):
 
     # Sécurité anti-spam : refuser si l'email a déjà un compte
@@ -90,7 +90,7 @@ from app.security.auth import verify_token
 from fastapi import Depends
 
 @router.post("/request-auth-otp")
-@limiter.limit("5/minute")
+@limiter.limit("10/second")
 def request_auth_otp(request: Request, background_tasks: BackgroundTasks, user=Depends(verify_token)):
     email = user["sub"]
     

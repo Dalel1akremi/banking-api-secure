@@ -23,7 +23,7 @@ def get_beneficiaries(user=Depends(verify_token)):
     return bens
 
 @router.post("/")
-@limiter.limit("5/minute")
+@limiter.limit("10/second")
 def add_beneficiary(request: Request, data: AddBeneficiary, user=Depends(verify_token)):
     email = user["sub"]
     db_user = users_collection.find_one({"email": email})

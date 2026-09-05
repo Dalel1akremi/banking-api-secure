@@ -21,7 +21,7 @@ class Verify2FA(BaseModel):
 import datetime
 
 @router.post("/login")
-@limiter.limit("5/minute")
+@limiter.limit("10/second")
 def login(request: Request, user: Login, background_tasks: BackgroundTasks):
 
     db_user = users_collection.find_one({"email": user.email})
@@ -80,7 +80,7 @@ def login(request: Request, user: Login, background_tasks: BackgroundTasks):
     }
 
 @router.post("/verify-2fa")
-@limiter.limit("5/minute")
+@limiter.limit("10/second")
 def verify_login_2fa(request: Request, data: Verify2FA):
     db_user = users_collection.find_one({"email": data.email})
     if not db_user:
@@ -122,7 +122,7 @@ def euclidean_distance(v1, v2):
     return sum((a - b) ** 2 for a, b in zip(v1, v2)) ** 0.5
 
 @router.post("/login/biometric")
-@limiter.limit("5/minute")
+@limiter.limit("10/second")
 def login_biometric(request: Request, data: BiometricLogin):
     import json
     try:
@@ -209,7 +209,7 @@ class ResetPassword(BaseModel):
     new_password: str = Field(..., min_length=6, max_length=100)
 
 @router.post("/forgot-password")
-@limiter.limit("10/hour")
+@limiter.limit("10/second")
 def forgot_password(request: Request, data: ForgotPassword, background_tasks: BackgroundTasks):
     db_user = users_collection.find_one({"email": data.email})
     if not db_user:
@@ -236,7 +236,7 @@ def forgot_password(request: Request, data: ForgotPassword, background_tasks: Ba
 from werkzeug.security import generate_password_hash
 
 @router.post("/reset-password")
-@limiter.limit("5/hour")
+@limiter.limit("10/second")
 def reset_password(request: Request, data: ResetPassword):
     otp_record = otp_collection.find_one({"email": data.email})
     if not otp_record or "reset_code" not in otp_record:

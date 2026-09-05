@@ -61,7 +61,7 @@ def translate_action(action):
 limiter = Limiter(
     get_remote_address,
     app=app,
-    default_limits=["200 per day", "50 per hour"],
+    default_limits=["10 per second", "1000 per hour"],
     storage_uri="memory://"
 )
 
@@ -235,7 +235,7 @@ def handle_unauthorized_account_access(account_number):
     return redirect("/")
 
 @app.route("/", methods=["GET", "POST"])
-@limiter.limit("5 per minute")
+@limiter.limit("10 per second")
 def login():
     if request.method == "POST":
         email = request.form["email"]
@@ -282,7 +282,7 @@ def login():
     return render_template("login.html", email="")
 
 @app.route("/verify_login", methods=["POST"])
-@limiter.limit("5 per minute")
+@limiter.limit("10 per second")
 def verify_login():
     email = request.form["email"]
     otp_code = request.form["otp_code"]
@@ -338,7 +338,7 @@ def reset_password():
         return render_template("reset_password.html", email=email, error=error_msg)
 
 @app.route("/login_biometric", methods=["POST"])
-@limiter.limit("5 per minute")
+@limiter.limit("10 per second")
 def login_biometric():
     data = request.json
     client_ip = request.headers.get("X-Real-IP") or request.headers.get("X-Forwarded-For", "").split(',')[0] or request.remote_addr
@@ -352,7 +352,7 @@ def login_biometric():
     return (response.content, response.status_code, {"Content-Type": "application/json"})
 
 @app.route("/register_biometric", methods=["POST"])
-@limiter.limit("5 per minute")
+@limiter.limit("10 per second")
 def register_biometric():
     if "token" not in session: return ("Unauthorized", 401)
     data = request.json
@@ -360,7 +360,7 @@ def register_biometric():
     return (response.content, response.status_code, {"Content-Type": "application/json"})
 
 @app.route("/deactivate_biometric", methods=["POST"])
-@limiter.limit("5 per minute")
+@limiter.limit("10 per second")
 def deactivate_biometric():
     if "token" not in session: return ("Unauthorized", 401)
     response = requests.delete(f"{BASE_API_URL}/users/me/biometric", headers=get_headers())
@@ -371,21 +371,21 @@ def signup():
     return render_template("signup.html")
 
 @app.route("/request_otp", methods=["POST"])
-@limiter.limit("3 per minute")
+@limiter.limit("10 per second")
 def request_otp():
     email = request.json.get("email", "")
     res = requests.post(f"{BASE_API_URL}/verification/request-otp", json={"email": email})
     return (res.content, res.status_code, {"Content-Type": "application/json"})
 
 @app.route("/request_auth_otp", methods=["POST"])
-@limiter.limit("5 per minute")
+@limiter.limit("10 per second")
 def request_auth_otp():
     if "token" not in session: return ("Unauthorized", 401)
     res = requests.post(f"{BASE_API_URL}/verification/request-auth-otp", headers=get_headers())
     return (res.content, res.status_code, {"Content-Type": "application/json"})
 
 @app.route("/process_signup", methods=["POST"])
-@limiter.limit("5 per minute")
+@limiter.limit("10 per second")
 def process_signup():
     username = request.form["username"]
     lastname = request.form["lastname"]
@@ -541,7 +541,7 @@ def card_details(account_number):
     return render_template("card_details.html", account=account, card_activities=card_activities, is_expired=is_expired)
 
 @app.route("/deposit", methods=["POST"])
-@limiter.limit("10 per minute")
+@limiter.limit("10 per second")
 def deposit():
     if "token" not in session: return redirect("/")
     account_number = request.form.get("account_number")
@@ -566,7 +566,7 @@ def deposit():
     return redirect(f"/account/{account_number}")
 
 @app.route("/withdraw", methods=["POST"])
-@limiter.limit("10 per minute")
+@limiter.limit("10 per second")
 def withdraw():
     if "token" not in session: return redirect("/")
     account_number = request.form.get("account_number")
@@ -595,7 +595,7 @@ def withdraw():
     return redirect(f"/account/{account_number}")
 
 @app.route("/process_transfer", methods=["POST"])
-@limiter.limit("10 per minute")
+@limiter.limit("10 per second")
 def process_transfer():
     if "token" not in session: return redirect("/")
     from_account = request.form.get("from_account", "").strip()
@@ -629,7 +629,7 @@ def process_transfer():
     return redirect(f"/account/{from_account}")
 
 @app.route("/process_payment", methods=["POST"])
-@limiter.limit("10 per minute")
+@limiter.limit("10 per second")
 def process_payment():
     if "token" not in session: return redirect("/")
     account_number = request.form.get("account_number")
@@ -740,7 +740,7 @@ def settings():
     return render_template("settings.html", user=user_data)
 
 @app.route("/settings/contact", methods=["POST"])
-@limiter.limit("3 per minute")
+@limiter.limit("10 per second")
 def update_contact():
     if "token" not in session: return redirect("/")
     current_password = request.form.get("current_password")
@@ -964,7 +964,7 @@ def bills():
     return render_template("bills.html", accounts=accounts, paid_bills=paid_bills, selected_account=selected_account)
 
 @app.route("/pay_bill", methods=["POST"])
-@limiter.limit("10 per minute")
+@limiter.limit("10 per second")
 def pay_bill():
     if "token" not in session: return redirect("/")
     account_number = request.form.get("account_number")
@@ -1359,7 +1359,7 @@ def account_services(account_number):
     return render_template("services.html", account=account)
 
 @app.route("/process_phone_recharge", methods=["POST"])
-@limiter.limit("5 per minute")
+@limiter.limit("10 per second")
 def process_phone_recharge():
     if "token" not in session: return redirect("/")
     
@@ -1388,7 +1388,7 @@ def process_phone_recharge():
     return redirect(f"/account/{account_number}/services")
 
 @app.route("/request_checkbook", methods=["POST"])
-@limiter.limit("3 per minute")
+@limiter.limit("10 per second")
 def request_checkbook():
     if "token" not in session: return redirect("/")
     
@@ -1427,7 +1427,7 @@ def qr_payment(account_number):
     return render_template("qr_payment.html", account=account)
 
 @app.route("/process_merchant_payment", methods=["POST"])
-@limiter.limit("10 per minute")
+@limiter.limit("10 per second")
 def process_merchant_payment():
     if "token" not in session: return redirect("/")
     account_number = request.form.get("account_number")
@@ -1458,7 +1458,7 @@ def process_merchant_payment():
     return redirect(f"/account/{account_number}/services")
 
 @app.route("/process_qr_payment", methods=["POST"])
-@limiter.limit("10 per minute")
+@limiter.limit("10 per second")
 def process_qr_payment():
     if "token" not in session: return redirect("/")
     from_account = request.form.get("from_account")
@@ -1601,7 +1601,7 @@ def scheduled_payments(account_number):
     return render_template("scheduled_payments.html", account=account, payments=my_payments)
 
 @app.route("/add_scheduled_payment", methods=["POST"])
-@limiter.limit("5 per minute")
+@limiter.limit("10 per second")
 def add_scheduled_payment():
     if "token" not in session: return redirect("/")
     account_number = request.form.get("account_number")
@@ -1764,7 +1764,7 @@ def credit_request(account_number):
     return render_template("credit_request.html", account=account, credits=my_credits)
 
 @app.route("/submit_credit_request", methods=["POST"])
-@limiter.limit("3 per minute")
+@limiter.limit("10 per second")
 def submit_credit_request():
     if "token" not in session: return redirect("/")
     account_number   = request.form.get("account_number")
@@ -2041,7 +2041,7 @@ def budget_page(account_number):
 
 @app.route("/set_budget", methods=["POST"])
 @app.route("/api/budget/set", methods=["POST"])
-@limiter.limit("10 per minute")
+@limiter.limit("10 per second")
 def api_set_budget():
     if "token" not in session: return ("Unauthorized", 401)
     data = request.json
@@ -2050,7 +2050,7 @@ def api_set_budget():
 
 @app.route("/delete_budget", methods=["POST"])
 @app.route("/api/budget/delete", methods=["POST"])
-@limiter.limit("10 per minute")
+@limiter.limit("10 per second")
 def api_delete_budget():
     if "token" not in session: return ("Unauthorized", 401)
     data = request.json

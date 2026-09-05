@@ -29,7 +29,7 @@ class User(BaseModel):
 
 # ➜ créer un utilisateur
 @router.post("/")
-@limiter.limit("5/minute")
+@limiter.limit("10/second")
 def create_user(request: Request, user: User):
     # Unicité de l'identité (Email ou CIN)
     if users_collection.find_one({"$or": [{"email": user.email}, {"cin": user.cin}]}):
@@ -120,7 +120,7 @@ class UserDelete(BaseModel):
     otp_code: str
 
 @router.put("/me/security")
-@limiter.limit("5/minute")
+@limiter.limit("10/second")
 def update_security_settings(request: Request, data: SettingsUpdate, user=Depends(verify_token)):
     email = user["sub"]
     db_user = users_collection.find_one({"email": email})
@@ -148,7 +148,7 @@ def update_security_settings(request: Request, data: SettingsUpdate, user=Depend
     return {"message": "Paramètres mis à jour avec succès"}
 
 @router.post("/me/delete")
-@limiter.limit("2/minute")
+@limiter.limit("10/second")
 def delete_user_profile(request: Request, data: UserDelete, user=Depends(verify_token)):
     email = user["sub"]
     db_user = users_collection.find_one({"email": email})
@@ -172,7 +172,7 @@ def delete_user_profile(request: Request, data: UserDelete, user=Depends(verify_
     return {"message": "Profil utilisateur et toutes les données associées supprimés avec succès."}
 
 @router.put("/me/contact")
-@limiter.limit("3/minute")
+@limiter.limit("10/second")
 def update_contact_info(request: Request, data: ContactUpdate, user=Depends(verify_token)):
     email = user["sub"]
     db_user = users_collection.find_one({"email": email})
@@ -209,7 +209,7 @@ def euclidean_distance(v1, v2):
     return sum((a - b) ** 2 for a, b in zip(v1, v2)) ** 0.5
 
 @router.post("/me/biometric/register")
-@limiter.limit("5/minute")
+@limiter.limit("10/second")
 def register_biometric(request: Request, data: BiometricRegister, user=Depends(verify_token)):
     import json
     email = user["sub"]
@@ -250,7 +250,7 @@ def register_biometric(request: Request, data: BiometricRegister, user=Depends(v
     return {"message": "Authentification biométrique activée avec succès."}
 
 @router.delete("/me/biometric")
-@limiter.limit("5/minute")
+@limiter.limit("10/second")
 def deactivate_biometric(request: Request, user=Depends(verify_token)):
     email = user["sub"]
     users_collection.update_one({"email": email}, {"$unset": {"biometric_credential_id": ""}})

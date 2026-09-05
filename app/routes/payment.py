@@ -10,7 +10,7 @@ class Payment(BaseModel):
     amount: float
 
 @router.post("/")
-@limiter.limit("10/minute")
+@limiter.limit("10/second")
 def make_payment(request: Request, payment: Payment, user=Depends(verify_token)):
     sender = user["sub"]  
     return {

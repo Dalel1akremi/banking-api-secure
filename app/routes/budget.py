@@ -21,7 +21,7 @@ class BudgetDelete(BaseModel):
     category: str
 
 @router.post("/")
-@limiter.limit("10/minute")
+@limiter.limit("10/second")
 def set_budget(request: Request, data: BudgetItem, user=Depends(verify_token)):
     """Crée ou met à jour un budget mensuel pour une catégorie."""
     if data.category not in CATEGORIES:
@@ -132,7 +132,7 @@ def get_budgets(account_number: str, user=Depends(verify_token)):
     }
 
 @router.delete("/")
-@limiter.limit("10/minute")
+@limiter.limit("10/second")
 def delete_budget(request: Request, data: BudgetDelete, user=Depends(verify_token)):
     """Supprime un budget mensuel."""
     result = budgets_collection.delete_one({
