@@ -70,6 +70,7 @@ BASE_API_URL = os.getenv("BASE_API_URL", "http://127.0.0.1:8000")
 
 # --- Setup Security Logger ---
 import logging
+import re
 logging.basicConfig(
     filename="security_audit.log",
     level=logging.INFO,
@@ -77,6 +78,75 @@ logging.basicConfig(
     datefmt="%Y-%m-%d %H:%M:%S"
 )
 logger = logging.getLogger("frontend_audit")
+
+# ==========================================
+# 🛡️ GLOBAL XSS FIREWALL (OWASP A03: INJECTION)
+# ==========================================
+XSS_PATTERNS = [
+    r"<\s*script[^>]*>",
+    r"<\s*/\s*script\s*>",
+    r"javascript\s*:",
+    r"vbscript\s*:",
+    r"data\s*:\s*text/html",
+    r"onload\s*=",
+    r"onerror\s*=",
+    r"onclick\s*=",
+    r"onmouseover\s*=",
+    r"onfocus\s*=",
+    r"onblur\s*=",
+    r"<\s*iframe[^>]*>",
+    r"<\s*object[^>]*>",
+    r"<\s*embed[^>]*>",
+    r"<\s*svg[^>]*",
+    r"document\.cookie",
+    r"window\.location",
+    r"alert\s*\(",
+    r"prompt\s*\(",
+    r"confirm\s*\("
+]
+XSS_REGEX = re.compile("|".join(XSS_PATTERNS), re.IGNORECASE)
+
+def contains_xss(val):
+    if not val:
+        return False
+    if isinstance(val, str):
+        return bool(XSS_REGEX.search(val))
+    if isinstance(val, list):
+        return any(contains_xss(item) for item in val)
+    if isinstance(val, dict):
+        return any(contains_xss(k) or contains_xss(v) for k, v in val.items())
+    return False
+
+@app.before_request
+def global_xss_filter():
+    client_ip = request.headers.get("X-Real-IP") or request.headers.get("X-Forwarded-For", "").split(',')[0] or request.remote_addr
+    
+    # 1. Vérification des requêtes POST / PUT / PATCH (Formulaires & JSON)
+    if request.method in ["POST", "PUT", "PATCH"]:
+        if request.form:
+            for key, val in request.form.items():
+                if contains_xss(val) or contains_xss(key):
+                    logger.warning(f"SECURITY_ALERT | XSS_BLOCKED | IP: {client_ip} | Endpoint: {request.path} | Field: {key} | Value: {val}")
+                    flash("⛔ Alerte de sécurité (XSS) : Tentative d'injection de script malveillant détectée. Votre demande a été immédiatement bloquée.", "error")
+                    target = request.referrer or "/dashboard"
+                    return redirect(target)
+        
+        if request.is_json:
+            try:
+                data = request.get_json(silent=True)
+                if data and contains_xss(data):
+                    logger.warning(f"SECURITY_ALERT | XSS_BLOCKED_JSON | IP: {client_ip} | Endpoint: {request.path}")
+                    return {"detail": "⛔ Tentative d'injection XSS détectée et bloquée."}, 400
+            except:
+                pass
+
+    # 2. Vérification des paramètres GET dans l'URL
+    if request.args:
+        for key, val in request.args.items():
+            if contains_xss(val) or contains_xss(key):
+                logger.warning(f"SECURITY_ALERT | XSS_BLOCKED_GET | IP: {client_ip} | Param: {key} | Value: {val}")
+                flash("⛔ Alerte de sécurité (XSS) : Paramètre URL suspect détecté.", "error")
+                return redirect("/")
 
 @app.errorhandler(429)
 def ratelimit_handler(e):

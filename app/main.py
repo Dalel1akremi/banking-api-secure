@@ -91,6 +91,16 @@ async def combined_security_middleware(request: Request, call_next):
             content={"detail": "Votre IP est actuellement bloquée. Veuillez contacter notre agence pour voir le problème."}
         )
     
+    # --- FIREWALL APPLICATIF : Détection XSS (OWASP A03) ---
+    import re
+    query_str = str(request.query_params)
+    if re.search(r"<\s*script|javascript:|onerror\s*=|onload\s*=", query_str, re.IGNORECASE):
+        logger.warning(f"SECURITY_ALERT | XSS_BLOCKED_API | IP: {client_ip} | PATH: {request.url.path}")
+        return JSONResponse(
+            status_code=400,
+            content={"detail": "⛔ Tentative d'injection XSS détectée et bloquée par l'API."}
+        )
+    
     # Pass the request down the chain
     response = await call_next(request)
     
