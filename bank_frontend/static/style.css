@@ -213,13 +213,41 @@ tr:hover { background: rgba(255,255,255,0.02); }
 
 /* Alert / Flash */
 .alert {
-    padding: 15px;
+    padding: 12px 18px;
     border-radius: 8px;
     margin-bottom: 20px;
     font-size: 14px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 14px;
+    text-align: left;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+    animation: fadeIn 0.25s ease;
 }
-.alert-error { background: rgba(255, 77, 79, 0.1); color: var(--danger); border: 1px solid rgba(255, 77, 79, 0.3); }
-.alert-success { background: rgba(0, 230, 118, 0.1); color: var(--success); border: 1px solid rgba(0, 230, 118, 0.3); }
+.alert-error { background: rgba(255, 77, 79, 0.14); color: #ff6b6b; border: 1px solid rgba(255, 77, 79, 0.4); }
+.alert-success { background: rgba(0, 230, 118, 0.14); color: #00e676; border: 1px solid rgba(0, 230, 118, 0.4); }
+
+.alert .alert-btn-ok {
+    background: rgba(255, 255, 255, 0.14);
+    border: 1px solid currentColor;
+    color: inherit;
+    padding: 5px 14px;
+    border-radius: 6px;
+    font-weight: 700;
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+    margin-left: auto;
+    flex-shrink: 0;
+    outline: none;
+}
+.alert .alert-btn-ok:hover {
+    background: currentColor;
+    color: #000;
+    transform: scale(1.05);
+}
 
 /* Tabs */
 .tabs { display: flex; gap: 10px; margin-bottom: 20px; }

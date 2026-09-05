@@ -96,7 +96,10 @@
         {% with messages = get_flashed_messages(with_categories=true) %}
           {% if messages %}
             {% for category, message in messages %}
-              <div class="alert {% if category == 'success' %}alert-success{% else %}alert-error{% endif %}">{{ message }}</div>
+              <div class="alert {% if category == 'success' %}alert-success{% else %}alert-error{% endif %}">
+                  <span>{{ message }}</span>
+                  <button type="button" class="alert-btn-ok" onclick="this.closest('.alert').remove()">OK</button>
+              </div>
             {% endfor %}
           {% endif %}
         {% endwith %}
@@ -157,15 +160,6 @@
 </div>
 
 <script>
-    // Auto-hide des messages flash
-    setTimeout(() => {
-        document.querySelectorAll('.alert').forEach(flash => {
-            flash.style.transition = 'opacity 0.5s ease';
-            flash.style.opacity = '0';
-            setTimeout(() => flash.remove(), 500);
-        });
-    }, 4000);
-
     let timerInterval = null;
 
     // ① Clic sur "S'inscrire" → envoyer automatiquement l'OTP, puis ouvrir le modal
@@ -263,6 +257,7 @@
         if (e.key === 'Enter') confirmOTP();
     });
 </script>
+<script src="{{ url_for('static', filename='alerts.js') }}"></script>
 
 </body>
 </html>

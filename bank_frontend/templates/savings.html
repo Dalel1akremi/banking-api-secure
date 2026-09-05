@@ -110,7 +110,10 @@
       {% if messages %}
         <div id="flash-container">
         {% for category, message in messages %}
-          <div class="alert alert-{{ 'success' if category == 'success' else 'error' }}">{{ message }}</div>
+          <div class="alert alert-{{ 'success' if category == 'success' else 'error' }}">
+              <span>{{ message }}</span>
+              <button type="button" class="alert-btn-ok" onclick="this.closest('.alert').remove()">OK</button>
+          </div>
         {% endfor %}
         </div>
       {% endif %}

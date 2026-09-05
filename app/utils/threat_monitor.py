@@ -27,10 +27,10 @@ def schedule_auto_block(ip: str):
                 "auto_remediation", 
                 "HIGH", 
                 ip, 
-                f"Action système automatique : L'IP {ip} a été bloquée après 30s.", 
+                f"Action système automatique : L'IP {ip} a été bloquée pendant 15 minutes.", 
                 source="System"
             )
-            print(f"[ThreatMonitor] Auto-blocked IP: {ip}")
+            print(f"[ThreatMonitor] Auto-blocked IP: {ip} for 15 minutes")
     
     timer = threading.Timer(30.0, apply_block)
     timer.daemon = True
@@ -130,6 +130,16 @@ def _analyze_line(line: str):
                 add_alert("brute_force", "CRITICAL", ip, msg, source="HTTP Log")
                 schedule_auto_block(ip)
                 
+                # ✅ Bloquer le compte en DB si l'email est identifié
+                if last_email:
+                    blocked_user = users_collection.find_one({"email": last_email})
+                    if blocked_user:
+                        users_collection.update_one(
+                            {"email": last_email},
+                            {"$set": {"status": "blocked", "block_reason": f"Brute force détecté depuis {ip}"}}
+                        )
+                        print(f"[ThreatMonitor] Compte {last_email} bloqué en DB suite à brute force.")
+                
                 # Notify Admin
                 _send_email_alert("Alerte Brute Force - Administrateur", msg)
                 print(f"[ThreatMonitor] Sent Admin Alert for Brute Force.")
@@ -143,26 +153,22 @@ def _analyze_line(line: str):
                         user_msg = f"""
                         Bonjour,
                         <br><br>
-                        Notre système de sécurité a bloqué plusieurs tentatives de connexion avec un mot de passe erroné sur votre compte depuis l'adresse IP {ip}.
+                        Notre système de sécurité a détecté plusieurs tentatives de connexion avec un mot de passe erroné sur votre compte depuis l'adresse IP {ip}.
                         <br><br>
-                        <strong>S'agit-il bien de vous ?</strong>
-                        <br>
-                        Si c'est le cas et que vous avez oublié votre mot de passe, ne vous inquiétez pas. Vous pouvez lancer la procédure de récupération :
-                        <ul>
-                            <li>Rendez-vous sur la page de connexion.</li>
-                            <li>Cliquez sur "Mot de passe oublié".</li>
-                            <li>Suivez les instructions pour réinitialiser votre accès en toute sécurité.</li>
-                        </ul>
-                        <br>
-                        <strong>Si ce n'est pas vous</strong>, votre compte pourrait être la cible d'une attaque malveillante. L'administrateur a déjà été alerté et votre compte est actuellement sous surveillance. Aucune action n'est requise de votre part tant que vous ne partagez pas vos codes secrets.
+                        ⚠️ <strong>Votre compte a été bloqué automatiquement</strong> en raison de cette activité suspecte.
+                        <br><br>
+                        Pour récupérer l'accès à votre compte, veuillez contacter l'administrateur de la plateforme.
+                        <br><br>
+                        <strong>Si ce n'était pas vous</strong>, votre compte est sous surveillance. Ne partagez jamais vos identifiants.
                         """
-                        _send_email_alert("Alerte de Sécurité : Tentatives de connexion sur votre compte", user_msg, recipient=last_email)
+                        _send_email_alert("Compte bloqué : Tentatives de connexion suspectes", user_msg, recipient=last_email)
                     else:
                         print(f"[ThreatMonitor] User NOT found in DB for email: '{last_email}'")
                 else:
                     print(f"[ThreatMonitor] No valid email found to notify user.")
                 
                 _ip_auth_failures[ip] = []
+
 
         elif status == 403:
             _ip_forbidden[ip].append(now_str)
@@ -180,12 +186,37 @@ def _analyze_line(line: str):
     if match and int(match.group("status")) == 429 and match.group("level") == "WARNING":
         ip = match.group("ip")
         path = match.group("path")
+        email = match.group("email")
+        if email: email = email.strip()
         _ip_rate_limits[ip].append(now_str)
         if len(_ip_rate_limits[ip]) >= RATE_ABUSE_THRESHOLD:
             count = len(_ip_rate_limits[ip])
             msg = f"Abus de débit (Rate Limit) depuis {ip} : {count} dépassements de quota sur {path}."
+            if email:
+                msg += f" Compte concerné : {email}"
             add_alert("rate_limit_abuse", "HIGH", ip, msg, source="HTTP Log")
             schedule_auto_block(ip)
+            
+            # ✅ Bloquer le compte de l'utilisateur si email identifié
+            if email:
+                target_user = users_collection.find_one({"email": email})
+                if target_user and not target_user.get("is_admin"):
+                    users_collection.update_one(
+                        {"email": email},
+                        {"$set": {"status": "blocked", "block_reason": f"Abus de requêtes (Rate Limit) sur {path}"}}
+                    )
+                    user_msg = f"""
+                    Bonjour,
+                    <br><br>
+                    Notre système de protection de l'API a détecté un dépassement du quota de requêtes autorisé depuis l'adresse IP {ip} sur la ressource {path}.
+                    <br><br>
+                    ⚠️ <strong>Votre compte a été bloqué temporairement par mesure de sécurité</strong>.
+                    <br><br>
+                    Pour réactiver votre compte, veuillez contacter un administrateur bancaire.
+                    <br><br>
+                    Cordialement,<br>L'équipe Sécurité
+                    """
+                    _send_email_alert("Compte bloqué : Dépassement de quota (Rate Limit)", user_msg, recipient=email)
             
             # Notify Admin for Rate Limit
             _send_email_alert("Alerte Rate Limit - Administrateur", msg)

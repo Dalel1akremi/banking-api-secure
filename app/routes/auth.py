@@ -12,7 +12,7 @@ router = APIRouter(prefix="/auth", tags=["Auth"])
 
 class Login(BaseModel):
     email: EmailStr
-    password: str = Field(..., min_length=6, max_length=100)
+    password: str
 
 class Verify2FA(BaseModel):
     email: EmailStr
@@ -27,9 +27,13 @@ def login(request: Request, user: Login, background_tasks: BackgroundTasks):
     db_user = users_collection.find_one({"email": user.email})
 
     if db_user:
-        locked_until = db_user.get("locked_until")
-        if locked_until and datetime.datetime.utcnow() < locked_until:
-            raise HTTPException(status_code=403, detail="Compte verrouille suite a trop de tentatives echouees. Reesayez dans 15 minutes.")
+        # ✅ Vérification du statut du compte (bloqué par l'admin ou après brute force)
+        user_status = db_user.get("status", "active")
+        if user_status == "blocked":
+            raise HTTPException(
+                status_code=403,
+                detail="Votre compte est bloqué. Veuillez contacter l'administrateur pour le débloquer."
+            )
 
     db_password = db_user.get("password", "") if db_user else ""
     try:
@@ -42,8 +46,8 @@ def login(request: Request, user: Login, background_tasks: BackgroundTasks):
             failed_attempts = db_user.get("failed_login_attempts", 0) + 1
             update_data = {"failed_login_attempts": failed_attempts}
             if failed_attempts >= 3:
-                # Réduit à 1 minute pour faciliter les tests et démos
-                update_data["locked_until"] = datetime.datetime.utcnow() + datetime.timedelta(minutes=1)
+                # ✅ Blocage permanent jusqu'à intervention de l'administrateur
+                update_data["status"] = "blocked"
             users_collection.update_one({"_id": db_user["_id"]}, {"$set": update_data})
 
         # Set target email for the middleware to log
@@ -51,8 +55,11 @@ def login(request: Request, user: Login, background_tasks: BackgroundTasks):
         raise HTTPException(status_code=401, detail="Invalid email or password")
 
     # Reinitialiser les tentatives si succes
-    if db_user.get("failed_login_attempts", 0) > 0 or db_user.get("locked_until"):
-        users_collection.update_one({"_id": db_user["_id"]}, {"$unset": {"locked_until": ""}, "$set": {"failed_login_attempts": 0}})
+    if db_user.get("failed_login_attempts", 0) > 0:
+        users_collection.update_one(
+            {"_id": db_user["_id"]},
+            {"$set": {"failed_login_attempts": 0}}
+        )
 
     # Gen OTP for 2FA
     code = str(random.randint(100000, 999999))
@@ -173,6 +180,14 @@ def login_biometric(request: Request, data: BiometricLogin):
         dist = min_dist # pour le log
 
     # Success! Create token
+    # ✅ Vérifier le statut du compte avant d'accorder l'accès biométrique
+    user_status = db_user.get("status", "active")
+    if user_status == "blocked":
+        raise HTTPException(
+            status_code=403,
+            detail="Votre compte est bloqué. Veuillez contacter l'administrateur pour le débloquer."
+        )
+
     is_admin = db_user.get("is_admin", False)
     token = create_access_token({"sub": db_user["email"], "id": str(db_user["_id"]), "is_admin": is_admin})
     

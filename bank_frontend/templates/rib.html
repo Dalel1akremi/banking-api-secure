@@ -190,7 +190,10 @@
         {% if messages %}
         <div id="flash-container">
             {% for category, message in messages %}
-            <div class="alert {{ 'alert-success' if category == 'success' else 'alert-error' }}">{{ message }}</div>
+            <div class="alert {{ 'alert-success' if category == 'success' else 'alert-error' }}">
+                <span>{{ message }}</span>
+                <button type="button" class="alert-btn-ok" onclick="this.closest('.alert').remove()">OK</button>
+            </div>
             {% endfor %}
         </div>
         {% endif %}
@@ -272,14 +275,6 @@
                 alert('Impossible de copier. Veuillez sélectionner manuellement.');
             });
         }
-
-        setTimeout(() => {
-            document.querySelectorAll('.alert').forEach(el => {
-                el.style.transition = 'opacity 0.5s';
-                el.style.opacity = '0';
-                setTimeout(() => el.remove(), 500);
-            });
-        }, 4000);
     </script>
     <script src="{{ url_for('static', filename='chatbot.js') }}"></script>
     <script src="{{ url_for('static', filename='inactivity.js') }}"></script>

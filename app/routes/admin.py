@@ -142,9 +142,14 @@ def update_user_status(user_id: str, data: StatusUpdate, background_tasks: Backg
         raise HTTPException(status_code=400, detail="Code OTP invalide")
     otp_collection.delete_one({"_id": otp["_id"]})
 
+    update_ops = {"$set": {"status": data.status}}
+    if data.status in ["active", "unblocked"]:
+        update_ops["$set"]["failed_login_attempts"] = 0
+        update_ops["$unset"] = {"locked_until": "", "block_reason": ""}
+
     result = users_collection.update_one(
         {"_id": obj_id},
-        {"$set": {"status": data.status}}
+        update_ops
     )
     # Send Notification Email
     target_user = users_collection.find_one({"_id": obj_id})
@@ -237,7 +242,7 @@ def get_all_transactions(admin=Depends(verify_admin)):
 # FIREWALL APPLICATIF (SIEM)
 # ==========================================
 
-from app.utils.security_state import block_ip
+from app.utils.security_state import block_ip, unblock_ip, get_blocked_ips
 from app.utils.alert_store import add_alert
 
 class IPBlockRequest(BaseModel):
@@ -258,4 +263,95 @@ def manual_block_ip(data: IPBlockRequest, admin=Depends(verify_admin)):
     )
     
     return {"message": f"IP {ip} bloquée avec succès."}
+
+
+@router.post("/unblock-ip")
+def manual_unblock_ip(data: IPBlockRequest, admin=Depends(verify_admin)):
+    ip = data.ip
+    unblock_ip(ip)
+    
+    # Générer une alerte confirmant le déblocage
+    add_alert(
+        "admin_action",
+        "MEDIUM",
+        ip,
+        f"L'administrateur a débloqué manuellement l'IP {ip}.",
+        source="Admin Dashboard"
+    )
+    
+    return {"message": f"IP {ip} débloquée avec succès."}
+
+
+@router.get("/blocked-ips")
+def list_blocked_ips(admin=Depends(verify_admin)):
+    """Retourne la liste de toutes les IPs actuellement bloquées."""
+    return {"blocked_ips": get_blocked_ips()}
+
+
+class UserUnblockRequest(BaseModel):
+    user_id: str = None
+    email: str = None
+
+@router.get("/blocked-users")
+def list_blocked_users(admin=Depends(verify_admin)):
+    """Retourne la liste de tous les utilisateurs actuellement bloqués."""
+    users = list(users_collection.find({"status": "blocked"}, {"password": 0, "password_hash": 0, "biometric_credential_id": 0}))
+    for u in users:
+        u["id"] = str(u["_id"])
+        del u["_id"]
+    return {"blocked_users": users}
+
+
+@router.post("/unblock-user")
+def manual_unblock_user(data: UserUnblockRequest, background_tasks: BackgroundTasks, admin=Depends(verify_admin)):
+    """Débloque immédiatement le compte d'un utilisateur sans nécessiter de code OTP."""
+    query = {}
+    if data.user_id:
+        try:
+            query["_id"] = ObjectId(data.user_id)
+        except Exception:
+            raise HTTPException(status_code=400, detail="ID Invalide")
+    elif data.email:
+        query["email"] = data.email
+    else:
+        raise HTTPException(status_code=400, detail="Identifiant ou email utilisateur requis")
+
+    user = users_collection.find_one(query)
+    if not user:
+        raise HTTPException(status_code=404, detail="Utilisateur introuvable")
+
+    users_collection.update_one(
+        {"_id": user["_id"]},
+        {
+            "$set": {"status": "active", "failed_login_attempts": 0},
+            "$unset": {"locked_until": "", "block_reason": ""}
+        }
+    )
+
+    # Alerte SIEM confirmant l'action de déblocage
+    add_alert(
+        "admin_action",
+        "LOW",
+        "127.0.0.1",
+        f"L'administrateur a débloqué le compte utilisateur : {user.get('email')}.",
+        source="Admin Dashboard"
+    )
+
+    # Envoi de l'email de réactivation
+    admin_user = users_collection.find_one({"email": admin["sub"]})
+    background_tasks.add_task(
+        send_admin_action_email,
+        user["email"],
+        f"{user.get('username', '')} {user.get('lastname', '')}",
+        "active",
+        "Votre problème est résolu. Votre compte a été réactivé par l'administrateur.",
+        {
+            "name": admin_user.get("username", "Admin") if admin_user else "Admin",
+            "lastname": admin_user.get("lastname", "") if admin_user else "",
+            "email": admin_user.get("email", "") if admin_user else admin["sub"]
+        }
+    )
+
+    return {"message": f"Utilisateur {user.get('email')} débloqué avec succès."}
+
 

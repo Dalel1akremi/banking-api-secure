@@ -44,9 +44,15 @@
         <div id="flash-container">
         {% for category, message in messages %}
           {% if category == 'success' %}
-          <div class="alert alert-success">{{ message }}</div>
+          <div class="alert alert-success">
+              <span>{{ message }}</span>
+              <button type="button" class="alert-btn-ok" onclick="this.closest('.alert').remove()">OK</button>
+          </div>
           {% else %}
-          <div class="alert alert-error">{{ message }}</div>
+          <div class="alert alert-error">
+              <span>{{ message }}</span>
+              <button type="button" class="alert-btn-ok" onclick="this.closest('.alert').remove()">OK</button>
+          </div>
           {% endif %}
         {% endfor %}
         </div>
@@ -83,16 +89,6 @@
     </div>
 
 </div>
-
-<script>
-    setTimeout(() => {
-        document.querySelectorAll('.alert').forEach(flash => {
-            flash.style.transition = 'opacity 0.5s ease';
-            flash.style.opacity = '0';
-            setTimeout(() => flash.remove(), 500);
-        });
-    }, 4000);
-</script>
 
 <script src="{{ url_for('static', filename='chatbot.js') }}"></script>
 <script src="{{ url_for('static', filename='inactivity.js') }}"></script>

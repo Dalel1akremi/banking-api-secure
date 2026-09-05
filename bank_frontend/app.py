@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, session, flash, Response, send_file, url_for
+from flask import Flask, render_template, request, redirect, session, flash, Response, send_file, url_for, stream_with_context
 import requests
 from fpdf import FPDF
 from io import BytesIO
@@ -122,10 +122,16 @@ def login():
         email = request.form["email"]
         password = request.form["password"]
 
+        client_ip = request.headers.get("X-Real-IP") or request.headers.get("X-Forwarded-For", "").split(',')[0] or request.remote_addr
+        req_headers = {}
+        if client_ip:
+            req_headers["X-Real-IP"] = client_ip
+            req_headers["X-Forwarded-For"] = client_ip
+
         response = requests.post(f"{BASE_API_URL}/auth/login", json={
             "email": email,
             "password": password
-        })
+        }, headers=req_headers)
 
         if response.status_code == 200:
             data = response.json()
@@ -135,7 +141,24 @@ def login():
             session["token"] = data.get("access_token")
             return redirect("/dashboard")
         else:
-            return render_template("login.html", error="Invalid credentials", email=email)
+            error_message = "Adresse e-mail ou mot de passe incorrect."
+            try:
+                err_json = response.json()
+                detail = err_json.get("detail")
+                if isinstance(detail, str):
+                    if detail.lower() in ["invalid email or password", "invalid credentials"]:
+                        error_message = "Adresse e-mail ou mot de passe incorrect."
+                    else:
+                        error_message = detail
+                elif isinstance(detail, list) and len(detail) > 0:
+                    field = detail[0].get("loc", ["", ""])[-1]
+                    if field == "email":
+                        error_message = "Format d'adresse e-mail invalide."
+                    else:
+                        error_message = "Adresse e-mail ou mot de passe incorrect."
+            except Exception:
+                pass
+            return render_template("login.html", error=error_message, email=email)
 
     return render_template("login.html", email="")
 
@@ -199,7 +222,12 @@ def reset_password():
 @limiter.limit("5 per minute")
 def login_biometric():
     data = request.json
-    response = requests.post(f"{BASE_API_URL}/auth/login/biometric", json=data)
+    client_ip = request.headers.get("X-Real-IP") or request.headers.get("X-Forwarded-For", "").split(',')[0] or request.remote_addr
+    headers = {"Content-Type": "application/json"}
+    if client_ip:
+        headers["X-Real-IP"] = client_ip
+        headers["X-Forwarded-For"] = client_ip
+    response = requests.post(f"{BASE_API_URL}/auth/login/biometric", json=data, headers=headers)
     if response.status_code == 200:
         session["token"] = response.json()["access_token"]
     return (response.content, response.status_code, {"Content-Type": "application/json"})
@@ -280,7 +308,12 @@ def logout():
     return redirect("/")
 
 def get_headers():
-    return {"Authorization": f"Bearer {session.get('token')}"}
+    client_ip = request.headers.get("X-Real-IP") or request.headers.get("X-Forwarded-For", "").split(',')[0] or request.remote_addr
+    headers = {"Authorization": f"Bearer {session.get('token')}"}
+    if client_ip:
+        headers["X-Real-IP"] = client_ip
+        headers["X-Forwarded-For"] = client_ip
+    return headers
 
 @app.route("/dashboard")
 def dashboard():
@@ -294,6 +327,14 @@ def dashboard():
         accounts = []
         if response.status_code == 401:
             return redirect("/logout")
+        elif response.status_code == 403:
+            try:
+                detail = response.json().get("detail", "")
+                flash(detail, "error")
+            except Exception:
+                flash("Votre IP est actuellement bloquée. Veuillez contacter notre agence pour voir le problème.", "error")
+            session.pop("token", None)
+            return redirect("/")
     
     # Fetch activity logs for the global dashboard activity feed
     act_res = requests.get(f"{BASE_API_URL}/activities/", headers=get_headers())
@@ -1927,10 +1968,6 @@ def cancel_appointment(appt_id):
         
     return redirect("/advice")
 
-if __name__ == "__main__":
-    app.run(port=5000, debug=True)
-
-
 @app.route("/admin/users")
 def admin_users():
     if "token" not in session: return redirect("/")
@@ -1957,7 +1994,6 @@ def admin_user_details(user_id):
     return render_template("admin_user_details.html", user=data.get("user"), accounts=data.get("accounts", []), transactions=data.get("transactions", []))
 
 @app.route("/admin/users/<user_id>/status", methods=["POST"])
-
 def admin_update_user_status(user_id):
     if "token" not in session: return redirect("/")
     status = request.form.get("status", "active")
@@ -2018,3 +2054,49 @@ def admin_request_otp():
     if "token" not in session: return ("Unauthorized", 401)
     res = requests.post(f"{BASE_API_URL}/verification/request-auth-otp", headers=get_headers())
     return (res.content, res.status_code, {"Content-Type": "application/json"})
+
+# ==========================================
+# PROXY ROUTES POUR LE DASHBOARD ADMIN / SIEM
+# ==========================================
+
+@app.route("/api/admin/blocked-ips", methods=["GET"])
+def proxy_admin_blocked_ips():
+    res = requests.get(f"{BASE_API_URL}/admin/blocked-ips", headers=get_headers())
+    return (res.content, res.status_code, {"Content-Type": "application/json"})
+
+@app.route("/api/admin/block-ip", methods=["POST"])
+def proxy_admin_block_ip():
+    res = requests.post(f"{BASE_API_URL}/admin/block-ip", headers=get_headers(), json=request.json or {})
+    return (res.content, res.status_code, {"Content-Type": "application/json"})
+
+@app.route("/api/admin/unblock-ip", methods=["POST"])
+def proxy_admin_unblock_ip():
+    res = requests.post(f"{BASE_API_URL}/admin/unblock-ip", headers=get_headers(), json=request.json or {})
+    return (res.content, res.status_code, {"Content-Type": "application/json"})
+
+@app.route("/api/admin/blocked-users", methods=["GET"])
+def proxy_admin_blocked_users():
+    res = requests.get(f"{BASE_API_URL}/admin/blocked-users", headers=get_headers())
+    return (res.content, res.status_code, {"Content-Type": "application/json"})
+
+@app.route("/api/admin/unblock-user", methods=["POST"])
+def proxy_admin_unblock_user():
+    res = requests.post(f"{BASE_API_URL}/admin/unblock-user", headers=get_headers(), json=request.json or {})
+    return (res.content, res.status_code, {"Content-Type": "application/json"})
+
+@app.route("/api/alerts/stream")
+def proxy_alerts_stream():
+    token = request.args.get("token") or session.get("token", "")
+    url = f"{BASE_API_URL}/alerts/stream?token={token}"
+    
+    def generate():
+        req = requests.get(url, stream=True)
+        for line in req.iter_lines():
+            if line:
+                yield f"{line.decode('utf-8')}\n\n"
+    
+    return Response(stream_with_context(generate()), content_type="text/event-stream")
+
+if __name__ == "__main__":
+    app.run(port=5000, debug=True)
+

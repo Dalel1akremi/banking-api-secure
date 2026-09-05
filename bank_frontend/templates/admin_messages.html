@@ -40,7 +40,10 @@
       {% if messages_flash %}
         <div id="flash-container">
         {% for category, message in messages_flash %}
-          <div class="alert alert-{{ 'success' if category == 'success' else 'error' }}">{{ message }}</div>
+          <div class="alert alert-{{ 'success' if category == 'success' else 'error' }}">
+              <span>{{ message }}</span>
+              <button type="button" class="alert-btn-ok" onclick="this.closest('.alert').remove()">OK</button>
+          </div>
         {% endfor %}
         </div>
       {% endif %}
@@ -80,15 +83,6 @@
     </div>
 </div>
 
-<script>
-    setTimeout(() => {
-        document.querySelectorAll('.alert').forEach(flash => {
-            flash.style.transition = 'opacity 0.5s ease';
-            flash.style.opacity = '0';
-            setTimeout(() => flash.remove(), 500);
-        });
-    }, 4000);
-</script>
-
+<script src="{{ url_for('static', filename='alerts.js') }}"></script>
 </body>
 </html>

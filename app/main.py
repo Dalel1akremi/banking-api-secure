@@ -86,7 +86,10 @@ async def combined_security_middleware(request: Request, call_next):
                 
     # --- FIREWALL APPLICATIF : Blocage IP ---
     if is_ip_blocked(client_ip):
-        return JSONResponse(status_code=403, content={"detail": "IP Blocked by SIEM"})
+        return JSONResponse(
+            status_code=403, 
+            content={"detail": "Votre IP est actuellement bloquée. Veuillez contacter notre agence pour voir le problème."}
+        )
     
     # Pass the request down the chain
     response = await call_next(request)
@@ -105,6 +108,18 @@ async def combined_security_middleware(request: Request, call_next):
     status = response.status_code
     
     target_email = getattr(request.state, "target_email", None)
+    if not target_email:
+        auth_header = request.headers.get("Authorization")
+        if auth_header and auth_header.startswith("Bearer "):
+            token = auth_header.split(" ")[1]
+            try:
+                from jose import jwt
+                claims = jwt.get_unverified_claims(token)
+                target_email = claims.get("sub") or claims.get("email") or claims.get("preferred_username")
+                request.state.target_email = target_email
+            except Exception:
+                pass
+
     email_suffix = f" | TARGET_EMAIL: {target_email}" if target_email else ""
     
     log_message = f"IP: {client_ip} | METHOD: {method} | PATH: {path} | STATUS: {status} | DURATION: {process_time_ms}ms{email_suffix}"
@@ -117,9 +132,46 @@ async def combined_security_middleware(request: Request, call_next):
         
     return response
 
+def custom_rate_limit_exceeded_handler(request: Request, exc: RateLimitExceeded):
+    # Récupérer l'email de la requête
+    email = getattr(request.state, "target_email", None)
+    if not email:
+        auth_header = request.headers.get("Authorization")
+        if auth_header and auth_header.startswith("Bearer "):
+            token = auth_header.split(" ")[1]
+            try:
+                from jose import jwt
+                claims = jwt.get_unverified_claims(token)
+                email = claims.get("sub") or claims.get("email") or claims.get("preferred_username")
+                request.state.target_email = email
+            except Exception:
+                pass
+
+    # ✅ Bloquer le compte utilisateur en DB jusqu'à déblocage par l'administrateur
+    if email:
+        try:
+            from app.db import users_collection
+            u = users_collection.find_one({"email": email})
+            if u and not u.get("is_admin"):
+                users_collection.update_one(
+                    {"email": email},
+                    {"$set": {
+                        "status": "blocked",
+                        "block_reason": "Dépassement du quota de requêtes (Rate Limit)"
+                    }}
+                )
+                print(f"[RateLimit] Compte bloqué en base: {email}")
+        except Exception as e:
+            print(f"[RateLimit] Erreur blocage compte: {e}")
+
+    return JSONResponse(
+        status_code=429,
+        content={"detail": "Quota de requêtes dépassé. Votre compte est bloqué. Contactez l'administrateur pour le débloquer."}
+    )
+
 # Setup Rate Limiting Exception Handler
 app.state.limiter = limiter
-app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+app.add_exception_handler(RateLimitExceeded, custom_rate_limit_exceeded_handler)
 
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse

@@ -13,11 +13,17 @@
         <p style="margin-bottom: 30px;">Authentification à Double Facteurs (2FA)</p>
 
         {% if error %}
-            <div class="alert alert-error">{{ error }}</div>
+            <div class="alert alert-error">
+                <span>{{ error }}</span>
+                <button type="button" class="alert-btn-ok" onclick="this.closest('.alert').remove()">OK</button>
+            </div>
         {% endif %}
         
         {% if message %}
-            <div class="alert alert-success">{{ message }}</div>
+            <div class="alert alert-success">
+                <span>{{ message }}</span>
+                <button type="button" class="alert-btn-ok" onclick="this.closest('.alert').remove()">OK</button>
+            </div>
         {% endif %}
         
         <form method="POST" action="/verify_login">
@@ -38,16 +44,6 @@
     </div>
 </div>
 
-<script>
-    setTimeout(() => {
-        const flashes = document.querySelectorAll('.alert');
-        flashes.forEach(flash => {
-            flash.style.transition = 'opacity 0.5s ease';
-            flash.style.opacity = '0';
-            setTimeout(() => flash.remove(), 500);
-        });
-    }, 4000);
-</script>
-
+<script src="{{ url_for('static', filename='alerts.js') }}"></script>
 </body>
 </html>

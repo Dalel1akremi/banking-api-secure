@@ -152,22 +152,22 @@ def verify_token(request: Request, credentials: HTTPAuthorizationCredentials = D
 
     # 3. Réconciliation : Assurer la présence de l'ID MongoDB interne
     # Indispensable pour lier le token Keycloak à la collection 'accounts' locale
-    if payload and "id" not in payload:
-        # On utilise l'email comme pivot (présent dans 'sub', 'email' ou 'preferred_username')
-        email = payload.get("email") or payload.get("preferred_username") or payload.get("sub")
-        if email:
-            from app.db import users_collection # Import tardif pour éviter les dépendances circulaires
-            db_user = users_collection.find_one({"email": email})
-            if db_user:
+    email = payload.get("email") or payload.get("preferred_username") or payload.get("sub")
+    if email:
+        from app.db import users_collection # Import tardif pour éviter les dépendances circulaires
+        db_user = users_collection.find_one({"email": email})
+        if db_user:
+            # 4. Vérification du statut du compte (Bloqué par l'administrateur / SIEM)
+            if db_user.get("status") == "blocked":
+                raise HTTPException(
+                    status_code=403,
+                    detail="Votre compte est bloqué. Veuillez contacter l'administrateur pour le débloquer."
+                )
+            if "id" not in payload:
                 payload["id"] = str(db_user["_id"])
-                # Synchroniser aussi le statut admin si absent
-                if "is_admin" not in payload:
-                    payload["is_admin"] = db_user.get("is_admin", False)
-            else:
-                # Si l'utilisateur Keycloak n'existe pas encore dans notre MongoDB
-                # on pourrait lever une erreur ou le créer à la volée. 
-                # Pour l'instant, on laisse passer mais l'ID restera manquant.
-                pass
+            # Synchroniser aussi le statut admin si absent
+            if "is_admin" not in payload:
+                payload["is_admin"] = db_user.get("is_admin", False)
 
     return payload
 

@@ -134,6 +134,46 @@
         </div>
     </div>
 
+    <!-- PANNEAU: IPs Bloquées -->
+    <div class="panel" style="margin-top: 20px; background: rgba(239,68,68,0.04); border-left: 4px solid #ef4444;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+            <h3 style="color: #ef4444; display: flex; align-items: center; gap: 10px; margin: 0;">
+                <i data-lucide="shield-x"></i> Firewall – IPs Bloquées
+            </h3>
+            <div style="display: flex; gap: 10px; align-items: center;">
+                <input id="manual-ip-input" type="text" placeholder="Ex: 203.0.113.5" style="background:rgba(0,0,0,0.3); border:1px solid rgba(255,255,255,0.15); padding:7px 12px; border-radius:8px; color:white; font-size:13px; width:180px;">
+                <button onclick="blockIpManual()" style="background:#ef4444; color:white; border:none; padding:8px 16px; border-radius:8px; cursor:pointer; font-size:12px; font-weight:bold;">
+                    🚫 Bloquer IP
+                </button>
+                <button onclick="loadBlockedIps()" style="background:rgba(255,255,255,0.08); color:white; border:1px solid rgba(255,255,255,0.15); padding:8px 14px; border-radius:8px; cursor:pointer; font-size:12px;">
+                    🔄 Actualiser
+                </button>
+            </div>
+        </div>
+        <div id="blocked-ips-container">
+            <p style="color: var(--text-muted); font-size: 13px;">Chargement...</p>
+        </div>
+    </div>
+
+    <!-- PANNEAU: Comptes Utilisateurs Bloqués -->
+    <div class="panel" style="margin-top: 20px; background: rgba(245,158,11,0.04); border-left: 4px solid #f59e0b;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+            <h3 style="color: #f59e0b; display: flex; align-items: center; gap: 10px; margin: 0;">
+                <i data-lucide="user-x"></i> Comptes Utilisateurs Bloqués (Brute Force / Rate Limit)
+            </h3>
+            <div style="display: flex; gap: 10px; align-items: center;">
+                <button onclick="loadBlockedUsers()" style="background:rgba(255,255,255,0.08); color:white; border:1px solid rgba(255,255,255,0.15); padding:8px 14px; border-radius:8px; cursor:pointer; font-size:12px;">
+                    🔄 Actualiser
+                </button>
+                <a href="/admin/users" style="background: rgba(245,158,11,0.15); color: #f59e0b; border: 1px solid rgba(245,158,11,0.3); padding: 8px 14px; border-radius: 8px; text-decoration: none; font-size: 12px; font-weight: bold;">
+                    👥 Tous les utilisateurs &rarr;
+                </a>
+            </div>
+        </div>
+        <div id="blocked-users-container">
+            <p style="color: var(--text-muted); font-size: 13px;">Chargement...</p>
+        </div>
+    </div>
 
     <div class="panel" style="margin-top: 40px;">
         <h2>📋 Gestion des Demandes de Crédit</h2>
@@ -436,8 +476,15 @@
                         }
                         if(sec <= 0) {
                             clearInterval(interval);
-                            t.innerHTML = '<span style="color:#10b981">Auto-bloqué</span>';
-                            if(b) b.style.display = 'none';
+                            t.innerHTML = '<span style="color:#ef4444; font-weight:bold;">🔴 Auto-bloqué</span>';
+                            if(b) {
+                                b.style.display = 'inline-block';
+                                b.innerText = '🔓 Débloquer';
+                                b.style.background = '#10b981';
+                                b.disabled = false;
+                                b.dataset.state = 'blocked';
+                            }
+                            loadBlockedIps();
                         } else {
                             const secSpan = t.querySelector('.sec');
                             if(secSpan) secSpan.innerText = sec;
@@ -458,6 +505,11 @@
         }
 
         function blockIp(ip, btnElement) {
+            if (btnElement.dataset.state === 'blocked') {
+                // Already blocked — act as unblock button
+                unblockIpBtn(ip, btnElement);
+                return;
+            }
             btnElement.disabled = true;
             btnElement.innerText = "Blocage...";
             
@@ -473,10 +525,13 @@
             })
             .then(response => {
                 if(response.ok) {
-                    btnElement.innerText = "Bloqué";
-                    btnElement.style.background = "#10b981";
+                    btnElement.innerText = "🔓 Débloquer";
+                    btnElement.style.background = "#6366f1";
+                    btnElement.disabled = false;
+                    btnElement.dataset.state = 'blocked';
                     const timerElement = btnElement.nextElementSibling;
                     if(timerElement) timerElement.style.display = 'none';
+                    loadBlockedIps();
                 } else {
                     throw new Error('Erreur API');
                 }
@@ -489,10 +544,154 @@
             });
         }
 
+        function unblockIpBtn(ip, btnElement) {
+            btnElement.disabled = true;
+            btnElement.innerText = "Déblocage...";
+            const token = document.body.dataset.token;
+            fetch('/api/admin/unblock-ip', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': 'Bearer ' + token
+                },
+                body: JSON.stringify({ ip: ip })
+            })
+            .then(response => {
+                if(response.ok) {
+                    btnElement.innerText = "🚫 Bloquer";
+                    btnElement.style.background = "#ef4444";
+                    btnElement.disabled = false;
+                    btnElement.dataset.state = '';
+                    loadBlockedIps();
+                } else {
+                    throw new Error('Erreur API');
+                }
+            })
+            .catch(error => {
+                console.error("Erreur de déblocage IP:", error);
+                btnElement.innerText = "Erreur";
+                btnElement.style.background = "#fbbf24";
+                btnElement.disabled = false;
+            });
+        }
+
+        function blockIpManual() {
+            const ip = document.getElementById('manual-ip-input').value.trim();
+            if(!ip) { alert('Veuillez saisir une adresse IP.'); return; }
+            const token = document.body.dataset.token;
+            fetch('/api/admin/block-ip', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token},
+                body: JSON.stringify({ ip: ip })
+            })
+            .then(r => r.json())
+            .then(data => {
+                document.getElementById('manual-ip-input').value = '';
+                loadBlockedIps();
+            })
+            .catch(err => alert('Erreur: ' + err));
+        }
+
+        function unblockIp(ip) {
+            if(!confirm('Débloquer l\'IP ' + ip + ' ?')) return;
+            const token = document.body.dataset.token;
+            fetch('/api/admin/unblock-ip', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token},
+                body: JSON.stringify({ ip: ip })
+            })
+            .then(r => r.json())
+            .then(data => loadBlockedIps())
+            .catch(err => alert('Erreur: ' + err));
+        }
+
+        function loadBlockedIps() {
+            const token = document.body.dataset.token;
+            const container = document.getElementById('blocked-ips-container');
+            fetch('/api/admin/blocked-ips', {
+                headers: { 'Authorization': 'Bearer ' + token }
+            })
+            .then(r => r.json())
+            .then(data => {
+                const ips = data.blocked_ips || [];
+                if(ips.length === 0) {
+                    container.innerHTML = '<p style="color: #10b981; font-size: 13px;">✅ Aucune IP bloquée actuellement.</p>';
+                    return;
+                }
+                container.innerHTML = '<div style="display: flex; flex-wrap: wrap; gap: 10px;">' +
+                    ips.map(item => {
+                        const ip = typeof item === 'string' ? item : item.ip;
+                        const durationInfo = (typeof item === 'object' && item.remaining_minutes) 
+                            ? ' <span style="font-size: 11px; opacity: 0.85; color: #fbbf24;">(' + item.remaining_minutes + ' min restantes)</span>' 
+                            : '';
+                        return '<div style="background: rgba(239,68,68,0.12); border: 1px solid rgba(239,68,68,0.3); border-radius: 8px; padding: 8px 14px; display: flex; align-items: center; gap: 10px;">' +
+                            '<span style="color: #ef4444; font-family: monospace; font-size: 13px; font-weight: 600;">🔴 ' + ip + durationInfo + '</span>' +
+                            '<button onclick="unblockIp(\'' + ip + '\')" style="background: #10b981; color: white; border: none; padding: 4px 10px; border-radius: 6px; cursor: pointer; font-size: 11px; font-weight: bold;">✅ Débloquer</button>' +
+                            '</div>';
+                    }).join('') +
+                    '</div>';
+            })
+            .catch(() => {
+                container.innerHTML = '<p style="color: #ef4444; font-size: 13px;">Erreur de chargement.</p>';
+            });
+        }
+
+        function unblockUser(userId, email) {
+            if (!confirm(`Débloquer le compte de ${email} ? L'utilisateur pourra immédiatement se reconnecter.`)) return;
+            const token = document.body.dataset.token;
+            fetch('/api/admin/unblock-user', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': 'Bearer ' + token
+                },
+                body: JSON.stringify({ user_id: userId, email: email })
+            })
+            .then(r => r.json())
+            .then(data => {
+                alert(data.message || 'Utilisateur débloqué.');
+                loadBlockedUsers();
+            })
+            .catch(err => alert('Erreur: ' + err));
+        }
+
+        function loadBlockedUsers() {
+            const token = document.body.dataset.token;
+            const container = document.getElementById('blocked-users-container');
+            if (!container) return;
+            fetch('/api/admin/blocked-users', {
+                headers: { 'Authorization': 'Bearer ' + token }
+            })
+            .then(r => r.json())
+            .then(data => {
+                const users = data.blocked_users || [];
+                if (users.length === 0) {
+                    container.innerHTML = '<p style="color: #10b981; font-size: 13px;">✅ Aucun compte utilisateur bloqué actuellement.</p>';
+                    return;
+                }
+                container.innerHTML = '<div style="display: flex; flex-direction: column; gap: 10px;">' +
+                    users.map(u =>
+                        '<div style="background: rgba(245,158,11,0.08); border: 1px solid rgba(245,158,11,0.25); border-radius: 8px; padding: 10px 16px; display: flex; justify-content: space-between; align-items: center;">' +
+                        '<div>' +
+                            '<span style="font-weight: bold; color: #fbbf24; font-size: 14px;">' + (u.username || '') + ' ' + (u.lastname || '') + '</span> ' +
+                            '<span style="color: var(--text-muted); font-size: 13px;">(' + u.email + ')</span>' +
+                            '<div style="color: #ef4444; font-size: 11px; margin-top: 4px;">⚠️ Motif : ' + (u.block_reason || 'Activité suspecte détectée') + '</div>' +
+                        '</div>' +
+                        '<button onclick="unblockUser(\'' + u.id + '\', \'' + u.email + '\')" style="background: #10b981; color: white; border: none; padding: 6px 14px; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: bold;">🔓 Débloquer le compte</button>' +
+                        '</div>'
+                    ).join('') +
+                    '</div>';
+            })
+            .catch(() => {
+                container.innerHTML = '<p style="color: #ef4444; font-size: 13px;">Erreur de chargement des utilisateurs bloqués.</p>';
+            });
+        }
 
         // Initialize icons and alerts
         document.addEventListener('DOMContentLoaded', function() {
             initAlertsStream();
+            loadBlockedIps();
+            loadBlockedUsers();
             if (typeof lucide !== 'undefined') {
                 lucide.createIcons();
             } else {
@@ -504,5 +703,6 @@
         style.textContent = '@keyframes slideIn { from { transform: translateX(20px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }';
         document.head.appendChild(style);
     </script>
+    <script src="{{ url_for('static', filename='alerts.js') }}"></script>
 </body>
 </html>

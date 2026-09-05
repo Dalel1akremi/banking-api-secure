@@ -13,13 +13,19 @@
         <p style="margin-bottom: 30px;">Identifiez-vous pour accéder à vos comptes</p>
 
         {% if error %}
-            <div class="alert alert-error">{{ error }}</div>
+            <div class="alert alert-error">
+                <span>{{ error }}</span>
+                <button type="button" class="alert-btn-ok" onclick="this.closest('.alert').remove()">OK</button>
+            </div>
         {% endif %}
         
         {% with messages = get_flashed_messages(with_categories=true) %}
           {% if messages %}
             {% for category, message in messages %}
-              <div class="alert {% if category == 'success' %}alert-success{% else %}alert-error{% endif %}">{{ message }}</div>
+              <div class="alert {% if category == 'success' %}alert-success{% else %}alert-error{% endif %}">
+                  <span>{{ message }}</span>
+                  <button type="button" class="alert-btn-ok" onclick="this.closest('.alert').remove()">OK</button>
+              </div>
             {% endfor %}
           {% endif %}
         {% endwith %}
@@ -144,16 +150,8 @@
                 }
             });
         }
-
-    setTimeout(() => {
-        const flashes = document.querySelectorAll('.alert');
-        flashes.forEach(flash => {
-            flash.style.transition = 'opacity 0.5s ease';
-            flash.style.opacity = '0';
-            setTimeout(() => flash.remove(), 500);
-        });
-    }, 4000);
 </script>
+<script src="{{ url_for('static', filename='alerts.js') }}"></script>
 
 </body>
 </html>
