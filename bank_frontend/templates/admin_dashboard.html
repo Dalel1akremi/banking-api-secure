@@ -621,9 +621,7 @@
                 container.innerHTML = '<div style="display: flex; flex-wrap: wrap; gap: 10px;">' +
                     ips.map(item => {
                         const ip = typeof item === 'string' ? item : item.ip;
-                        const durationInfo = (typeof item === 'object' && item.remaining_minutes) 
-                            ? ' <span style="font-size: 11px; opacity: 0.85; color: #fbbf24;">(' + item.remaining_minutes + ' min restantes)</span>' 
-                            : '';
+                        const durationInfo = ' <span style="font-size: 11px; opacity: 0.9; color: #fbbf24; font-weight: bold;">(Bloqué Définitivement)</span>';
                         return '<div style="background: rgba(239,68,68,0.12); border: 1px solid rgba(239,68,68,0.3); border-radius: 8px; padding: 8px 14px; display: flex; align-items: center; gap: 10px;">' +
                             '<span style="color: #ef4444; font-family: monospace; font-size: 13px; font-weight: 600;">🔴 ' + ip + durationInfo + '</span>' +
                             '<button onclick="unblockIp(\'' + ip + '\')" style="background: #10b981; color: white; border: none; padding: 4px 10px; border-radius: 6px; cursor: pointer; font-size: 11px; font-weight: bold;">✅ Débloquer</button>' +

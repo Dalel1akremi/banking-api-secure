@@ -1,42 +1,37 @@
 """
-security_state.py — État global de la sécurité (Pare-feu applicatif en mémoire)
-Blocage temporaire des adresses IP pendant 15 minutes avec possibilité de déblocage manuel par l'administrateur.
+security_state.py — État global de la sécurité (Pare-feu applicatif)
+Blocage DÉFINITIF des adresses IP jusqu'à déblocage manuel par l'administrateur.
 """
 import time
 import threading
 
-BLOCK_DURATION_SECONDS = 15 * 60  # 15 minutes
-
-# Dictionnaire {ip: unblock_timestamp}
+# Dictionnaire {ip: {"blocked_at": timestamp_str, "reason": str}}
 _blocked_ips = {}
 _lock = threading.Lock()
 
 # Whitelist des IPs internes (Docker, Gateway, Localhost)
 WHITELISTED_IPS = ["127.0.0.1", "0.0.0.0"]
 
-def block_ip(ip: str, duration_seconds: int = BLOCK_DURATION_SECONDS):
+def block_ip(ip: str, reason: str = "Blocage Administrateur / SIEM"):
+    """Bloque une IP définitivement jusqu'à intervention manuelle de l'administrateur."""
     # Ne jamais bloquer les IPs internes de l'infrastructure
     if ip in WHITELISTED_IPS or ip.startswith("172.") or ip.startswith("192.168.") or ip.startswith("10."):
         print(f"[Firewall] Tentative de blocage ignorée pour l'IP interne: {ip}")
         return
         
     with _lock:
-        expiry_time = time.time() + duration_seconds
-        _blocked_ips[ip] = expiry_time
-        print(f"[Firewall] IP {ip} bloquée pour {duration_seconds // 60} minutes (jusqu'à {time.strftime('%H:%M:%S', time.localtime(expiry_time))}).")
+        blocked_at = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
+        _blocked_ips[ip] = {
+            "blocked_at": blocked_at,
+            "reason": reason,
+            "status": "BLOCKED_DEFINITIVELY"
+        }
+        print(f"[Firewall] IP {ip} bloquée DÉFINITIVEMENT à {blocked_at} (jusqu'à déblocage manuel par l'administrateur).")
 
 def is_ip_blocked(ip: str) -> bool:
+    """Vérifie si l'IP est dans la liste des IPs bloquées définitivement."""
     with _lock:
-        if ip in _blocked_ips:
-            # Vérifier si les 15 minutes sont écoulées
-            if time.time() < _blocked_ips[ip]:
-                return True
-            else:
-                # 15 minutes écoulées : levée automatique du blocage
-                del _blocked_ips[ip]
-                print(f"[Firewall] Le blocage temporaire de 15 minutes pour l'IP {ip} a expiré. IP débloquée.")
-                return False
-        return False
+        return ip in _blocked_ips
 
 def unblock_ip(ip: str):
     """Déblocage manuel immédiat par l'administrateur."""
@@ -46,21 +41,16 @@ def unblock_ip(ip: str):
             print(f"[Firewall] IP {ip} débloquée manuellement par l'administrateur.")
 
 def get_blocked_ips():
-    """Retourne la liste des IPs actuellement bloquées avec le temps restant."""
+    """Retourne la liste de toutes les IPs actuellement bloquées définitivement."""
     with _lock:
-        now = time.time()
-        # Nettoyer les expirés
-        expired = [ip for ip, exp in _blocked_ips.items() if now >= exp]
-        for ip in expired:
-            del _blocked_ips[ip]
-            
         result = []
-        for ip, exp in _blocked_ips.items():
-            remaining_secs = max(0, int(exp - now))
+        for ip, info in _blocked_ips.items():
             result.append({
                 "ip": ip,
-                "remaining_seconds": remaining_secs,
-                "remaining_minutes": max(1, (remaining_secs + 59) // 60),
-                "expires_at": time.strftime("%H:%M:%S", time.localtime(exp))
+                "status": "Bloqué Définitivement",
+                "blocked_at": info.get("blocked_at", "N/A"),
+                "reason": info.get("reason", "Manuel / SIEM"),
+                "remaining_minutes": "Permanent",
+                "expires_at": "Jusqu'au déblocage manuel"
             })
         return result
