@@ -80,7 +80,7 @@ logging.basicConfig(
 logger = logging.getLogger("frontend_audit")
 
 # ==========================================
-# 🛡️ GLOBAL XSS FIREWALL (OWASP A03: INJECTION)
+# 🛡️ GLOBAL WAF FIREWALL (OWASP A03: INJECTION)
 # ==========================================
 XSS_PATTERNS = [
     r"<\s*script[^>]*>",
@@ -106,6 +106,19 @@ XSS_PATTERNS = [
 ]
 XSS_REGEX = re.compile("|".join(XSS_PATTERNS), re.IGNORECASE)
 
+SQLI_PATTERNS = [
+    r"(\b(SELECT|UNION|INSERT|UPDATE|DELETE|DROP|ALTER|CREATE|TRUNCATE)\b\s+)",
+    r"('.+--)|(--\s*$)|(/\*.*\*/)",
+    r"('\s*OR\s*['\"\d=]+)",
+    r"('\s*AND\s*['\"\d=]+)",
+    r"(\bOR\b\s+['\d\w]+\s*=\s*['\d\w]+)",
+    r"(\bAND\b\s+['\d\w]+\s*=\s*['\d\w]+)",
+    r"(\bUNION\b\s+\bSELECT\b)",
+    r"(\bEXEC\b|\bEXECUTE\b)\s*\(",
+    r"(\$where|\$ne|\$gt|\$lt|\$regex|\$in)"
+]
+SQLI_REGEX = re.compile("|".join(SQLI_PATTERNS), re.IGNORECASE)
+
 def contains_xss(val):
     if not val:
         return False
@@ -117,14 +130,30 @@ def contains_xss(val):
         return any(contains_xss(k) or contains_xss(v) for k, v in val.items())
     return False
 
+def contains_sqli(val):
+    if not val:
+        return False
+    if isinstance(val, str):
+        return bool(SQLI_REGEX.search(val))
+    if isinstance(val, list):
+        return any(contains_sqli(item) for item in val)
+    if isinstance(val, dict):
+        return any(contains_sqli(k) or contains_sqli(v) for k, v in val.items())
+    return False
+
 @app.before_request
-def global_xss_filter():
+def global_injection_filter():
     client_ip = request.headers.get("X-Real-IP") or request.headers.get("X-Forwarded-For", "").split(',')[0] or request.remote_addr
     
     # 1. Vérification des requêtes POST / PUT / PATCH (Formulaires & JSON)
     if request.method in ["POST", "PUT", "PATCH"]:
         if request.form:
             for key, val in request.form.items():
+                if contains_sqli(val) or contains_sqli(key):
+                    logger.warning(f"SECURITY_ALERT | SQLI_BLOCKED | IP: {client_ip} | Endpoint: {request.path} | Field: {key} | Value: {val}")
+                    flash("⛔ Alerte de sécurité (Injection SQL/NoSQL) : Tentative d'injection détectée. Votre requête a été immédiatement bloquée.", "error")
+                    target = request.referrer or "/"
+                    return redirect(target)
                 if contains_xss(val) or contains_xss(key):
                     logger.warning(f"SECURITY_ALERT | XSS_BLOCKED | IP: {client_ip} | Endpoint: {request.path} | Field: {key} | Value: {val}")
                     flash("⛔ Alerte de sécurité (XSS) : Tentative d'injection de script malveillant détectée. Votre demande a été immédiatement bloquée.", "error")
@@ -134,15 +163,23 @@ def global_xss_filter():
         if request.is_json:
             try:
                 data = request.get_json(silent=True)
-                if data and contains_xss(data):
-                    logger.warning(f"SECURITY_ALERT | XSS_BLOCKED_JSON | IP: {client_ip} | Endpoint: {request.path}")
-                    return {"detail": "⛔ Tentative d'injection XSS détectée et bloquée."}, 400
+                if data:
+                    if contains_sqli(data):
+                        logger.warning(f"SECURITY_ALERT | SQLI_BLOCKED_JSON | IP: {client_ip} | Endpoint: {request.path}")
+                        return {"detail": "⛔ Tentative d'injection SQL/NoSQL détectée et bloquée."}, 400
+                    if contains_xss(data):
+                        logger.warning(f"SECURITY_ALERT | XSS_BLOCKED_JSON | IP: {client_ip} | Endpoint: {request.path}")
+                        return {"detail": "⛔ Tentative d'injection XSS détectée et bloquée."}, 400
             except:
                 pass
 
     # 2. Vérification des paramètres GET dans l'URL
     if request.args:
         for key, val in request.args.items():
+            if contains_sqli(val) or contains_sqli(key):
+                logger.warning(f"SECURITY_ALERT | SQLI_BLOCKED_GET | IP: {client_ip} | Param: {key} | Value: {val}")
+                flash("⛔ Alerte de sécurité (Injection SQL/NoSQL) : Paramètre URL suspect détecté.", "error")
+                return redirect("/")
             if contains_xss(val) or contains_xss(key):
                 logger.warning(f"SECURITY_ALERT | XSS_BLOCKED_GET | IP: {client_ip} | Param: {key} | Value: {val}")
                 flash("⛔ Alerte de sécurité (XSS) : Paramètre URL suspect détecté.", "error")
