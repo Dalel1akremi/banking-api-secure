@@ -46,9 +46,22 @@ def login(request: Request, user: Login, background_tasks: BackgroundTasks):
             failed_attempts = db_user.get("failed_login_attempts", 0) + 1
             update_data = {"failed_login_attempts": failed_attempts}
             if failed_attempts >= 3:
-                # ✅ Blocage permanent jusqu'à intervention de l'administrateur
+                # ✅ Blocage permanent du COMPTE jusqu'à intervention de l'administrateur
                 update_data["status"] = "blocked"
             users_collection.update_one({"_id": db_user["_id"]}, {"$set": update_data})
+
+            # ✅ Blocage de l'IP après 3 tentatives échouées
+            if failed_attempts >= 3:
+                from app.utils.security_state import block_ip
+                client_ip = request.headers.get("X-Real-IP") or \
+                            request.headers.get("X-Forwarded-For", "").split(',')[0].strip() or \
+                            (request.client.host if request.client else None)
+                if client_ip:
+                    block_ip(client_ip, reason=f"Brute Force — 3 tentatives échouées pour {user.email}")
+                raise HTTPException(
+                    status_code=403,
+                    detail="Votre IP est bloquée suite à plusieurs tentatives échouées. Merci de nous visiter en agence pour corriger le problème."
+                )
 
         # Set target email for the middleware to log
         request.state.target_email = user.email

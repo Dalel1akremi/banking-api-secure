@@ -231,12 +231,9 @@ def _monitor_loop():
     last_position = 0
     if os.path.exists(LOG_FILE):
         with open(LOG_FILE, "r") as f:
-            # Analyser les 100 dernières lignes au démarrage pour ne rien rater
-            lines = f.readlines()
-            for line in lines[-100:]:
-                _analyze_line(line)
-            
-            f.seek(0, 2)  # Se repositionner à la fin pour la suite
+            # ✅ Démarrer depuis la FIN du fichier — ignorer les logs passés
+            # pour éviter de re-bloquer des comptes après un redémarrage du serveur.
+            f.seek(0, 2)  # Se positionner directement à la fin
             last_position = f.tell()
 
     while True:

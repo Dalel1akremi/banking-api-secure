@@ -237,15 +237,15 @@ def handle_unauthorized_account_access(account_number):
 @app.route("/", methods=["GET", "POST"])
 @limiter.limit("10 per second")
 def login():
+    client_ip = request.headers.get("X-Real-IP") or request.headers.get("X-Forwarded-For", "").split(',')[0] or request.remote_addr
+    req_headers = {}
+    if client_ip:
+        req_headers["X-Real-IP"] = client_ip
+        req_headers["X-Forwarded-For"] = client_ip
+
     if request.method == "POST":
         email = request.form["email"]
         password = request.form["password"]
-
-        client_ip = request.headers.get("X-Real-IP") or request.headers.get("X-Forwarded-For", "").split(',')[0] or request.remote_addr
-        req_headers = {}
-        if client_ip:
-            req_headers["X-Real-IP"] = client_ip
-            req_headers["X-Forwarded-For"] = client_ip
 
         response = requests.post(f"{BASE_API_URL}/auth/login", json={
             "email": email,
@@ -259,6 +259,13 @@ def login():
             
             session["token"] = data.get("access_token")
             return redirect("/dashboard")
+        elif response.status_code == 403:
+            # Compte ou IP bloqué(e)
+            try:
+                error_message = response.json().get("detail", "Votre accès est bloqué. Veuillez contacter notre agence.")
+            except Exception:
+                error_message = "Votre accès est bloqué. Veuillez contacter notre agence."
+            return render_template("login.html", error=error_message, email=email, is_blocked=True)
         else:
             error_message = "Adresse e-mail ou mot de passe incorrect."
             try:
@@ -278,6 +285,18 @@ def login():
             except Exception:
                 pass
             return render_template("login.html", error=error_message, email=email)
+
+    # Vérification du blocage IP au chargement de la page (GET)
+    try:
+        check_resp = requests.get(f"{BASE_API_URL}/", headers=req_headers, timeout=2)
+        if check_resp.status_code == 403:
+            try:
+                error_message = check_resp.json().get("detail", "Votre IP est bloquée suite à plusieurs tentatives échouées. Merci de nous visiter en agence pour corriger le problème.")
+            except Exception:
+                error_message = "Votre IP est bloquée suite à plusieurs tentatives échouées. Merci de nous visiter en agence pour corriger le problème."
+            return render_template("login.html", error=error_message, email="", is_blocked=True)
+    except Exception:
+        pass
 
     return render_template("login.html", email="")
 

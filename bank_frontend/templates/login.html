@@ -10,54 +10,75 @@
 <div class="center-container">
     <div class="glass-box">
         <h1 class="brand">API Bank</h1>
-        <p style="margin-bottom: 30px;">Identifiez-vous pour accéder à vos comptes</p>
 
-        {% if error %}
-            <div class="alert alert-error">
-                <span>{{ error }}</span>
-                <button type="button" class="alert-btn-ok" onclick="this.closest('.alert').remove()">OK</button>
-            </div>
-        {% endif %}
-        
-        {% with messages = get_flashed_messages(with_categories=true) %}
-          {% if messages %}
-            {% for category, message in messages %}
-              <div class="alert {% if category == 'success' %}alert-success{% else %}alert-error{% endif %}">
-                  <span>{{ message }}</span>
-                  <button type="button" class="alert-btn-ok" onclick="this.closest('.alert').remove()">OK</button>
-              </div>
-            {% endfor %}
-          {% endif %}
-        {% endwith %}
-
-        <form method="POST" novalidate>
-            <div class="input-group">
-                <label>Adresse E-mail</label>
-                <input type="text" name="email" required placeholder="Ex: dalell@email.com" value="{{ email | default('') }}">
-            </div>
-
-            <div class="input-group">
-                <label>Mot de passe</label>
-                <input type="password" name="password" required placeholder="••••••••">
-                <div style="text-align: right; margin-top: 5px;">
-                    <button type="button" id="btn-forgot-password" style="background: none; border: none; color: var(--primary); cursor: pointer; font-size: 12px; opacity: 0.8; padding: 0;">Mot de passe oublié ?</button>
+        {% if is_blocked %}
+            <div style="
+                background: rgba(239, 68, 68, 0.12);
+                border: 1.5px solid rgba(239, 68, 68, 0.5);
+                border-radius: 14px;
+                padding: 24px 20px;
+                margin-bottom: 24px;
+                text-align: center;
+            ">
+                <div style="font-size: 40px; margin-bottom: 10px;">🚫</div>
+                <div style="font-size: 17px; font-weight: 700; color: #f87171; margin-bottom: 8px;">Accès Bloqué</div>
+                <div style="font-size: 14px; color: #fca5a5; line-height: 1.6;">
+                    {{ error }}
+                </div>
+                <div style="margin-top: 16px; font-size: 13px; color: var(--text-muted);">
+                    📍 Rendez-vous dans l'une de nos agences pour régulariser votre situation.
                 </div>
             </div>
+        {% else %}
+            <p style="margin-bottom: 30px;">Identifiez-vous pour accéder à vos comptes</p>
 
-            <button type="submit" class="btn">Connexion Sécurisée</button>
-            
-            <div style="margin: 20px 0; display: flex; align-items: center; text-align: center; color: var(--text-muted); font-size: 12px;">
-                <hr style="flex: 1; border-color: var(--card-border);">
-                <span style="padding: 0 10px;">OU</span>
-                <hr style="flex: 1; border-color: var(--card-border);">
-            </div>
-            
-            <button type="button" class="btn btn-secondary" id="btn-login-biometric" style="background: rgba(0, 229, 255, 0.05);">
-                🔐 Connexion Biométrique
-            </button>
-        </form>
+            {% if error %}
+                <div class="alert alert-error">
+                    <span>{{ error }}</span>
+                    <button type="button" class="alert-btn-ok" onclick="this.closest('.alert').remove()">OK</button>
+                </div>
+            {% endif %}
 
-        <p style="margin-top: 15px; font-size: 14px;">Êtes-vous nouveau ? <a href="/signup" style="color: var(--primary); text-decoration: none; font-weight: bold;">Créer un profil</a></p>
+            {% with messages = get_flashed_messages(with_categories=true) %}
+              {% if messages %}
+                {% for category, message in messages %}
+                  <div class="alert {% if category == 'success' %}alert-success{% else %}alert-error{% endif %}">
+                      <span>{{ message }}</span>
+                      <button type="button" class="alert-btn-ok" onclick="this.closest('.alert').remove()">OK</button>
+                  </div>
+                {% endfor %}
+              {% endif %}
+            {% endwith %}
+
+            <form method="POST" novalidate>
+                <div class="input-group">
+                    <label>Adresse E-mail</label>
+                    <input type="text" name="email" required placeholder="Ex: dalell@email.com" value="{{ email | default('') }}">
+                </div>
+
+                <div class="input-group">
+                    <label>Mot de passe</label>
+                    <input type="password" name="password" required placeholder="••••••••">
+                    <div style="text-align: right; margin-top: 5px;">
+                        <button type="button" id="btn-forgot-password" style="background: none; border: none; color: var(--primary); cursor: pointer; font-size: 12px; opacity: 0.8; padding: 0;">Mot de passe oublié ?</button>
+                    </div>
+                </div>
+
+                <button type="submit" class="btn">Connexion Sécurisée</button>
+                
+                <div style="margin: 20px 0; display: flex; align-items: center; text-align: center; color: var(--text-muted); font-size: 12px;">
+                    <hr style="flex: 1; border-color: var(--card-border);">
+                    <span style="padding: 0 10px;">OU</span>
+                    <hr style="flex: 1; border-color: var(--card-border);">
+                </div>
+                
+                <button type="button" class="btn btn-secondary" id="btn-login-biometric" style="background: rgba(0, 229, 255, 0.05);">
+                    🔐 Connexion Biométrique
+                </button>
+            </form>
+
+            <p style="margin-top: 15px; font-size: 14px;">Êtes-vous nouveau ? <a href="/signup" style="color: var(--primary); text-decoration: none; font-weight: bold;">Créer un profil</a></p>
+        {% endif %}
 
         <p style="margin-top: 20px; font-size: 12px; color: var(--text-muted);">🔒 Protégé par un système Zero Trust et OAuth2</p>
     </div>

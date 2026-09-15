@@ -14,11 +14,6 @@ WHITELISTED_IPS = ["127.0.0.1", "0.0.0.0"]
 
 def block_ip(ip: str, reason: str = "Blocage Administrateur / SIEM"):
     """Bloque une IP définitivement jusqu'à intervention manuelle de l'administrateur."""
-    # Ne jamais bloquer les IPs internes de l'infrastructure
-    if ip in WHITELISTED_IPS or ip.startswith("172.") or ip.startswith("192.168.") or ip.startswith("10."):
-        print(f"[Firewall] Tentative de blocage ignorée pour l'IP interne: {ip}")
-        return
-        
     with _lock:
         blocked_at = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
         _blocked_ips[ip] = {
@@ -26,7 +21,7 @@ def block_ip(ip: str, reason: str = "Blocage Administrateur / SIEM"):
             "reason": reason,
             "status": "BLOCKED_DEFINITIVELY"
         }
-        print(f"[Firewall] IP {ip} bloquée DÉFINITIVEMENT à {blocked_at} (jusqu'à déblocage manuel par l'administrateur).")
+        print(f"[Firewall] IP {ip} bloquée DÉFINITIVEMENT à {blocked_at} (raison: {reason}).")
 
 def is_ip_blocked(ip: str) -> bool:
     """Vérifie si l'IP est dans la liste des IPs bloquées définitivement."""
