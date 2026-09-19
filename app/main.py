@@ -48,7 +48,7 @@ async def get_redoc(request: Request, user=Depends(verify_token)):
     )
 
 @app.get("/openapi.json", include_in_schema=False)
-async def get_open_api_endpoint(user=Depends(verify_token)):
+async def get_open_api_endpoint():
     return get_openapi(
         title=app.title, 
         version="1.0.0", 
